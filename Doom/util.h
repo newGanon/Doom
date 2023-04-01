@@ -39,6 +39,8 @@ typedef struct v3u_s8 { i32 x, y, z; } v3u8;
 #define HFOV PI_2
 #define VFOV 0.5f   
 
+#define ZNEAR 0.0001f
+#define ZFAR 32768.0f
 
 #define SCREEN_FPS 500
 #define SCREEN_TICKS_PER_FRAME 1000 / SCREEN_FPS

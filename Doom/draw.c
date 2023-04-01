@@ -106,17 +106,43 @@ u32 changeRGBBrightness(u32 color, f32 factor) {
 }
 
 void draw3D(Player player, u32* pixels) {
-	v2 test1 = { 40 , 10};
-	v2 test2 = { 40 , 20};
+	v2 test1 = { 40 , 200 };
+	v2 test2 = { 40 , 10 };
 	f32 zceil = 10;
 	f32 zfloor = 0;
 
+	const v2
+		zdl = v2Rotate(((v2) { 0.0f, 1.0f }), +(HFOV / 2.0f)),
+		zdr = v2Rotate(((v2) { 0.0f, 1.0f }), -(HFOV / 2.0f)),
+		znl = (v2){ zdl.x * ZNEAR, zdl.y * ZNEAR },
+		znr = (v2){ zdr.x * ZNEAR, zdr.y * ZNEAR },
+		zfl = (v2){ zdl.x * ZFAR, zdl.y * ZFAR },
+		zfr = (v2){ zdr.x * ZFAR, zdr.y * ZFAR };
+
 	//world pos
-	v2 p1 = world_pos_to_camera(test1, player); ;
+	v2 p1 = world_pos_to_camera(test1, player); 
 	v2 p2 = world_pos_to_camera(test2, player);
 
-	f32 a1 = atan2(p1.y, p1.x) - PI/2;
-	f32 a2 = atan2(p2.y, p2.x) - PI/2;
+	f32 a1 = normalize_angle(atan2(p1.y, p1.x) - PI/2);
+	f32 a2 = normalize_angle(atan2(p2.y, p2.x) - PI/2);
+
+
+	if (p1.y < ZNEAR || p2.y < ZNEAR || a1 > +(HFOV / 2) || a2 < -(HFOV / 2)) {
+		v2 il;
+		i32 hitl = get_line_intersection(p1, p2, znl, zfl, &il);
+		v2 ir;
+		i32 hitr = get_line_intersection(p1, p2, znr, zfr, &ir);
+		if (hitl) {
+			p1 = il;
+			a1 = normalize_angle(atan2(p1.y, p1.x) - PI / 2);
+		}
+		if (hitr) {
+			p2 = ir;
+			a2 = normalize_angle(atan2(p2.y, p2.x) - PI / 2);
+		}
+	}
+	if (a1 < a2) return;
+	if (a2 < -(HFOV / 2) - 0.0001f || a1 > +(HFOV / 2) + 0.0001f) return;
 
 	f32 x1 = screen_angle_to_x(a1);
 	f32 x2 = screen_angle_to_x(a2);
@@ -129,10 +155,10 @@ void draw3D(Player player, u32* pixels) {
 	i32 yc0 = (SCREEN_HEIGHT / 2) + (i32)((zceil + EYEHEIGHT) * sy0);
 	i32 yc1 = (SCREEN_HEIGHT / 2) + (i32)((zceil + EYEHEIGHT) * sy1);
 
-	drawLine(SCREEN_WIDTH/2 - p1.x + 400, SCREEN_HEIGHT/2 - p1.y, SCREEN_WIDTH / 2 - p2.x + 400, SCREEN_HEIGHT / 2 - p2.y, RED, pixels);
-	drawPixel(SCREEN_WIDTH / 2 + 400, SCREEN_HEIGHT / 2, RED, pixels);
+	drawLine(SCREEN_WIDTH/2 - p1.x + 400, SCREEN_HEIGHT/2 - p1.y +200, SCREEN_WIDTH / 2 - p2.x + 400, SCREEN_HEIGHT / 2 - p2.y+ 200, RED, pixels);
+	drawPixel(SCREEN_WIDTH / 2 + 400, SCREEN_HEIGHT / 2+ 200, RED, pixels);
 
-	for (i32 x = x1; x < x2; x++) {
+	for (i32 x = x1; x > x2; x--) {
 		f32 xp = (x - x1) / (f32)(x2 - x1);
 
 		i32 yf = (i32)(xp * (yf1 - yf0)) + yf0;

@@ -51,9 +51,9 @@ typedef struct v3u_s8 { i32 x, y, z; } v3u8;
 #define YELLOW 0xFFe9fa34
 #define PURPLE 0xFFcd22f0
 #define BLACK 0xFF000000
-#define ORANGE 0xd19617
-#define LIGHTGRAY 0x757575
-#define DARKGRAY 0x424242
+#define ORANGE 0xFFd19617
+#define LIGHTGRAY 0xFF757575
+#define DARKGRAY 0xFF424242
 #define WHITE 0xFFFFFFFF
 
 typedef struct {

@@ -80,10 +80,10 @@ void update() {
 	v2 moveVec = { 0, 0 };
 	u8 move = 0;
 	if (keyboardstate[SDL_SCANCODE_A]) {
-		state.player.angle -= roationspeed;
+		state.player.angle += roationspeed;
 	}
 	if (keyboardstate[SDL_SCANCODE_D]) {
-		state.player.angle += roationspeed;
+		state.player.angle -= roationspeed;
 	}
 	state.player.anglecos = cos(state.player.angle);
 	state.player.anglesin = sin(state.player.angle);

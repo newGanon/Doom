@@ -29,9 +29,9 @@ v2 world_pos_to_camera(v2 pos, Player player) {
 
 //convert angle from -HFOV/2 - HFOV/2 to 0 - SCREEN_WIDTH -1 
 i32 screen_angle_to_x(f32 angle) {
-	if (angle > HFOV / 2) return SCREEN_WIDTH - 1;
-	else if (angle < -HFOV / 2) return 0;
-	return (i32)(((angle / HFOV) + 0.5f) * SCREEN_WIDTH);
+	if (angle > HFOV / 2) return 0;
+	else if (angle < -HFOV / 2) return SCREEN_WIDTH - 1;
+	return (i32)(fabs(((angle / HFOV) - 0.5f) * SCREEN_WIDTH));
 }
 
 void clip_line(v2* a, v2 b) {

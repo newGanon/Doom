@@ -22,13 +22,26 @@ typedef struct v2_s { f32 x, y; } v2;
 typedef struct v2i_s { i32 x, y; } v2i;
 typedef struct v2u_s8 { i32 x, y; } v2u8;
 
+typedef struct v3_s { f32 x, y, z; } v3;
+typedef struct v3i_s { i32 x, y, z; } v3i;
+typedef struct v3u_s8 { i32 x, y, z; } v3u8;
+
+#define PI 3.14159265359f
+#define PI_2 (PI / 2.0f)
+#define PI_4 (PI / 4.0f)
+
 #define SCREEN_WIDTH 1280	
 #define SCREEN_HEIGHT 720
+#define EYEHEIGHT 6
+#define SNEAKHEIGHT 2.5  
+#define HEADMARGIN 1   
+#define STEPHEIGHT 2    
+#define HFOV PI_2
+#define VFOV 0.5f   
+
 
 #define SCREEN_FPS 500
 #define SCREEN_TICKS_PER_FRAME 1000 / SCREEN_FPS
-
-#define PI 3.14159265359f
 
 #define RED 0xFFFF0000
 #define GREEN 0xFF00FF00
@@ -40,3 +53,14 @@ typedef struct v2u_s8 { i32 x, y; } v2u8;
 #define LIGHTGRAY 0x757575
 #define DARKGRAY 0x424242
 #define WHITE 0xFFFFFFFF
+
+typedef struct {
+	v3 pos, velocity;
+	f32 angle, anglecos, anglesin;
+	u32 sector;
+}Player;
+
+typedef struct sector {
+	f32 zfloor, zceil;
+};
+  

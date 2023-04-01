@@ -3,17 +3,12 @@
 #include "draw.h"
 #include "math.h"
 
-typedef struct {
-	v2 pos, dir, plane;
-}Player;
-
 struct {
 	SDL_Window* window;
 	SDL_Texture* texture;
 	SDL_Renderer* renderer;
 	i32 deltaTime;
 	u32 pixels[SCREEN_WIDTH * SCREEN_HEIGHT];
-	f32 zBuffer[SCREEN_WIDTH];
 	Texture textures[100];
 
 	u8 quit;
@@ -28,8 +23,6 @@ void update();
 void render();
 void close();
 void loadTextures(Texture* textures);
-void rotatePlayer(f32 rot, Player* player);
-
 
 
 int main(int argc, char* args[]) {
@@ -48,7 +41,7 @@ int main(int argc, char* args[]) {
 				close();
 				break;
 			case SDL_MOUSEMOTION:
-				rotatePlayer(e.motion.xrel * ((f32)state.deltaTime / 1000.0f) * 0.1f, &state.player);
+				//rotatePlayer(e.motion.xrel * ((f32)state.deltaTime / 1000.0f) * 0.1f, &state.player);
 				break;
 			}
 		}
@@ -67,6 +60,8 @@ void render() {
 	memset(state.pixels, 0, sizeof(state.pixels));
 	//SDL_RenderClear(state.renderer);
 
+	draw3D(state.player, &state.pixels);
+
 	/* draw crosshair */
 	/* drawCircle(SCREEN_WIDTH / 2, SCREEN_HEIGHT / 2, 10, 10, RED); */
 	fillRectangle(SCREEN_WIDTH / 2 - 8, SCREEN_HEIGHT / 2 - 1, SCREEN_WIDTH / 2 + 8, SCREEN_HEIGHT / 2 + 1, GREEN, &state.pixels);
@@ -80,21 +75,33 @@ void render() {
 
 void update() {
 
-	const f32 movespeed = 2.0f * ((f32)state.deltaTime / 1000.0f), roationspeed = 2.0f * ((f32)state.deltaTime / 1000.0f);
+	const f32 movespeed = 100.0f * ((f32)state.deltaTime / 1000.0f), roationspeed = 1.0f * ((f32)state.deltaTime / 1000.0f);
 	const u8* keyboardstate = SDL_GetKeyboardState(NULL);
 	v2 moveVec = { 0, 0 };
 	u8 move = 0;
-	if (keyboardstate[SDL_SCANCODE_W]) {
-
-	}
-	if (keyboardstate[SDL_SCANCODE_S]) {
-
-	}
 	if (keyboardstate[SDL_SCANCODE_A]) {
-
+		state.player.angle -= roationspeed;
 	}
 	if (keyboardstate[SDL_SCANCODE_D]) {
+		state.player.angle += roationspeed;
+	}
+	state.player.anglecos = cos(state.player.angle);
+	state.player.anglesin = sin(state.player.angle);
 
+
+	if (keyboardstate[SDL_SCANCODE_W]) {
+		state.player.pos = (v3){
+			state.player.pos.x + state.player.anglecos * movespeed,
+			state.player.pos.y + state.player.anglesin * movespeed,
+			state.player.pos.z
+		};
+	}
+	if (keyboardstate[SDL_SCANCODE_S]) {
+		state.player.pos = (v3){
+			state.player.pos.x - state.player.anglecos * movespeed,
+			state.player.pos.y - state.player.anglesin * movespeed,
+			state.player.pos.z
+		};
 	}
 }
 
@@ -134,9 +141,8 @@ void init() {
 
 	loadTextures(&state.textures);
 
-	state.player.pos = (v2){ 3.0f, 2.0f };
-	state.player.dir = v2Normalize((v2) { 1.0f, 0.0f });
-	state.player.plane = (v2){ 0.0f, 1.0f };
+	state.player.pos = (v3){ 3.0f, 2.0f, 0.0f};
+	state.player.sector = 1;
 }
 
 void close() {
@@ -167,9 +173,4 @@ void loadTextures(Texture* textures) {
 			SDL_GetError());
 		state.textures[i] = (Texture){ (u32*)bmpTex->pixels, bmpTex->w, bmpTex->h };
 	}
-}
-
-void rotatePlayer(f32 rot, Player* player) {
-	player->dir = v2Rotate(player->dir, rot);
-	player->plane = v2Rotate(player->plane, rot);
 }

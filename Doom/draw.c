@@ -1,5 +1,4 @@
 #include <math.h>
-
 #include "draw.h"
 #include "math.h"
 
@@ -23,9 +22,9 @@ void drawVerticalLine(i32 x, i32 y0, i32 y1, u32 color, u32* pixels) {
 
 /* Bresenham's line algorithm */
 void drawLine(i32 x0, i32 y0, i32 x1, i32 y1, u32 color, u32* pixels) {
-	int dx = abs(x1 - x0), sx = x0 < x1 ? 1 : -1;
-	int dy = abs(y1 - y0), sy = y0 < y1 ? 1 : -1;
-	int err = (dx > dy ? dx : -dy) / 2, e2;
+	i32 dx = abs(x1 - x0), sx = x0 < x1 ? 1 : -1;
+	i32 dy = abs(y1 - y0), sy = y0 < y1 ? 1 : -1;
+	i32 err = (dx > dy ? dx : -dy) / 2, e2;
 
 	for (;;) {
 		drawPixel(x0, y0, color, pixels);
@@ -104,4 +103,42 @@ u32 changeRGBBrightness(u32 color, f32 factor) {
 	i32 g = (color & 0x0000FF00) >> 8;
 	i32 b = color & 0x000000FF;
 	return a | (i32)(r / factor) << 16 | (i32)(g / factor) << 8 | (i32)(b / factor);
+}
+
+void draw3D(Player player, u32* pixels) {
+	v2 test1 = { 40 , 10};
+	v2 test2 = { 40 , 20};
+	f32 zceil = 10;
+	f32 zfloor = 0;
+
+	//world pos
+	v2 p1 = world_pos_to_camera(test1, player); ;
+	v2 p2 = world_pos_to_camera(test2, player);
+
+	f32 a1 = atan2(p1.y, p1.x) - PI/2;
+	f32 a2 = atan2(p2.y, p2.x) - PI/2;
+
+	f32 x1 = screen_angle_to_x(a1);
+	f32 x2 = screen_angle_to_x(a2);
+
+	f32 sy0 = (VFOV * SCREEN_HEIGHT) / p1.y;
+	f32 sy1 = (VFOV * SCREEN_HEIGHT) / p2.y;
+
+	i32 yf0 = (SCREEN_HEIGHT / 2) + (i32)((zfloor + EYEHEIGHT) * sy0);
+	i32 yf1 = (SCREEN_HEIGHT / 2) + (i32)((zfloor + EYEHEIGHT) * sy1);
+	i32 yc0 = (SCREEN_HEIGHT / 2) + (i32)((zceil + EYEHEIGHT) * sy0);
+	i32 yc1 = (SCREEN_HEIGHT / 2) + (i32)((zceil + EYEHEIGHT) * sy1);
+
+	drawLine(SCREEN_WIDTH/2 - p1.x + 400, SCREEN_HEIGHT/2 - p1.y, SCREEN_WIDTH / 2 - p2.x + 400, SCREEN_HEIGHT / 2 - p2.y, RED, pixels);
+	drawPixel(SCREEN_WIDTH / 2 + 400, SCREEN_HEIGHT / 2, RED, pixels);
+
+	for (i32 x = x1; x < x2; x++) {
+		f32 xp = (x - x1) / (f32)(x2 - x1);
+
+		i32 yf = (i32)(xp * (yf1 - yf0)) + yf0;
+		yf = clamp(yf, 0, SCREEN_HEIGHT - 1);
+		i32 yc = (i32)(xp * (yc1 - yc0)) + yc0;
+		yc = SCREEN_HEIGHT - clamp(yc, 0, SCREEN_HEIGHT - 1);
+		drawVerticalLine(x, yf, yc, RED, pixels);
+	}
 }

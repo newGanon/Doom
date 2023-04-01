@@ -19,6 +19,21 @@ i32 get_line_intersection(v2 p0, v2 p1, v2 p2, v2 p3, v2* i) {
 	return 0;
 }
 
+v2 world_pos_to_camera(v2 pos, Player player) {
+	const v2 u = { pos.x - player.pos.x, pos.y - player.pos.y};
+	return (v2) {
+		u.x * player.anglesin - u.y * player.anglecos,
+		u.x * player.anglecos + u.y * player.anglesin
+	};
+}
+
+/* convert angle from -HFOV/2 - HFOV/2 to 0 - SCREEN_WIDTH -1 */
+i32 screen_angle_to_x(f32 angle) {
+	if (angle > HFOV / 2) return SCREEN_WIDTH - 1;
+	else if (angle < -HFOV / 2) return 0;
+	return (i32)(((angle / HFOV) + 0.5f) * SCREEN_WIDTH);
+}
+
 v2 v2Normalize(v2 a) {
 	f32 l = v2Len(a);
 	return l != 0 ? (v2) { a.x / l, a.y / l } : (v2) { 0, 0 };
@@ -46,4 +61,9 @@ f32 v2Len(v2 a) {
 
 v2 v2Mul(v2 a, f32 b) {
 	return (v2) { a.x* b, a.y* b };
+}
+
+f32 clamp(f32 d, f32 min, f32 max) {
+	const f32 t = d < min ? min : d;
+	return t > max ? max : t;
 }

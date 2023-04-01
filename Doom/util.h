@@ -62,7 +62,19 @@ typedef struct {
 	u32 sector;
 }Player;
 
-typedef struct sector {
+typedef struct Sector {
+	i32 id, index, numWalls;
 	f32 zfloor, zceil;
-};
-  
+}Sector;
+
+typedef struct Wall {
+	v2 a, b;
+	u8 portal;
+}Wall;
+
+typedef struct Map {
+	Wall walls[256];
+	u8 wallnum;
+	Sector sectors[64];
+	u8 sectornum;
+} Map;

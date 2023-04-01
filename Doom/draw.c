@@ -105,64 +105,84 @@ u32 changeRGBBrightness(u32 color, f32 factor) {
 	return a | (i32)(r / factor) << 16 | (i32)(g / factor) << 8 | (i32)(b / factor);
 }
 
-void draw3D(Player player, u32* pixels) {
-	v2 test1 = { 40 , 100 };
-	v2 test2 = { 40 , 10};
-	f32 zceil = 10;
-	f32 zfloor = 0;
+void draw3D(Player player, Map map, u32* pixels) {
 
-	v2  zdl = v2Rotate(((v2) { 0.0f, 1.0f }), +(HFOV / 2.0f)),
-		zdr = v2Rotate(((v2) { 0.0f, 1.0f }), -(HFOV / 2.0f)),
-		znl = (v2){ zdl.x * ZNEAR, zdl.y * ZNEAR },
-		znr = (v2){ zdr.x * ZNEAR, zdr.y * ZNEAR },
-		zfl = (v2){ zdl.x * ZFAR, zdl.y * ZFAR },
-		zfr = (v2){ zdr.x * ZFAR, zdr.y * ZFAR };
+	struct { v2 a[100]; v2 b[100]; u8 num; } miniMap;
+	miniMap.num = 0;
 
-	//world pos
-	v2 p1 = world_pos_to_camera(test1, player); 
-	v2 p2 = world_pos_to_camera(test2, player);
+	//TODO: draw sectors behind portals
 
-	f32 a1 = normalize_angle(atan2(p1.y, p1.x) - PI/2);
-	f32 a2 = normalize_angle(atan2(p2.y, p2.x) - PI/2);
+	Sector sec = map.sectors[player.sector - 1];
+	for (i32 i = sec.index; i < (sec.index + sec.numWalls); i++) {
+
+		v2  zdl = v2Rotate(((v2) { 0.0f, 1.0f }), +(HFOV / 2.0f)),
+			zdr = v2Rotate(((v2) { 0.0f, 1.0f }), -(HFOV / 2.0f)),
+			znl = (v2){ zdl.x * ZNEAR, zdl.y * ZNEAR },
+			znr = (v2){ zdr.x * ZNEAR, zdr.y * ZNEAR },
+			zfl = (v2){ zdl.x * ZFAR, zdl.y * ZFAR },
+			zfr = (v2){ zdr.x * ZFAR, zdr.y * ZFAR };
+
+		//world pos
+		v2 p1 = world_pos_to_camera(v2Mul(map.walls[i].a, 10), player);
+		v2 p2 = world_pos_to_camera(v2Mul(map.walls[i].b, 10), player);
+
+		f32 a1 = normalize_angle(atan2(p1.y, p1.x) - PI / 2);
+		f32 a2 = normalize_angle(atan2(p2.y, p2.x) - PI / 2);
 
 
-	if (p1.y < ZNEAR || p2.y < ZNEAR || a1 > +(HFOV / 2) || a2 < -(HFOV / 2)) {
-		v2 il;
-		i32 hitl = get_line_intersection(p1, p2, znl, zfl, &il);
-		v2 ir;
-		i32 hitr = get_line_intersection(p1, p2, znr, zfr, &ir);
-		if (hitl) {
-			p1 = il;
-			a1 = normalize_angle(atan2(p1.y, p1.x) - PI / 2);
+		if (p1.y < ZNEAR || p2.y < ZNEAR || a1 > +(HFOV / 2) || a2 < -(HFOV / 2)) {
+			v2 il;
+			i32 hitl = get_line_intersection(p1, p2, znl, zfl, &il);
+			v2 ir;
+			i32 hitr = get_line_intersection(p1, p2, znr, zfr, &ir);
+			if (hitl) {
+				p1 = il;
+				a1 = normalize_angle(atan2(p1.y, p1.x) - PI / 2);
+			}
+			if (hitr) {
+				p2 = ir;
+				a2 = normalize_angle(atan2(p2.y, p2.x) - PI / 2);
+			}
 		}
-		if (hitr) {
-			p2 = ir;
-			a2 = normalize_angle(atan2(p2.y, p2.x) - PI / 2);
+		if (a1 < a2 || a2 < -(HFOV / 2) - 0.0001f || a1 > +(HFOV / 2) + 0.0001f) continue;
+
+		f32 x1 = screen_angle_to_x(a1);
+		f32 x2 = screen_angle_to_x(a2);
+
+		f32 sy0 = (VFOV * SCREEN_HEIGHT) / p1.y;
+		f32 sy1 = (VFOV * SCREEN_HEIGHT) / p2.y;
+
+		i32 yf0 = (SCREEN_HEIGHT / 2) + (i32)((sec.zfloor - EYEHEIGHT) * sy0);
+		i32 yf1 = (SCREEN_HEIGHT / 2) + (i32)((sec.zfloor - EYEHEIGHT) * sy1);
+		i32 yc0 = (SCREEN_HEIGHT / 2) + (i32)((sec.zceil - EYEHEIGHT) * sy0);
+		i32 yc1 = (SCREEN_HEIGHT / 2) + (i32)((sec.zceil - EYEHEIGHT) * sy1);
+
+		u32 color = (map.walls[i].portal) ? BLUE : RED;
+
+		for (i32 x = x1; x < x2; x++) {
+			f32 xp = (x - x1) / (f32)(x2 - x1);
+
+			i32 yf = (i32)(xp * (yf1 - yf0)) + yf0;
+			yf = clamp(yf, 0, SCREEN_HEIGHT - 1);
+			i32 yc = (i32)(xp * (yc1 - yc0)) + yc0;
+			yc = clamp(yc, 0, SCREEN_HEIGHT - 1);
+
+			/*bottom*/
+			drawVerticalLine(x, 0, yf, ORANGE, pixels);
+			/*Wall or Portal*/
+			drawVerticalLine(x, yf, yc, color, pixels);
+			/*top*/
+			drawVerticalLine(x, yc, SCREEN_HEIGHT, PURPLE, pixels);
 		}
-	}
-	if (a1 < a2 || a2 < -(HFOV / 2) - 0.0001f || a1 > +(HFOV / 2) + 0.0001f) return;
 
-	f32 x1 = screen_angle_to_x(a1);
-	f32 x2 = screen_angle_to_x(a2);
-
-	f32 sy0 = (VFOV * SCREEN_HEIGHT) / p1.y;
-	f32 sy1 = (VFOV * SCREEN_HEIGHT) / p2.y;
-
-	i32 yf0 = (SCREEN_HEIGHT / 2) + (i32)((zfloor + EYEHEIGHT) * sy0);
-	i32 yf1 = (SCREEN_HEIGHT / 2) + (i32)((zfloor + EYEHEIGHT) * sy1);
-	i32 yc0 = (SCREEN_HEIGHT / 2) + (i32)((zceil + EYEHEIGHT) * sy0);
-	i32 yc1 = (SCREEN_HEIGHT / 2) + (i32)((zceil + EYEHEIGHT) * sy1);
-
-	for (i32 x = x1; x < x2; x++) {
-		f32 xp = (x - x1) / (f32)(x2 - x1);
-
-		i32 yf = (i32)(xp * (yf1 - yf0)) + yf0;
-		yf = clamp(yf, 0, SCREEN_HEIGHT - 1);
-		i32 yc = (i32)(xp * (yc1 - yc0)) + yc0;
-		yc = SCREEN_HEIGHT - clamp(yc, 0, SCREEN_HEIGHT - 1);
-		drawVerticalLine(x, yf, yc, RED, pixels);
+		miniMap.a[miniMap.num] = p1;
+		miniMap.b[miniMap.num] = p2;
+		miniMap.num++;
 	}
 
-	drawLine(SCREEN_WIDTH / 2 + p1.x + 400, SCREEN_HEIGHT / 2 - p1.y + 200, SCREEN_WIDTH / 2 + p2.x + 400, SCREEN_HEIGHT / 2 - p2.y + 200, WHITE, pixels);
-	drawPixel(SCREEN_WIDTH / 2 + 400, SCREEN_HEIGHT / 2 + 200, WHITE, pixels);
+	drawPixel(SCREEN_WIDTH / 2 - 400, SCREEN_HEIGHT / 2 - 200, WHITE, pixels);
+
+	for (i32 i = 0; i < miniMap.num; i++) {
+		drawLine(SCREEN_WIDTH / 2 - 400 + miniMap.a[i].x, SCREEN_HEIGHT / 2 - 200 - miniMap.a[i].y, SCREEN_WIDTH / 2 - 400 + miniMap.b[i].x, SCREEN_HEIGHT / 2 - 200 - miniMap.b[i].y, WHITE, pixels);
+	}
 }

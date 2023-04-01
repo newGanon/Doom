@@ -3,6 +3,8 @@
 #include "draw.h"
 #include "math.h"
 
+#include <ctype.h>
+
 struct {
 	SDL_Window* window;
 	SDL_Texture* texture;
@@ -10,6 +12,8 @@ struct {
 	i32 deltaTime;
 	u32 pixels[SCREEN_WIDTH * SCREEN_HEIGHT];
 	Texture textures[100];
+
+	Map map;
 
 	u8 quit;
 
@@ -23,6 +27,7 @@ void update();
 void render();
 void close();
 void loadTextures(Texture* textures);
+void loadLevel();
 
 
 int main(int argc, char* args[]) {
@@ -60,7 +65,7 @@ void render() {
 	memset(state.pixels, 0, sizeof(state.pixels));
 	//SDL_RenderClear(state.renderer);
 
-	draw3D(state.player, &state.pixels);
+	draw3D(state.player, state.map, &state.pixels);
 
 	/* draw crosshair */
 	/* drawCircle(SCREEN_WIDTH / 2, SCREEN_HEIGHT / 2, 10, 10, RED); */
@@ -75,7 +80,7 @@ void render() {
 
 void update() {
 
-	const f32 movespeed = 100.0f * ((f32)state.deltaTime / 1000.0f), roationspeed = 1.0f * ((f32)state.deltaTime / 1000.0f);
+	const f32 movespeed = 10.0f * ((f32)state.deltaTime / 1000.0f), roationspeed = 1.0f * ((f32)state.deltaTime / 1000.0f);
 	const u8* keyboardstate = SDL_GetKeyboardState(NULL);
 	v2 moveVec = { 0, 0 };
 	u8 move = 0;
@@ -103,6 +108,7 @@ void update() {
 			state.player.pos.z
 		};
 	}
+	//TODO: check if which sector the player is in
 }
 
 
@@ -141,7 +147,9 @@ void init() {
 
 	loadTextures(&state.textures);
 
-	state.player.pos = (v3){ 3.0f, 2.0f, 0.0f};
+	loadLevel();
+
+	state.player.pos = (v3){ 20.0f, 20.0f, 0.0f};
 	state.player.sector = 1;
 }
 
@@ -173,4 +181,43 @@ void loadTextures(Texture* textures) {
 			SDL_GetError());
 		state.textures[i] = (Texture){ (u32*)bmpTex->pixels, bmpTex->w, bmpTex->h };
 	}
+}
+
+void loadLevel() {
+	FILE* fp = NULL;
+	fopen_s(&fp,"level.txt", "r");
+	ASSERT(fp, "error opening leveldata file");
+	enum {SECTOR, WALL, NONE} sm = NONE;
+	u8 done = 0;
+
+	char line[1024];
+	while (fgets(line, sizeof(line), fp) || !done) {
+		char*  p = line;
+		while (isspace(*p)) { p++; }
+		if (!*p || *p == '#') continue;
+		if (*p == '{') {
+			p++;
+			if (*p == 'S') { sm = SECTOR; continue; }
+			if (*p == 'W') { sm = WALL; continue; }
+			if (*p == 'E')  sm = NONE;
+		}
+		switch (sm) {
+		case SECTOR: {
+			Sector* sector = &state.map.sectors[state.map.sectornum++];
+			sscanf_s(p, "%d %d %d %f %f", &sector->id, &sector->index, &sector->numWalls, &sector->zfloor, &sector->zceil);
+		}
+			break;
+		case WALL: {
+			Wall* wall = &state.map.walls[state.map.wallnum++];
+			sscanf_s(p, "%f %f %f %f %d", &wall->a.x, &wall->a.y, &wall->b.x, &wall->b.y, &wall->portal);
+		}
+			break;
+		case NONE:
+			done = 1;
+			break;
+		}
+
+		
+	}
+	fclose(fp);
 }

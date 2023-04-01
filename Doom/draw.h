@@ -14,7 +14,6 @@ void drawSquare(i32 x0, i32 y0, u32 size, u32 color, u32* pixels);
 void fillSquare(i32 x0, i32 y0, u32 size, u32 color, u32* pixels);
 void fillRectangle(i32 x0, i32 y0, i32 x1, i32 y1, u32 color, u32* pixels);
 void drawCircle(i32 x0, i32 y0, i32 a, i32 b, u32 color, u32* pixels);
-void draw3D(Player player, u32* pixels);
-void drawWall(i32 x1, i32 x2, i32 b1, i32 b2, i32 t1, i32 t2, u32 color, u32* pixels);
+void draw3D(Player player, Map map, u32* pixels);
 
 u32 changeRGBBrightness(u32 color, f32 factor);

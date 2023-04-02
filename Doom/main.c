@@ -92,6 +92,8 @@ void update() {
 	state.player.anglecos = cos(state.player.angle);
 	state.player.anglesin = sin(state.player.angle);
 
+	//TODO: wall collsion checks
+
 	v3 oldPos = state.player.pos;
 	u8 moved = 0;
 
@@ -111,8 +113,6 @@ void update() {
 		};
 		moved = 1;
 	}
-
-	//TODO: check if which sector the player is in
 
 	if (moved) {
 		Sector curSec = state.map.sectors[state.player.sector - 1];

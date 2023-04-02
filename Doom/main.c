@@ -21,7 +21,6 @@ struct {
 } state;
 
 
-
 void init();
 void update();
 void render();
@@ -93,6 +92,8 @@ void update() {
 	state.player.anglecos = cos(state.player.angle);
 	state.player.anglesin = sin(state.player.angle);
 
+	v3 oldPos = state.player.pos;
+	u8 moved = 0;
 
 	if (keyboardstate[SDL_SCANCODE_W]) {
 		state.player.pos = (v3){
@@ -100,6 +101,7 @@ void update() {
 			state.player.pos.y + state.player.anglesin * movespeed,
 			state.player.pos.z
 		};
+		moved = 1;
 	}
 	if (keyboardstate[SDL_SCANCODE_S]) {
 		state.player.pos = (v3){
@@ -107,8 +109,24 @@ void update() {
 			state.player.pos.y - state.player.anglesin * movespeed,
 			state.player.pos.z
 		};
+		moved = 1;
 	}
+
 	//TODO: check if which sector the player is in
+
+	if (moved) {
+		Sector curSec = state.map.sectors[state.player.sector - 1];
+		for (i32 i = curSec.index; i < curSec.index + curSec.numWalls; i++) {
+			Wall curwall = state.map.walls[i];
+			if (curwall.portal > 0 &&
+				BOXINTERSECT2D(oldPos.x, oldPos.y, state.player.pos.x, state.player.pos.y, curwall.a.x, curwall.a.y, curwall.b.x, curwall.b.y) && 
+				POINTSIDE2D(state.player.pos.x, state.player.pos.y, curwall.a.x, curwall.a.y, curwall.b.x, curwall.b.y) > 0)) {
+				state.player.sector = curwall.portal;
+				state.player.pos.z = EYEHEIGHT + state.map.sectors[state.player.sector - 1].zfloor;
+				break;
+			}
+		}
+	}
 }
 
 
@@ -151,6 +169,7 @@ void init() {
 
 	state.player.pos = (v3){ 20.0f, 20.0f, 0.0f};
 	state.player.sector = 1;
+	state.player.pos.z = EYEHEIGHT + state.map.sectors[state.player.sector - 1].zfloor;
 }
 
 void close() {
@@ -191,7 +210,7 @@ void loadLevel() {
 	u8 done = 0;
 
 	char line[1024];
-	while (fgets(line, sizeof(line), fp) || !done) {
+	while (fgets(line, sizeof(line), fp) && !done) {
 		char*  p = line;
 		while (isspace(*p)) { p++; }
 		if (!*p || *p == '#') continue;
@@ -216,8 +235,6 @@ void loadLevel() {
 			done = 1;
 			break;
 		}
-
-		
 	}
 	fclose(fp);
 }

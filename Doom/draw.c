@@ -16,7 +16,7 @@ void drawVerticalLine(i32 x, i32 y0, i32 y1, u32 color, u32* pixels) {
 		y1 = temp;
 	}
 	for (i32 y = y0; y <= y1; y++) {
-		drawPixel(x, y, color, pixels);
+		drawPixel(x, SCREEN_HEIGHT - y, color, pixels);
 	}
 }
 
@@ -110,6 +110,14 @@ void draw3D(Player player, Map map, u32* pixels) {
 	struct { v2 a[100]; v2 b[100]; u8 num; } miniMap;
 	miniMap.num = 0;
 
+	u16 ceilingclip[SCREEN_WIDTH];
+	u16 floorclip[SCREEN_WIDTH];
+
+	for (int i = 0; i < SCREEN_WIDTH; i++) {
+		ceilingclip[i] = SCREEN_HEIGHT - 1;
+		floorclip[i] = 0;
+	}
+
 	//TODO: draw sectors behind portals
 
 	Sector sec = map.sectors[player.sector - 1];
@@ -123,8 +131,8 @@ void draw3D(Player player, Map map, u32* pixels) {
 			zfr = (v2){ zdr.x * ZFAR, zdr.y * ZFAR };
 
 		//world pos
-		v2 p1 = world_pos_to_camera(v2Mul(map.walls[i].a, 10), player);
-		v2 p2 = world_pos_to_camera(v2Mul(map.walls[i].b, 10), player);
+		v2 p1 = world_pos_to_camera(v2Mul(map.walls[i].a, 1.0f), player);
+		v2 p2 = world_pos_to_camera(v2Mul(map.walls[i].b, 1.0f), player);
 
 		f32 a1 = normalize_angle(atan2(p1.y, p1.x) - PI / 2);
 		f32 a2 = normalize_angle(atan2(p2.y, p2.x) - PI / 2);
@@ -149,13 +157,26 @@ void draw3D(Player player, Map map, u32* pixels) {
 		f32 x1 = screen_angle_to_x(a1);
 		f32 x2 = screen_angle_to_x(a2);
 
+		i32 nzfloor = 0;
+		i32 nzceil = 0;
+
+		if (map.walls[i].portal != 0) {
+			nzfloor = map.sectors[map.walls[i].portal - 1].zfloor;
+			nzceil = map.sectors[map.walls[i].portal - 1].zceil;
+		}
+
 		f32 sy0 = (VFOV * SCREEN_HEIGHT) / p1.y;
 		f32 sy1 = (VFOV * SCREEN_HEIGHT) / p2.y;
 
-		i32 yf0 = (SCREEN_HEIGHT / 2) + (i32)((sec.zfloor - EYEHEIGHT) * sy0);
-		i32 yf1 = (SCREEN_HEIGHT / 2) + (i32)((sec.zfloor - EYEHEIGHT) * sy1);
-		i32 yc0 = (SCREEN_HEIGHT / 2) + (i32)((sec.zceil - EYEHEIGHT) * sy0);
-		i32 yc1 = (SCREEN_HEIGHT / 2) + (i32)((sec.zceil - EYEHEIGHT) * sy1);
+		i32 yf0 = (SCREEN_HEIGHT / 2) + (i32)((sec.zfloor - player.pos.z) * sy0);
+		i32 yf1 = (SCREEN_HEIGHT / 2) + (i32)((sec.zfloor - player.pos.z) * sy1);
+		i32 yc0 = (SCREEN_HEIGHT / 2) + (i32)((sec.zceil - player.pos.z) * sy0);
+		i32 yc1 = (SCREEN_HEIGHT / 2) + (i32)((sec.zceil - player.pos.z) * sy1);
+		i32 pf0 = (SCREEN_HEIGHT / 2) + (i32)((nzfloor - player.pos.z) * sy0);
+		i32 pf1 = (SCREEN_HEIGHT / 2) + (i32)((nzfloor - player.pos.z) * sy1);
+		i32 pc0 = (SCREEN_HEIGHT / 2) + (i32)((nzceil - player.pos.z) * sy0);
+		i32 pc1 = (SCREEN_HEIGHT / 2) + (i32)((nzceil - player.pos.z) * sy1);
+
 
 		u32 color = (map.walls[i].portal) ? BLUE : RED;
 
@@ -163,16 +184,36 @@ void draw3D(Player player, Map map, u32* pixels) {
 			f32 xp = (x - x1) / (f32)(x2 - x1);
 
 			i32 yf = (i32)(xp * (yf1 - yf0)) + yf0;
-			yf = clamp(yf, 0, SCREEN_HEIGHT - 1);
+			yf = clamp(yf, floorclip[x], ceilingclip[x]);
 			i32 yc = (i32)(xp * (yc1 - yc0)) + yc0;
-			yc = clamp(yc, 0, SCREEN_HEIGHT - 1);
+			yc = clamp(yc, floorclip[x], ceilingclip[x]);
+
 
 			/*bottom*/
-			drawVerticalLine(x, 0, yf, ORANGE, pixels);
-			/*Wall or Portal*/
-			drawVerticalLine(x, yf, yc, color, pixels);
+			if (yf > floorclip[x]) { drawVerticalLine(x, floorclip[x], yf, ORANGE, pixels); }
 			/*top*/
-			drawVerticalLine(x, yc, SCREEN_HEIGHT, PURPLE, pixels);
+			if (yc < ceilingclip[x]) { drawVerticalLine(x, yc, ceilingclip[x], PURPLE, pixels); }
+			
+			//draw Wall
+			if (map.walls[i].portal == 0) { drawVerticalLine(x, yf, yc, color, pixels); }
+			//draw Portal
+			else {
+				i32 pyf = clamp((i32)(xp * (pf1 - pf0) + pf0), yf, yc);
+				i32 pyc = clamp((i32)(xp * (pc1 - pc0) + pc0), yf, yc);
+
+				//if neighborfloor is higher then draw it
+				if (pyf > yf) { drawVerticalLine(x, yf, pyf, YELLOW, pixels); }
+				//draw window
+				drawVerticalLine(x, pyf, pyc, color, pixels);
+				//if neighborceiling is lower then draw it
+				if(pyc < yc) { drawVerticalLine(x, pyc, yc, GREEN, pixels); }
+
+				//update vertical clipping arrays
+
+				ceilingclip[x] = clamp(pyc, 0, SCREEN_HEIGHT - 1);
+				floorclip[x] = clamp(pyf, 0, SCREEN_HEIGHT - 1);
+			}
+
 		}
 
 		miniMap.a[miniMap.num] = p1;

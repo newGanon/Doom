@@ -8,7 +8,7 @@
 #define MIN(a, b) (a < b ? a : b)
 #define MAX(a, b) (a < b ? b : a)
 #define VETORCROSSPROD2D(x0, x1, y0, y2) ((x0 * y1) - (y0 * x1))
-#define OVERLAP2D(a0, a1, b0, b1) (MIN(a0, a1) < MAX(b0, b1) && MIN(b0, b1) < MAX(a0, b0))
+#define OVERLAP2D(a0, a1, b0, b1) (MIN(a0, a1) <= MAX(b0, b1) && MIN(b0, b1) <= MAX(a0, b0))
 #define BOXINTERSECT2D(x0, y0, x1, y1, x2, y2, x3, y3) ((OVERLAP2D(x0, x1, x2, x3) && OVERLAP2D(y0, y1, y2, y3))
 #define POINTSIDE2D(px, py, x0, y0, x1, y1) ((x1 - x0) * (py - y0) - (y1 - y0) * (px - x0)) 
 
@@ -23,6 +23,8 @@ typedef int16_t  i16;
 typedef int32_t  i32;
 typedef int64_t  i64;
 typedef size_t   usize;
+
+static unsigned NumSectors = 0;
 
 typedef struct v2_s { f32 x, y; } v2;
 typedef struct v2i_s { i32 x, y; } v2i;
@@ -47,6 +49,8 @@ typedef struct v3u_s8 { i32 x, y, z; } v3u8;
 
 #define ZNEAR 0.0001f
 #define ZFAR 32768.0f
+
+#define SECTOR_MAX 256
 
 #define SCREEN_FPS 500
 #define SCREEN_TICKS_PER_FRAME 1000 / SCREEN_FPS

@@ -129,13 +129,12 @@ void update() {
 	}
 }
 
-
 void init() {
 	ASSERT(!SDL_Init(SDL_INIT_VIDEO),
 		"Error initializing SDL_Video %s\n",
 		SDL_GetError());
 
-	state.window = SDL_CreateWindow("RayCaster",
+	state.window = SDL_CreateWindow("Doom",
 		SDL_WINDOWPOS_CENTERED,
 		SDL_WINDOWPOS_CENTERED,
 		SCREEN_WIDTH,

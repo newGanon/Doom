@@ -166,7 +166,7 @@ void init() {
 
 	loadLevel();
 
-	state.player.pos = (v3){ 20.0f, 20.0f, 0.0f};
+	state.player.pos = (v3){ 15.0f, 15.0f, 0.0f};
 	state.player.sector = 1;
 	state.player.pos.z = EYEHEIGHT + state.map.sectors[state.player.sector - 1].zfloor;
 }

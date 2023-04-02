@@ -136,16 +136,12 @@ void draw3D(Player player, Map map, u32* pixels) {
 		const struct item now = *tail;
 		if (++tail == queue + MaxQueue) tail = queue;
 
-		if (renderedSectors[now.sectorno - 1] == 1) continue;
-
-		++renderedSectors[now.sectorno - 1];
-
 		Sector sec = map.sectors[now.sectorno - 1];
 		for (i32 i = sec.index; i < (sec.index + sec.numWalls); i++) {
 
 			//world pos
-			p1 = world_pos_to_camera(v2Mul(map.walls[i].a, 1.0f), player);
-			p2 = world_pos_to_camera(v2Mul(map.walls[i].b, 1.0f), player);
+			p1 = world_pos_to_camera(map.walls[i].a, player);
+			p2 = world_pos_to_camera(map.walls[i].b, player);
 
 			f32 a1 = normalize_angle(atan2(p1.y, p1.x) - PI / 2);
 			f32 a2 = normalize_angle(atan2(p2.y, p2.x) - PI / 2);
@@ -168,8 +164,15 @@ void draw3D(Player player, Map map, u32* pixels) {
 			if (a1 < a2 || a2 < -(HFOV / 2) - 0.0001f || a1 > +(HFOV / 2) + 0.0001f) continue;
 
 			//convert the angle of the wall into screen coordinates (player FOV is 90 degrees or 1/2 PI)
-			f32 x1 = clamp(screen_angle_to_x(a1), now.sx1, now.sx2);
-			f32 x2 = clamp(screen_angle_to_x(a2), now.sx1, now.sx2);
+			f32 tx1 = screen_angle_to_x(a1);
+			f32 tx2 = screen_angle_to_x(a2);
+
+			if (tx1 > now.sx2) continue;
+			if (tx2 < now.sx1) continue;
+
+			f32 x1 = clamp(tx1, now.sx1, now.sx2);
+			f32 x2 = clamp(tx2, now.sx1, now.sx2);
+
 
 			//get floor and ceiling height of sector behind wall if wall is a portal
 			i32 nzfloor = 0;
@@ -199,11 +202,7 @@ void draw3D(Player player, Map map, u32* pixels) {
 
 			for (i32 x = x1; x < x2; x++) {
 				//calculate x stepsize
-				f32 xp = (x - x1) / (f32)(x2 - x1);
-
-				if (map.walls[i].portal != 0) {
-					i32 d = 32;
-				}
+				f32 xp = (x - tx1) / (f32)(tx2 - tx1);
 
 				//get top and bottom coordinates of the wall
 				i32 yf = clamp((i32)(xp * (yf1 - yf0)) + yf0, floorclip[x], ceilingclip[x]);
@@ -214,8 +213,11 @@ void draw3D(Player player, Map map, u32* pixels) {
 				//draw ceiling
 				if (yc < ceilingclip[x]) { drawVerticalLine(x, yc, ceilingclip[x], PURPLE, pixels); }
 
+
+				f32 wallshade = calcShade(map.walls[i].a, map.walls[i].b);
 				//draw Wall
-				if (map.walls[i].portal == 0) { drawVerticalLine(x, yf, yc, color, pixels); }
+				if (map.walls[i].portal == 0) {
+					drawVerticalLine(x, yf, yc, changeRGBBrightness(color, wallshade), pixels); }
 				//draw Portal
 				else {
 					//get top and bottom coordinates of the portal
@@ -223,21 +225,28 @@ void draw3D(Player player, Map map, u32* pixels) {
 					i32 pyc = clamp((i32)(xp * (pc1 - pc0)) + pc0, yf, yc);
 
 					//if neighborfloor is higher than current sectorceiling then draw it
-					if (pyf > yf) { drawVerticalLine(x, yf, pyf, YELLOW, pixels); }
+					if (pyf > yf) { drawVerticalLine(x, yf, pyf, changeRGBBrightness(YELLOW, wallshade), pixels); }
 					//draw window
 					//drawVerticalLine(x, pyf, pyc, color, pixels);
 					//if neighborceiling is lower than current sectorceiling then draw it
-					if (pyc < yc) { drawVerticalLine(x, pyc, yc, GREEN, pixels); }
+					if (pyc < yc) { drawVerticalLine(x, pyc, yc, changeRGBBrightness(GREEN, wallshade), pixels); }
 
 					//update vertical clipping arrays
 					ceilingclip[x] = clamp(pyc, 0, SCREEN_HEIGHT - 1);
 					floorclip[x] = clamp(pyf, 0, SCREEN_HEIGHT - 1);
 				}
 			}
-			if (map.walls[i].portal) {
+			if (map.walls[i].portal && !renderedSectors[now.sectorno - 1] && (head + MaxQueue + 1 - tail) % MaxQueue) {
 				*head = (struct item){ map.walls[i].portal, x1, x2 };
 				if (++head == queue + MaxQueue) head = queue;
 			}
 		}
+		++renderedSectors[now.sectorno - 1];
 	}
+}
+
+
+f32 calcShade(v2 start, v2 end) {
+	v2 difNorm = v2Normalize(v2Sub(end, start));
+	return (f32)1 + (fabsf(difNorm.x));
 }

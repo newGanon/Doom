@@ -17,3 +17,4 @@ void drawCircle(i32 x0, i32 y0, i32 a, i32 b, u32 color, u32* pixels);
 void draw3D(Player player, Map map, u32* pixels);
 
 u32 changeRGBBrightness(u32 color, f32 factor);
+f32 calcShade(v2 start, v2 end);

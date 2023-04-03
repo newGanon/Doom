@@ -226,14 +226,21 @@ void draw3D(Player player, Map* map, u32* pixels, Texture* tex) {
 					v2 difp2 = v2Sub(p2, tp2);
 					f32 twlen = v2Len(v2Sub(tp1, tp2));
 					v2 cutoff = {fabsf(v2Len(difp1) / twlen), fabsf(v2Len(difp2)/ twlen)};
-					f32 z0 = v2Len(tp1);
-					f32 z1 = v2Len(tp2);
 					//variables used in wikipedia equation for texture mapping https://en.wikipedia.org/wiki/Texture_mapping
-					//affine texture mapping: (1-a) * u0 + a*u1
-					//perspective correct texture mapping: ((1-a) * u0/z0 + a*(u1/z1)) / ((1-a) * 1/u0 + a*u1)
-					// 
-					//texLine(x, yf, yc, tyf, tyc, ((1.0f - xp) * ( cutoff.x)) + (1.0f - cutoff.y) * xp, tex, pixels); //wall with affine mapped texture
-					texLine(x, yf, yc, tyf, tyc, ((1.0f-xp) * (cutoff.x/ p1.y) + xp * ((1.0f - cutoff.y)/ p2.y)) / ((1.0f - xp) * (1.0f / p1.y) + xp * (1.0f / p2.y)), tex, pixels);
+					//affine texture mapping: (1.0f-a) * u0 + a*u1
+					//perspective correct texture mapping: ((1.0f-a) * u0/z0 + a*(u1/z1)) / ((1.0f-a) * 1/z0 + a*(1.0f/z1))
+					
+					//a: x part where we currently are on the wall [0...1]
+					f32 a = xp;
+					//u0: how much of the left part of the wall is cut off
+					f32 u0 = cutoff.x;
+					//u1: how much of the right part of the wall is cut off 
+					f32 u1 = 1.0f - cutoff.y;
+					//z0: how far away the left wallpoint is from the player
+					f32 z0 = p1.y;
+					//z1: how far away the right wallpoint ist from the player
+					f32 z1 = p2.y;
+					texLine(x, yf, yc, tyf, tyc, ((1.0f-a) * (u0/z0) + a *(u1/z1)) / ((1.0f - a) * 1/z0 + a*(1.0f / z1)), tex, pixels);
 				}
 				
 				//draw Portal

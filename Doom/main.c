@@ -44,8 +44,11 @@ int main(int argc, char* args[]) {
 			case SDL_QUIT:
 				close();
 				break;
-			case SDL_MOUSEMOTION:
-				//rotatePlayer(e.motion.xrel * ((f32)state.deltaTime / 1000.0f) * 0.1f, &state.player);
+			case SDL_MOUSEMOTION: {
+				f32 rotaionspeed = 0.1f * ((f32)state.deltaTime / 1000.0f);
+				state.player.angle -= e.motion.xrel * rotaionspeed; 
+				state.player.anglecos = cos(state.player.angle);
+				state.player.anglesin = sin(state.player.angle); }
 				break;
 			}
 		}
@@ -79,18 +82,9 @@ void render() {
 
 void update() {
 
-	const f32 movespeed = 10.0f * ((f32)state.deltaTime / 1000.0f), roationspeed = 1.0f * ((f32)state.deltaTime / 1000.0f);
+	const f32 movespeed = 20.0f * ((f32)state.deltaTime / 1000.0f);
 	const u8* keyboardstate = SDL_GetKeyboardState(NULL);
-	v2 moveVec = { 0, 0 };
-	u8 move = 0;
-	if (keyboardstate[SDL_SCANCODE_A]) {
-		state.player.angle += roationspeed;
-	}
-	if (keyboardstate[SDL_SCANCODE_D]) {
-		state.player.angle -= roationspeed;
-	}
-	state.player.anglecos = cos(state.player.angle);
-	state.player.anglesin = sin(state.player.angle);
+
 
 	//TODO: wall collsion checks
 
@@ -111,6 +105,18 @@ void update() {
 			state.player.pos.y - state.player.anglesin * movespeed,
 			state.player.pos.z
 		};
+		moved = 1;
+	}
+	if (keyboardstate[SDL_SCANCODE_A]) {
+		v2 add = v2Rotate((v2) { state.player.anglecos* movespeed, state.player.anglesin* movespeed}, PI / 2);
+		state.player.pos.x += add.x;
+		state.player.pos.y += add.y;
+		moved = 1;
+	}
+	if (keyboardstate[SDL_SCANCODE_D]) {
+		v2 add = v2Rotate((v2) { state.player.anglecos* movespeed, state.player.anglesin* movespeed }, -PI / 2);
+		state.player.pos.x += add.x;
+		state.player.pos.y += add.y;
 		moved = 1;
 	}
 
@@ -169,6 +175,9 @@ void init() {
 	state.player.pos = (v3){ 15.0f, 15.0f, 0.0f};
 	state.player.sector = 1;
 	state.player.pos.z = EYEHEIGHT + state.map.sectors[state.player.sector - 1].zfloor;
+
+	state.player.anglecos = cos(state.player.angle);
+	state.player.anglesin = sin(state.player.angle);
 }
 
 void close() {
@@ -203,7 +212,7 @@ void loadTextures(Texture* textures) {
 
 void loadLevel() {
 	FILE* fp = NULL;
-	fopen_s(&fp,"level.txt", "r");
+	fopen_s(&fp,"level2.txt", "r");
 	ASSERT(fp, "error opening leveldata file");
 	enum {SECTOR, WALL, NONE} sm = NONE;
 	u8 done = 0;

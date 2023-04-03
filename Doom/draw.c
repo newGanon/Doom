@@ -5,7 +5,7 @@
 
 void drawPixel(i32 x, i32 y, i32 color, u32* pixels) {
 	if (x >= 0 && x < SCREEN_WIDTH && y >= 0 && y < SCREEN_HEIGHT && (color & 0xFF000000) != 0) {
-		pixels[y * SCREEN_WIDTH + x] = color;
+		pixels[((SCREEN_HEIGHT - 1) - y) * SCREEN_WIDTH + x] = color;
 	}
 }
 
@@ -16,7 +16,7 @@ void drawVerticalLine(i32 x, i32 y0, i32 y1, u32 color, u32* pixels) {
 		y1 = temp;
 	}
 	for (i32 y = y0; y <= y1; y++) {
-		drawPixel(x, SCREEN_HEIGHT - y, color, pixels);
+		drawPixel(x, y, color, pixels);
 	}
 }
 

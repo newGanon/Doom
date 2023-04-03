@@ -40,5 +40,8 @@
     <Text Include="level.txt">
       <Filter>Resource Files</Filter>
     </Text>
+    <Text Include="level2.txt">
+      <Filter>Resource Files</Filter>
+    </Text>
   </ItemGroup>
 </Project>

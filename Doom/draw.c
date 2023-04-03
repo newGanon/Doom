@@ -3,6 +3,8 @@
 #include "math.h"
 
 
+void texLine(i32 x, i32 y0, i32 y1, i32 yf, i32 yc, f64 u, Texture* tex, u32* pixels);
+
 void drawPixel(i32 x, i32 y, i32 color, u32* pixels) {
 	if (x >= 0 && x < SCREEN_WIDTH && y >= 0 && y < SCREEN_HEIGHT && (color & 0xFF000000) != 0) {
 		pixels[((SCREEN_HEIGHT - 1) - y) * SCREEN_WIDTH + x] = color;
@@ -105,17 +107,14 @@ u32 changeRGBBrightness(u32 color, f32 factor) {
 	return a | (i32)(r / factor) << 16 | (i32)(g / factor) << 8 | (i32)(b / factor);
 }
 
-void draw3D(Player player, Map map, u32* pixels) {
-
-	u16 ceilingclip[SCREEN_WIDTH];
-	u16 floorclip[SCREEN_WIDTH];
+void draw3D(Player player, Map* map, u32* pixels, Texture* tex) {
 
 	u8 renderedSectors[SECTOR_MAX];
 	memset(renderedSectors, 0, sizeof(renderedSectors));
 
 	for (int i = 0; i < SCREEN_WIDTH; i++) {
-		ceilingclip[i] = SCREEN_HEIGHT - 1;
-		floorclip[i] = 0;
+		map->ceilingclip[i] = SCREEN_HEIGHT - 1;
+		map->floorclip[i] = 0;
 	}
 
 	v2  zdl = v2Rotate(((v2) { 0.0f, 1.0f }), +(HFOV / 2.0f)),
@@ -131,17 +130,20 @@ void draw3D(Player player, Map map, u32* pixels) {
 	*head = (struct item){ player.sector, 0, SCREEN_WIDTH - 1 };
 	if (++head == queue + MaxQueue) head = queue;
 
-	v2 p1, p2;
+
 	while (head != tail) {
 		const struct item now = *tail;
 		if (++tail == queue + MaxQueue) tail = queue;
 
-		Sector sec = map.sectors[now.sectorno - 1];
+		Sector sec = map->sectors[now.sectorno - 1];
 		for (i32 i = sec.index; i < (sec.index + sec.numWalls); i++) {
 
 			//world pos
-			p1 = world_pos_to_camera(map.walls[i].a, player);
-			p2 = world_pos_to_camera(map.walls[i].b, player);
+			v2 p1 = world_pos_to_camera(map->walls[i].a, player);
+			v2 p2 = world_pos_to_camera(map->walls[i].b, player);
+
+			v2 tp1  = p1;
+			v2 tp2 = p2;
 
 			f32 a1 = normalize_angle(atan2(p1.y, p1.x) - PI / 2);
 			f32 a2 = normalize_angle(atan2(p2.y, p2.x) - PI / 2);
@@ -178,9 +180,9 @@ void draw3D(Player player, Map map, u32* pixels) {
 			i32 nzfloor = 0;
 			i32 nzceil = 0;
 
-			if (map.walls[i].portal != 0) {
-				nzfloor = map.sectors[map.walls[i].portal - 1].zfloor;
-				nzceil = map.sectors[map.walls[i].portal - 1].zceil;
+			if (map->walls[i].portal != 0) {
+				nzfloor = map->sectors[map->walls[i].portal - 1].zfloor;
+				nzceil = map->sectors[map->walls[i].portal - 1].zceil;
 			}
 
 			f32 sy0 = (VFOV * SCREEN_HEIGHT) / p1.y;
@@ -198,26 +200,42 @@ void draw3D(Player player, Map map, u32* pixels) {
 			i32 pc1 = (SCREEN_HEIGHT / 2) + (i32)((nzceil - player.pos.z) * sy1);
 
 
-			u32 color = (map.walls[i].portal) ? BLUE : RED;
+			u32 color = (map->walls[i].portal) ? BLUE : RED;
 
 			for (i32 x = x1; x < x2; x++) {
 				//calculate x stepsize
 				f32 xp = (x - tx1) / (f32)(tx2 - tx1);
 
 				//get top and bottom coordinates of the wall
-				i32 yf = clamp((i32)(xp * (yf1 - yf0)) + yf0, floorclip[x], ceilingclip[x]);
-				i32 yc = clamp((i32)(xp * (yc1 - yc0)) + yc0, floorclip[x], ceilingclip[x]);
+				i32 tyf = (i32)(xp * (yf1 - yf0)) + yf0;
+				i32 tyc = (i32)(xp * (yc1 - yc0)) + yc0;
+				i32 yf = clamp(tyf, map->floorclip[x], map->ceilingclip[x]);
+				i32 yc = clamp(tyc, map->floorclip[x], map->ceilingclip[x]);
 
 				//draw floor
-				if (yf > floorclip[x]) { drawVerticalLine(x, floorclip[x], yf, ORANGE, pixels); }
+				if (yf > map->floorclip[x]) { drawVerticalLine(x, map->floorclip[x], yf, ORANGE, pixels); }
 				//draw ceiling
-				if (yc < ceilingclip[x]) { drawVerticalLine(x, yc, ceilingclip[x], PURPLE, pixels); }
+				if (yc < map->ceilingclip[x]) { drawVerticalLine(x, yc, map->ceilingclip[x], PURPLE, pixels); }
 
 
-				f32 wallshade = calcShade(map.walls[i].a, map.walls[i].b);
+				f32 wallshade = calcShade(map->walls[i].a, map->walls[i].b);
 				//draw Wall
-				if (map.walls[i].portal == 0) {
-					drawVerticalLine(x, yf, yc, changeRGBBrightness(color, wallshade), pixels); }
+				if (map->walls[i].portal == 0) {
+					//drawVerticalLine(x, yf, yc, changeRGBBrightness(color, wallshade), pixels); wall in one color
+					v2 difp1 = v2Sub(p1, tp1);
+					v2 difp2 = v2Sub(p2, tp2);
+					f32 twlen = v2Len(v2Sub(tp1, tp2));
+					v2 cutoff = {fabsf(v2Len(difp1) / twlen), fabsf(v2Len(difp2)/ twlen)};
+					f32 z0 = v2Len(tp1);
+					f32 z1 = v2Len(tp2);
+					//variables used in wikipedia equation for texture mapping https://en.wikipedia.org/wiki/Texture_mapping
+					//affine texture mapping: (1-a) * u0 + a*u1
+					//perspective correct texture mapping: ((1-a) * u0/z0 + a*(u1/z1)) / ((1-a) * 1/u0 + a*u1)
+					// 
+					//texLine(x, yf, yc, tyf, tyc, ((1.0f - xp) * ( cutoff.x)) + (1.0f - cutoff.y) * xp, tex, pixels); //wall with affine mapped texture
+					texLine(x, yf, yc, tyf, tyc, ((1.0f-xp) * (cutoff.x/ p1.y) + xp * ((1.0f - cutoff.y)/ p2.y)) / ((1.0f - xp) * (1.0f / p1.y) + xp * (1.0f / p2.y)), tex, pixels);
+				}
+				
 				//draw Portal
 				else {
 					//get top and bottom coordinates of the portal
@@ -232,12 +250,12 @@ void draw3D(Player player, Map map, u32* pixels) {
 					if (pyc < yc) { drawVerticalLine(x, pyc, yc, changeRGBBrightness(GREEN, wallshade), pixels); }
 
 					//update vertical clipping arrays
-					ceilingclip[x] = clamp(pyc, 0, SCREEN_HEIGHT - 1);
-					floorclip[x] = clamp(pyf, 0, SCREEN_HEIGHT - 1);
+					map->ceilingclip[x] = clamp(pyc, 0, SCREEN_HEIGHT - 1);
+					map->floorclip[x] = clamp(pyf, 0, SCREEN_HEIGHT - 1);
 				}
 			}
-			if (map.walls[i].portal && !renderedSectors[now.sectorno - 1] && (head + MaxQueue + 1 - tail) % MaxQueue) {
-				*head = (struct item){ map.walls[i].portal, x1, x2 };
+			if (map->walls[i].portal && !renderedSectors[now.sectorno - 1] && (head + MaxQueue + 1 - tail) % MaxQueue) {
+				*head = (struct item){ map->walls[i].portal, x1, x2 };
 				if (++head == queue + MaxQueue) head = queue;
 			}
 		}
@@ -249,4 +267,13 @@ void draw3D(Player player, Map map, u32* pixels) {
 f32 calcShade(v2 start, v2 end) {
 	v2 difNorm = v2Normalize(v2Sub(end, start));
 	return (f32)1 + (fabsf(difNorm.x));
+}
+
+void texLine(i32 x, i32 y0, i32 y1, i32 yf, i32 yc, f64 u, Texture* tex, u32* pixels) {
+	i32 tx = u * tex[0].width;
+	for (i32 y = y0; y <= y1; y++) {
+		f64 v = 1.0 - ((y - yf) / (f64)(yc - yf));
+		i32 ty = v * tex[0].height;
+		drawPixel(x, y, tex[0].pixels[ty * tex[0].width + tx], pixels);
+	}
 }

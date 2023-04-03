@@ -24,8 +24,6 @@ typedef int32_t  i32;
 typedef int64_t  i64;
 typedef size_t   usize;
 
-static unsigned NumSectors = 0;
-
 typedef struct v2_s { f32 x, y; } v2;
 typedef struct v2i_s { i32 x, y; } v2i;
 typedef struct v2u_s8 { i32 x, y; } v2u8;
@@ -88,4 +86,6 @@ typedef struct Map {
 	u8 wallnum;
 	Sector sectors[SECTOR_MAX];
 	u8 sectornum;
+	u16 ceilingclip[SCREEN_WIDTH];
+	u16 floorclip[SCREEN_WIDTH];
 } Map;

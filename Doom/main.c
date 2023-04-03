@@ -67,7 +67,7 @@ void render() {
 	memset(state.pixels, 0, sizeof(state.pixels));
 	//SDL_RenderClear(state.renderer);
 
-	draw3D(state.player, state.map, &state.pixels);
+	draw3D(state.player, &state.map, &state.pixels, &state.textures);
 
 	/* draw crosshair */
 	/* drawCircle(SCREEN_WIDTH / 2, SCREEN_HEIGHT / 2, 10, 10, RED); */
@@ -196,7 +196,6 @@ void close() {
 }
 
 void loadTextures(Texture* textures) {
-	return;
 	SDL_Surface* bmpTex;
 	char textureFileNames[1][50] = {"test.bmp"};
 	i32 textureAmt = sizeof(textureFileNames) / sizeof(textureFileNames[0]);

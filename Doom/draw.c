@@ -202,6 +202,11 @@ void draw3D(Player player, Map* map, u32* pixels, Texture* tex) {
 
 			u32 color = (map->walls[i].portal) ? BLUE : RED;
 
+			v2 difp1 = v2Sub(p1, tp1);
+			v2 difp2 = v2Sub(p2, tp2);
+			f32 twlen = v2Len(v2Sub(tp1, tp2));
+			v2 cutoff = { fabsf(v2Len(difp1) / twlen), fabsf(v2Len(difp2) / twlen) };
+
 			for (i32 x = x1; x < x2; x++) {
 				//calculate x stepsize
 				f32 xp = (x - tx1) / (f32)(tx2 - tx1);
@@ -213,48 +218,52 @@ void draw3D(Player player, Map* map, u32* pixels, Texture* tex) {
 				i32 yc = clamp(tyc, map->floorclip[x], map->ceilingclip[x]);
 
 				//draw floor
-				if (yf > map->floorclip[x]) { drawVerticalLine(x, map->floorclip[x], yf, ORANGE, pixels); }
+				if (yf > map->floorclip[x]) { drawVerticalLine(x, map->floorclip[x], yf, changeRGBBrightness(ORANGE, 1.0f + (f32)((i32)sec.zceil % 10)/10.0f), pixels); }
 				//draw ceiling
-				if (yc < map->ceilingclip[x]) { drawVerticalLine(x, yc, map->ceilingclip[x], PURPLE, pixels); }
-
+				if (yc < map->ceilingclip[x]) { drawVerticalLine(x, yc, map->ceilingclip[x], changeRGBBrightness(PURPLE, 1.0f + (f32)((i32)sec.zceil % 10) / 10.0f), pixels); }
 
 				f32 wallshade = calcShade(map->walls[i].a, map->walls[i].b);
+
+
+				//variables used in wikipedia equation for texture mapping https://en.wikipedia.org/wiki/Texture_mapping
+				//affine texture mapping: (1.0f-a) * u0 + a*u1
+				//perspective correct texture mapping: ((1.0f-a) * u0/z0 + a*(u1/z1)) / ((1.0f-a) * 1/z0 + a*(1.0f/z1))
+
+				//a: x part where we currently are on the wall [0...1]
+				f32 a = xp;
+				//u0: how much of the left part of the wall is cut off
+				f32 u0 = cutoff.x;
+				//u1: how much of the right part of the wall is cut off 
+				f32 u1 = 1.0f - cutoff.y;
+				//z0: how far away the left wallpoint is from the player
+				f32 z0 = p1.y;
+				//z1: how far away the right wallpoint ist from the player
+				f32 z1 = p2.y;
+
+				f64 u = ((1.0f - a) * (u0 / z0) + a * (u1 / z1)) / ((1.0f - a) * 1 / z0 + a * (1.0f / z1));
+
+
 				//draw Wall
 				if (map->walls[i].portal == 0) {
 					//drawVerticalLine(x, yf, yc, changeRGBBrightness(color, wallshade), pixels); wall in one color
-					v2 difp1 = v2Sub(p1, tp1);
-					v2 difp2 = v2Sub(p2, tp2);
-					f32 twlen = v2Len(v2Sub(tp1, tp2));
-					v2 cutoff = {fabsf(v2Len(difp1) / twlen), fabsf(v2Len(difp2)/ twlen)};
-					//variables used in wikipedia equation for texture mapping https://en.wikipedia.org/wiki/Texture_mapping
-					//affine texture mapping: (1.0f-a) * u0 + a*u1
-					//perspective correct texture mapping: ((1.0f-a) * u0/z0 + a*(u1/z1)) / ((1.0f-a) * 1/z0 + a*(1.0f/z1))
-					
-					//a: x part where we currently are on the wall [0...1]
-					f32 a = xp;
-					//u0: how much of the left part of the wall is cut off
-					f32 u0 = cutoff.x;
-					//u1: how much of the right part of the wall is cut off 
-					f32 u1 = 1.0f - cutoff.y;
-					//z0: how far away the left wallpoint is from the player
-					f32 z0 = p1.y;
-					//z1: how far away the right wallpoint ist from the player
-					f32 z1 = p2.y;
-					texLine(x, yf, yc, tyf, tyc, ((1.0f-a) * (u0/z0) + a *(u1/z1)) / ((1.0f - a) * 1/z0 + a*(1.0f / z1)), tex, pixels);
+					texLine(x, yf, yc, tyf, tyc, u, tex, pixels);
 				}
 				
 				//draw Portal
 				else {
 					//get top and bottom coordinates of the portal
-					i32 pyf = clamp((i32)(xp * (pf1 - pf0)) + pf0, yf, yc);
-					i32 pyc = clamp((i32)(xp * (pc1 - pc0)) + pc0, yf, yc);
+					i32 tpyf = (i32)(xp * (pf1 - pf0)) + pf0;
+					i32 pyf = clamp(tpyf, yf, yc);
+					i32 tpyc = (i32)(xp * (pc1 - pc0)) + pc0;
+					i32 pyc = clamp(tpyc, yf, yc);
 
 					//if neighborfloor is higher than current sectorceiling then draw it
-					if (pyf > yf) { drawVerticalLine(x, yf, pyf, changeRGBBrightness(YELLOW, wallshade), pixels); }
+					//if (pyf > yf) { drawVerticalLine(x, yf, pyf, changeRGBBrightness(YELLOW, wallshade), pixels); }
+					if (pyf > yf) { texLine(x, yf, pyf, tyf, tpyf, u, tex, pixels); }
 					//draw window
 					//drawVerticalLine(x, pyf, pyc, color, pixels);
 					//if neighborceiling is lower than current sectorceiling then draw it
-					if (pyc < yc) { drawVerticalLine(x, pyc, yc, changeRGBBrightness(GREEN, wallshade), pixels); }
+					if (pyc < yc) { texLine(x, pyc, yc, tpyc, tyc,u, tex, pixels); }
 
 					//update vertical clipping arrays
 					map->ceilingclip[x] = clamp(pyc, 0, SCREEN_HEIGHT - 1);

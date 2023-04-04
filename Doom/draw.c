@@ -169,6 +169,7 @@ void draw3D(Player player, Map* map, u32* pixels, Texture* tex) {
 			f32 tx1 = screen_angle_to_x(a1);
 			f32 tx2 = screen_angle_to_x(a2);
 
+
 			if (tx1 > now.sx2) continue;
 			if (tx2 < now.sx1) continue;
 
@@ -198,7 +199,6 @@ void draw3D(Player player, Map* map, u32* pixels, Texture* tex) {
 			i32 pf1 = (SCREEN_HEIGHT / 2) + (i32)((nzfloor - player.pos.z) * sy1);
 			i32 pc0 = (SCREEN_HEIGHT / 2) + (i32)((nzceil - player.pos.z) * sy0);
 			i32 pc1 = (SCREEN_HEIGHT / 2) + (i32)((nzceil - player.pos.z) * sy1);
-
 
 			u32 color = (map->walls[i].portal) ? BLUE : RED;
 
@@ -242,7 +242,6 @@ void draw3D(Player player, Map* map, u32* pixels, Texture* tex) {
 
 				f64 u = ((1.0f - a) * (u0 / z0) + a * (u1 / z1)) / ((1.0f - a) * 1 / z0 + a * (1.0f / z1));
 
-
 				//draw Wall
 				if (map->walls[i].portal == 0) {
 					//drawVerticalLine(x, yf, yc, changeRGBBrightness(color, wallshade), pixels); wall in one color
@@ -277,6 +276,19 @@ void draw3D(Player player, Map* map, u32* pixels, Texture* tex) {
 		}
 		++renderedSectors[now.sectorno - 1];
 	}
+
+	v2i mapoffset = (v2i){ 100 , SCREEN_HEIGHT - 100};
+
+	for (i32 j = 0; j < map->sectornum; j++)
+	{
+		Sector sec = map->sectors[j];
+		for (i32 i = sec.index; i < (sec.index + sec.numWalls); i++) {
+			Wall w = map->walls[i];
+			drawLine( w.a.x + mapoffset.x, w.a.y + mapoffset.y, w.b.x + mapoffset.x, w.b.y + mapoffset.y, WHITE, pixels);
+		}
+	}
+	drawCircle(player.pos.x + mapoffset.x, player.pos.y + mapoffset.y, 3, 3, WHITE, pixels);
+	drawLine(player.pos.x + mapoffset.x, player.pos.y + mapoffset.y, player.anglecos*10 + player.pos.x + mapoffset.x, player.anglesin*10 + player.pos.y + mapoffset.y, WHITE, pixels);
 }
 
 

@@ -1,26 +1,19 @@
 #SECTOR <id> <index(number of walls before this secor)> <num walls in sector> <floorheight> <ceilingheigt>
 {SECTORS}
-1 0 8 0.0 12.0
-2 8 4 3.0 15.0
+1 0 4 0.0 12.0
+2 4 3 2.0 10.0
 
 #WALL <x0> <y0> <x1> <y1> <portal?>
 #SECTOR 1:
 {WALLS}
 10 10 10 50 0
 10 50 50 50 0
-50 50 50 10 0
+50 50 50 10 2
 50 10 10 10 0
 
-20 20 40 20 2
-40 20 40 40 2
-40 40 20 40 2
-20 40 20 20 2
-
 #SECTOR 2:
-20 20 20 40 1
-20 40 40 40 1
-40 40 40 20 1
-40 20 20 20 1
-
+50 50 70 50 0
+70 50 50 10 0
+50 10 50 50 1
 
 {END}

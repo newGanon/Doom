@@ -29,9 +29,7 @@ v2 world_pos_to_camera(v2 pos, Player player) {
 
 //convert angle from -HFOV/2 - HFOV/2 to 0 - SCREEN_WIDTH -1 
 i32 screen_angle_to_x(f32 angle) {
-	if (angle > HFOV / 2) return 0;
-	else if (angle < -HFOV / 2) return SCREEN_WIDTH - 1;
-	return (i32)(fabs(((angle / HFOV) - 0.5f) * SCREEN_WIDTH));
+	return ((i32)(SCREEN_WIDTH / 2)) * (1.0f - tan(((angle + (HFOV / 2.0)) / HFOV) * PI_2 - PI_4));
 }
 
 void clip_line(v2* a, v2 b) {
@@ -45,7 +43,6 @@ f32 normalize_angle(f32 a) {
 	return a - ((2*PI)*floor((a + PI) / (2 * PI)));
 }
 
-
 v2 v2Normalize(v2 a) {
 	f32 l = v2Len(a);
 	return l != 0 ? (v2) { a.x / l, a.y / l } : (v2) { 0, 0 };
@@ -57,7 +54,6 @@ v2 v2Rotate(v2 a, f32 rot) {
 	a.y = oVec.x * (f32)sin(rot) + oVec.y * (f32)cos(rot);
 	return a;
 }
-
 
 v2 v2Add(v2 a, v2 b) {
 	return (v2) { a.x + b.x, a.y + b.y };

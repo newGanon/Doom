@@ -6,7 +6,6 @@
 i32 get_line_intersection(v2 p0, v2 p1, v2 p2, v2 p3, v2* i);
 v2 world_pos_to_camera(v2 pos, Player player);
 i32 screen_angle_to_x(f32 angle);
-void clip_line(v2* a, v2 b);
 f32 normalize_angle(f32 a);
 
 v2 v2Normalize(v2 a);

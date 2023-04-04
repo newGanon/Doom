@@ -27,16 +27,11 @@ v2 world_pos_to_camera(v2 pos, Player player) {
 	};
 }
 
-//convert angle from -HFOV/2 - HFOV/2 to 0 - SCREEN_WIDTH -1 
+//convert angle from [-HFOV/2, HFOV/2] to [0, SCREEN_WIDTH -1] 
 i32 screen_angle_to_x(f32 angle) {
-	return ((i32)(SCREEN_WIDTH / 2)) * (1.0f - tan(((angle + (HFOV / 2.0)) / HFOV) * PI_2 - PI_4));
-}
-
-void clip_line(v2* a, v2 b) {
-	f32 d = a->y - b.y; if (d == 0) d = 1;
-	f32 s = a->y / (d);
-	a->x = a->x + s * (b.x - a->x);
-	a->y = a->y + s * (b.y - a->y); if (a->y == 0) a->y = 1;
+	//convert angle to [0.0, 2.0]
+	f32 t = 1.0f - tan(((angle + (HFOV / 2.0)) / HFOV) * PI_2 - PI_4);
+	return ((i32)(SCREEN_WIDTH / 2)) * t;
 }
 
 f32 normalize_angle(f32 a) {

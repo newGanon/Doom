@@ -3,7 +3,7 @@
 #include "math.h"
 
 
-void texLine(i32 x, i32 y0, i32 y1, i32 yf, i32 yc, f64 u, Texture* tex, u32* pixels);
+void drawTexLine(i32 x, i32 y0, i32 y1, i32 yf, i32 yc, f64 u, Texture* tex, u32* pixels);
 
 void drawPixel(i32 x, i32 y, i32 color, u32* pixels) {
 	if (x >= 0 && x < SCREEN_WIDTH && y >= 0 && y < SCREEN_HEIGHT && (color & 0xFF000000) != 0) {
@@ -169,7 +169,6 @@ void draw3D(Player player, Map* map, u32* pixels, Texture* tex) {
 			f32 tx1 = screen_angle_to_x(a1);
 			f32 tx2 = screen_angle_to_x(a2);
 
-
 			if (tx1 > now.sx2) continue;
 			if (tx2 < now.sx1) continue;
 
@@ -217,8 +216,10 @@ void draw3D(Player player, Map* map, u32* pixels, Texture* tex) {
 				i32 yf = clamp(tyf, map->floorclip[x], map->ceilingclip[x]);
 				i32 yc = clamp(tyc, map->floorclip[x], map->ceilingclip[x]);
 
+
 				//draw floor
 				if (yf > map->floorclip[x]) { drawVerticalLine(x, map->floorclip[x], yf, changeRGBBrightness(ORANGE, 1.0f + (f32)((i32)sec.zceil % 10)/10.0f), pixels); }
+
 				//draw ceiling
 				if (yc < map->ceilingclip[x]) { drawVerticalLine(x, yc, map->ceilingclip[x], changeRGBBrightness(PURPLE, 1.0f + (f32)((i32)sec.zceil % 10) / 10.0f), pixels); }
 
@@ -245,7 +246,7 @@ void draw3D(Player player, Map* map, u32* pixels, Texture* tex) {
 				//draw Wall
 				if (map->walls[i].portal == 0) {
 					//drawVerticalLine(x, yf, yc, changeRGBBrightness(color, wallshade), pixels); wall in one color
-					texLine(x, yf, yc, tyf, tyc, u, tex, pixels);
+					drawTexLine(x, yf, yc, tyf, tyc, u, tex, pixels);
 				}
 				
 				//draw Portal
@@ -258,11 +259,11 @@ void draw3D(Player player, Map* map, u32* pixels, Texture* tex) {
 
 					//if neighborfloor is higher than current sectorceiling then draw it
 					//if (pyf > yf) { drawVerticalLine(x, yf, pyf, changeRGBBrightness(YELLOW, wallshade), pixels); }
-					if (pyf > yf) { texLine(x, yf, pyf, tyf, tpyf, u, tex, pixels); }
+					if (pyf > yf) { drawTexLine(x, yf, pyf, tyf, tpyf, u, tex, pixels); }
 					//draw window
 					//drawVerticalLine(x, pyf, pyc, color, pixels);
 					//if neighborceiling is lower than current sectorceiling then draw it
-					if (pyc < yc) { texLine(x, pyc, yc, tpyc, tyc,u, tex, pixels); }
+					if (pyc < yc) { drawTexLine(x, pyc, yc, tpyc, tyc,u, tex, pixels); }
 
 					//update vertical clipping arrays
 					map->ceilingclip[x] = clamp(pyc, 0, SCREEN_HEIGHT - 1);
@@ -277,7 +278,7 @@ void draw3D(Player player, Map* map, u32* pixels, Texture* tex) {
 		++renderedSectors[now.sectorno - 1];
 	}
 
-	v2i mapoffset = (v2i){ 100 , SCREEN_HEIGHT - 100};
+	v2i mapoffset = (v2i){ 100 , SCREEN_HEIGHT - 200};
 
 	for (i32 j = 0; j < map->sectornum; j++)
 	{
@@ -297,7 +298,7 @@ f32 calcShade(v2 start, v2 end) {
 	return (f32)1 + (fabsf(difNorm.x));
 }
 
-void texLine(i32 x, i32 y0, i32 y1, i32 yf, i32 yc, f64 u, Texture* tex, u32* pixels) {
+void drawTexLine(i32 x, i32 y0, i32 y1, i32 yf, i32 yc, f64 u, Texture* tex, u32* pixels) {
 	i32 tx = u * tex[0].width;
 	for (i32 y = y0; y <= y1; y++) {
 		f64 v = 1.0 - ((y - yf) / (f64)(yc - yf));

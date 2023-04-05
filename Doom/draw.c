@@ -177,8 +177,8 @@ void draw3D(Player player, Map* map, u32* pixels, Texture* tex) {
 
 
 			//get floor and ceiling height of sector behind wall if wall is a portal
-			i32 nzfloor = 0;
-			i32 nzceil = 0;
+			i32 nzfloor = sec.zfloor;
+			i32 nzceil = sec.zceil;
 
 			if (map->walls[i].portal != 0) {
 				nzfloor = map->sectors[map->walls[i].portal - 1].zfloor;
@@ -216,12 +216,62 @@ void draw3D(Player player, Map* map, u32* pixels, Texture* tex) {
 				i32 yf = clamp(tyf, map->floorclip[x], map->ceilingclip[x]);
 				i32 yc = clamp(tyc, map->floorclip[x], map->ceilingclip[x]);
 
+				/*for (i32 y = map->floorclip[x]; y < yf; y++) {
+					i32 dy = y - SCREEN_HEIGHT;
+					f32 yslope =  SCREEN_WIDTH / ((f32)dy);
+					f32 a = screen_x_to_angle(x);
+					f32 ang = a + player.angle;
+					f32 dis = (abs(sec.zfloor - player.pos.z) * yslope) * 1/cos(a);
+					//relative coordinates to player
+					f32 xt = cos(a-PI_2) * dis ;
+					f32 yt = sin(a-PI_2) * dis ;
+					// absolute ones
+					v2 p = camera_pos_to_world((v2) {xt, yt}, player);
+					v2i t = {abs((p.x - (i32)p.x) * 256) ,abs((p.y - (i32)p.y) * 256) };
+					u32 color = tex[0].pixels[t.y * tex->width + t.x];
+					drawPixel(x, y, color, pixels);
+					drawPixel(100 + p.x, SCREEN_HEIGHT - 200 + p.y, RED, pixels);
+				}*/
 
+				//floor
+				for (i32 y = map->floorclip[x]; y < yf; y++){
+					f32 dy = y - SCREEN_HEIGHT / 2;
+					f32 yslope = SCREEN_WIDTH / ((f32)dy);
+					f32 a = screen_x_to_angle(x);
+					f32 dis = (abs(sec.zfloor - player.pos.z) * yslope) / (cos(a) * 3.6);
+					//relative coordinates to player
+					f32 xt = cos(a - HFOV) * dis;
+					f32 yt = sin(a - HFOV) * dis;
+					// absolute ones
+					v2 p = camera_pos_to_world((v2) { xt, yt }, player);
+
+					v2i t = { abs((p.x - (i32)p.x) * 256) ,abs((p.y - (i32)p.y) * 256) };
+					u32 color = tex[0].pixels[( t.y) * tex->width + (t.x)];
+					drawPixel(x, y, color, pixels);
+				}
+
+				//ceiling
+				for (i32 y = yc; y < map->ceilingclip[x]; y++) {
+					f32 dy = y - SCREEN_HEIGHT / 2;
+					f32 yslope = SCREEN_WIDTH / ((f32)dy);
+					f32 a = screen_x_to_angle(x);
+					f32 dis = (abs(sec.zceil - player.pos.z) * yslope) / (cos(a));
+					//relative coordinates to player
+					f32 xt = cos(a + HFOV) * dis;
+					f32 yt = sin(a + HFOV) * dis;
+					// absolute ones
+					v2 p = camera_pos_to_world((v2) { xt, yt }, player);
+					v2i t = { abs((p.x - (i32)p.x) * 256) ,abs((p.y - (i32)p.y) * 256) };
+					u32 color = tex[0].pixels[( t.y) * tex->width + t.x];
+					drawPixel(x, y, color, pixels);
+
+				}
 				//draw floor
-				if (yf > map->floorclip[x]) { drawVerticalLine(x, map->floorclip[x], yf, changeRGBBrightness(ORANGE, 1.0f + (f32)((i32)sec.zceil % 10)/10.0f), pixels); }
+				// if (yf > map->floorclip[x]) { drawVerticalLine(x, map->floorclip[x], yf, changeRGBBrightness(ORANGE, 1.0f + (f32)((i32)sec.zceil % 10) / 10.0f), pixels); } 
 
 				//draw ceiling
-				if (yc < map->ceilingclip[x]) { drawVerticalLine(x, yc, map->ceilingclip[x], changeRGBBrightness(PURPLE, 1.0f + (f32)((i32)sec.zceil % 10) / 10.0f), pixels); }
+				//if (yc < map->ceilingclip[x]) { drawVerticalLine(x, yc, map->ceilingclip[x], changeRGBBrightness(PURPLE, 1.0f + (f32)((i32)sec.zceil % 10) / 10.0f), pixels); } 
+
 
 				f32 wallshade = calcShade(map->walls[i].a, map->walls[i].b);
 

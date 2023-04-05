@@ -19,6 +19,7 @@ i32 get_line_intersection(v2 p0, v2 p1, v2 p2, v2 p3, v2* i) {
 	return 0;
 }
 
+//absolute pos to player relative pos
 v2 world_pos_to_camera(v2 pos, Player player) {
 	const v2 u = { pos.x - player.pos.x, pos.y - player.pos.y};
 	return (v2) {
@@ -26,12 +27,25 @@ v2 world_pos_to_camera(v2 pos, Player player) {
 		u.x * player.anglecos + u.y * player.anglesin
 	};
 }
+//player relative pos to absolute one
+v2 camera_pos_to_world(v2 pos, Player player) {
+	v2 r = {
+		pos.x * player.anglesin + pos.y * player.anglecos,
+		- pos.x * player.anglecos + pos.y * player.anglesin
+	};
+	return (v2) { r.x + player.pos.x, r.y + player.pos.y };
+}
 
 //convert angle from [-HFOV/2, HFOV/2] to [0, SCREEN_WIDTH -1] 
 i32 screen_angle_to_x(f32 angle) {
 	//convert angle to [0.0, 2.0]
 	f32 t = 1.0f - tan(((angle + (HFOV / 2.0)) / HFOV) * PI_2 - PI_4);
 	return ((i32)(SCREEN_WIDTH / 2)) * t;
+}
+
+f32 screen_x_to_angle(i32 x) {
+	f32 at = atan(((-2 * x) / (f32)SCREEN_WIDTH) + 1);
+	return (f32)((2 * HFOV * at) / PI);
 }
 
 f32 normalize_angle(f32 a) {

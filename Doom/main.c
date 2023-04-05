@@ -2,7 +2,6 @@
 #include "util.h"
 #include "draw.h"
 #include "math.h"
-
 #include <ctype.h>
 
 struct {
@@ -179,6 +178,18 @@ void init() {
 	state.player.angle = PI_2;
 	state.player.anglecos = cos(state.player.angle);
 	state.player.anglesin = sin(state.player.angle);
+
+	//init global render variables 
+
+	for (i32 y = 0; y < SCREEN_HEIGHT; y++) {
+		f32 dy = y - SCREEN_HEIGHT / 2;
+		yslope[y] = (SCREEN_HEIGHT / 2) / dy;
+	}
+
+	for (i32 x = 0; x < SCREEN_WIDTH; x++) {
+		screenxtoangle[x] = screen_x_to_angle(x);
+	}
+
 }
 
 void close() {
@@ -227,6 +238,7 @@ void loadLevel() {
 			if (*p == 'S') { sm = SECTOR; continue; }
 			if (*p == 'W') { sm = WALL; continue; }
 			if (*p == 'E')  sm = NONE;
+			else sm = NONE;
 		}
 		switch (sm) {
 		case SECTOR: {

@@ -5,12 +5,6 @@
 #include <string.h>
 
 #define ASSERT(_e, ...) if (!(_e)) { fprintf(stderr, __VA_ARGS__); exit(1); }
-#define MIN(a, b) (a < b ? a : b)
-#define MAX(a, b) (a < b ? b : a)
-#define VETORCROSSPROD2D(x0, x1, y0, y2) ((x0 * y1) - (y0 * x1))
-#define OVERLAP1D(a0, a1, b0, b1) (MIN(a0, a1) <= MAX(b0, b1) && MIN(b0, b1) <= MAX(a0, a1))
-#define BOXINTERSECT2D(x0, y0, x1, y1, x2, y2, x3, y3) ((OVERLAP1D(x0, x1, x2, x3) && OVERLAP1D(y0, y1, y2, y3))
-#define POINTSIDE2D(px, py, x0, y0, x1, y1) ((x1 - x0) * (py - y0) - (y1 - y0) * (px - x0)) 
 
 typedef float    f32;
 typedef double   f64;
@@ -78,14 +72,17 @@ typedef struct Sector {
 
 typedef struct Wall {
 	v2 a, b;
-	u8 portal;
+	i32 portal;
 }Wall;
 
 typedef struct Map {
 	Wall walls[WALL_MAX];
-	u8 wallnum;
+	i32 wallnum;
 	Sector sectors[SECTOR_MAX];
-	u8 sectornum;
+	i32 sectornum;
 	u16 ceilingclip[SCREEN_WIDTH];
 	u16 floorclip[SCREEN_WIDTH];
 } Map;
+
+f32 yslope[SCREEN_HEIGHT];
+f32 screenxtoangle[SCREEN_WIDTH];

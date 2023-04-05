@@ -43,13 +43,10 @@ i32 screen_angle_to_x(f32 angle) {
 	return ((i32)(SCREEN_WIDTH / 2)) * t;
 }
 
+//convert x from [0, SCREEN_WIDTH -1] to  [-HFOV/2, HFOV/2]
 f32 screen_x_to_angle(i32 x) {
 	f32 at = atan(((-2 * x) / (f32)SCREEN_WIDTH) + 1);
 	return (f32)((2 * HFOV * at) / PI);
-}
-
-f32 normalize_angle(f32 a) {
-	return a - ((2*PI)*floor((a + PI) / (2 * PI)));
 }
 
 v2 v2Normalize(v2 a) {

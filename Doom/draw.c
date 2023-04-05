@@ -109,6 +109,8 @@ u32 changeRGBBrightness(u32 color, f32 factor) {
 
 void draw3D(Player player, Map* map, u32* pixels, Texture* tex) {
 
+
+
 	u8 renderedSectors[SECTOR_MAX];
 	memset(renderedSectors, 0, sizeof(renderedSectors));
 
@@ -145,8 +147,8 @@ void draw3D(Player player, Map* map, u32* pixels, Texture* tex) {
 			v2 tp1  = p1;
 			v2 tp2 = p2;
 
-			f32 a1 = normalize_angle(atan2(p1.y, p1.x) - PI / 2);
-			f32 a2 = normalize_angle(atan2(p2.y, p2.x) - PI / 2);
+			f32 a1 = atan2(p1.y, p1.x) - PI / 2;
+			f32 a2 = atan2(p2.y, p2.x) - PI / 2;
 
 			//calculate intersection between walls and view frustum and clip walls
 			if (p1.y < ZNEAR || p2.y < ZNEAR || a1 > +(HFOV / 2) || a2 < -(HFOV / 2)) {
@@ -156,11 +158,11 @@ void draw3D(Player player, Map* map, u32* pixels, Texture* tex) {
 				i32 hitr = get_line_intersection(p1, p2, znr, zfr, &ir);
 				if (hitl) {
 					p1 = il;
-					a1 = normalize_angle(atan2(p1.y, p1.x) - PI / 2);
+					a1 = atan2(p1.y, p1.x) - PI / 2;
 				}
 				if (hitr) {
 					p2 = ir;
-					a2 = normalize_angle(atan2(p2.y, p2.x) - PI / 2);
+					a2 = atan2(p2.y, p2.x) - PI / 2;
 				}
 			}
 			if (a1 < a2 || a2 < -(HFOV / 2) - 0.0001f || a1 > +(HFOV / 2) + 0.0001f) continue;
@@ -201,6 +203,7 @@ void draw3D(Player player, Map* map, u32* pixels, Texture* tex) {
 
 			u32 color = (map->walls[i].portal) ? BLUE : RED;
 
+			//wall texture mapping variables
 			v2 difp1 = v2Sub(p1, tp1);
 			v2 difp2 = v2Sub(p2, tp2);
 			f32 twlen = v2Len(v2Sub(tp1, tp2));
@@ -216,53 +219,34 @@ void draw3D(Player player, Map* map, u32* pixels, Texture* tex) {
 				i32 yf = clamp(tyf, map->floorclip[x], map->ceilingclip[x]);
 				i32 yc = clamp(tyc, map->floorclip[x], map->ceilingclip[x]);
 
-				/*for (i32 y = map->floorclip[x]; y < yf; y++) {
-					i32 dy = y - SCREEN_HEIGHT;
-					f32 yslope =  SCREEN_WIDTH / ((f32)dy);
-					f32 a = screen_x_to_angle(x);
-					f32 ang = a + player.angle;
-					f32 dis = (abs(sec.zfloor - player.pos.z) * yslope) * 1/cos(a);
-					//relative coordinates to player
-					f32 xt = cos(a-PI_2) * dis ;
-					f32 yt = sin(a-PI_2) * dis ;
-					// absolute ones
-					v2 p = camera_pos_to_world((v2) {xt, yt}, player);
-					v2i t = {abs((p.x - (i32)p.x) * 256) ,abs((p.y - (i32)p.y) * 256) };
-					u32 color = tex[0].pixels[t.y * tex->width + t.x];
-					drawPixel(x, y, color, pixels);
-					drawPixel(100 + p.x, SCREEN_HEIGHT - 200 + p.y, RED, pixels);
-				}*/
-
+				//used lookuptables screenxtoangle and yslope to make rendering flats faster
 				//floor
 				for (i32 y = map->floorclip[x]; y < yf; y++){
-					f32 dy = y - SCREEN_HEIGHT / 2;
-					f32 yslope = SCREEN_WIDTH / ((f32)dy);
-					f32 a = screen_x_to_angle(x);
-					f32 dis = (abs(sec.zfloor - player.pos.z) * yslope) / (cos(a) * 3.6);
+					f32 a = screenxtoangle[x];
+					f32 dis = ((player.pos.z - sec.zfloor) * yslope[y]) / (cos(a));
 					//relative coordinates to player
 					f32 xt = cos(a - HFOV) * dis;
 					f32 yt = sin(a - HFOV) * dis;
 					// absolute ones
 					v2 p = camera_pos_to_world((v2) { xt, yt }, player);
-
+					// texutre coordinates
 					v2i t = { abs((p.x - (i32)p.x) * 256) ,abs((p.y - (i32)p.y) * 256) };
-					u32 color = tex[0].pixels[( t.y) * tex->width + (t.x)];
+					u32 color = tex[0].pixels[(256 - t.y) * tex->width + t.x];
 					drawPixel(x, y, color, pixels);
 				}
 
 				//ceiling
 				for (i32 y = yc; y < map->ceilingclip[x]; y++) {
-					f32 dy = y - SCREEN_HEIGHT / 2;
-					f32 yslope = SCREEN_WIDTH / ((f32)dy);
-					f32 a = screen_x_to_angle(x);
-					f32 dis = (abs(sec.zceil - player.pos.z) * yslope) / (cos(a));
+					f32 a = screenxtoangle[x];
+					f32 dis = ((sec.zceil - player.pos.z) * yslope[y]) / (cos(a));
 					//relative coordinates to player
 					f32 xt = cos(a + HFOV) * dis;
 					f32 yt = sin(a + HFOV) * dis;
 					// absolute ones
 					v2 p = camera_pos_to_world((v2) { xt, yt }, player);
+					// texutre coordinates
 					v2i t = { abs((p.x - (i32)p.x) * 256) ,abs((p.y - (i32)p.y) * 256) };
-					u32 color = tex[0].pixels[( t.y) * tex->width + t.x];
+					u32 color = tex[0].pixels[(256 - t.y) * tex->width + t.x];
 					drawPixel(x, y, color, pixels);
 
 				}

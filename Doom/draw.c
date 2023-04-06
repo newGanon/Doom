@@ -109,7 +109,7 @@ u32 changeRGBBrightness(u32 color, f32 factor) {
 
 void draw3D(Player player, Map* map, u32* pixels, Texture* tex) {
 
-
+	i32 drawn = 0;
 
 	u8 renderedSectors[SECTOR_MAX];
 	memset(renderedSectors, 0, sizeof(renderedSectors));
@@ -203,7 +203,7 @@ void draw3D(Player player, Map* map, u32* pixels, Texture* tex) {
 
 			u32 color = (map->walls[i].portal) ? BLUE : RED;
 
-			//wall texture mapping variables
+			//wall texture mapping varaibles
 			v2 difp1 = v2Sub(p1, tp1);
 			v2 difp2 = v2Sub(p2, tp2);
 			f32 twlen = v2Len(v2Sub(tp1, tp2));
@@ -223,6 +223,7 @@ void draw3D(Player player, Map* map, u32* pixels, Texture* tex) {
 				//floor
 				for (i32 y = map->floorclip[x]; y < yf; y++){
 					f32 a = screenxtoangle[x];
+					//scale normalized yslope by actual camera pos and divide by the cosine of angle to prevent fisheye effect
 					f32 dis = ((player.pos.z - sec.zfloor) * yslope[y]) / (cos(a));
 					//relative coordinates to player
 					f32 xt = cos(a - HFOV) * dis;
@@ -238,6 +239,7 @@ void draw3D(Player player, Map* map, u32* pixels, Texture* tex) {
 				//ceiling
 				for (i32 y = yc; y < map->ceilingclip[x]; y++) {
 					f32 a = screenxtoangle[x];
+					//scale normalized yslope by actual camera pos and divide by the cosine of angle to prevent fisheye effect
 					f32 dis = ((sec.zceil - player.pos.z) * yslope[y]) / (cos(a));
 					//relative coordinates to player
 					f32 xt = cos(a + HFOV) * dis;
@@ -280,7 +282,7 @@ void draw3D(Player player, Map* map, u32* pixels, Texture* tex) {
 				//draw Wall
 				if (map->walls[i].portal == 0) {
 					//drawVerticalLine(x, yf, yc, changeRGBBrightness(color, wallshade), pixels); wall in one color
-					drawTexLine(x, yf, yc, tyf, tyc, u, tex, pixels);
+					if(yc > tyf && yf < tyc)drawTexLine(x, yf, yc, tyf, tyc, u, tex, pixels);
 				}
 				
 				//draw Portal
@@ -308,8 +310,10 @@ void draw3D(Player player, Map* map, u32* pixels, Texture* tex) {
 				*head = (struct item){ map->walls[i].portal, x1, x2 };
 				if (++head == queue + MaxQueue) head = queue;
 			}
+			//TODO: replace super scuffed fix
+			if (drawn++ > 20) return;
 		}
-		++renderedSectors[now.sectorno - 1];
+		//++renderedSectors[now.sectorno - 1];
 	}
 
 	v2i mapoffset = (v2i){ 100 , SCREEN_HEIGHT - 200};

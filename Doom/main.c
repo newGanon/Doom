@@ -82,56 +82,86 @@ void render() {
 void update() {
 
 	const f32 movespeed = 20.0f * ((f32)state.deltaTime / 1000.0f);
+	const f32 gravity = -80.0f * ((f32)state.deltaTime / 1000.0f);
 	const u8* keyboardstate = SDL_GetKeyboardState(NULL);
+	Player* p = &state.player;
+	Map* map = &state.map;
+	Sector curSec = state.map.sectors[p->sector - 1];
 
 
 	//TODO: wall collsion checks
 
-	v3 oldPos = state.player.pos;
-	u8 moved = 0;
 
-	if (keyboardstate[SDL_SCANCODE_W]) {
-		state.player.pos = (v3){
-			state.player.pos.x + state.player.anglecos * movespeed,
-			state.player.pos.y + state.player.anglesin * movespeed,
-			state.player.pos.z
-		};
-		moved = 1;
-	}
-	if (keyboardstate[SDL_SCANCODE_S]) {
-		state.player.pos = (v3){
-			state.player.pos.x - state.player.anglecos * movespeed,
-			state.player.pos.y - state.player.anglesin * movespeed,
-			state.player.pos.z
-		};
-		moved = 1;
-	}
-	if (keyboardstate[SDL_SCANCODE_A]) {
-		v2 add = v2Rotate((v2) { state.player.anglecos* movespeed, state.player.anglesin* movespeed}, PI / 2);
-		state.player.pos.x += add.x;
-		state.player.pos.y += add.y;
-		moved = 1;
-	}
-	if (keyboardstate[SDL_SCANCODE_D]) {
-		v2 add = v2Rotate((v2) { state.player.anglecos* movespeed, state.player.anglesin* movespeed }, -PI / 2);
-		state.player.pos.x += add.x;
-		state.player.pos.y += add.y;
-		moved = 1;
+	//vertical TODO FPS independent
+	if (keyboardstate[SDL_SCANCODE_SPACE] && !p->inAir) {
+		p->inAir = 1;
+		p->velocity.z = 25.0f;
 	}
 
-	if (moved) {
-		Sector curSec = state.map.sectors[state.player.sector - 1];
-		for (i32 i = curSec.index; i < curSec.index + curSec.numWalls; i++) {
-			Wall curwall = state.map.walls[i];
-			if (curwall.portal > 0 &&
-				BOXINTERSECT2D(oldPos.x, oldPos.y, state.player.pos.x, state.player.pos.y, curwall.a.x, curwall.a.y, curwall.b.x, curwall.b.y) && 
-				POINTSIDE2D(state.player.pos.x, state.player.pos.y, curwall.a.x, curwall.a.y, curwall.b.x, curwall.b.y) > 0)) {
-				state.player.sector = curwall.portal;
-				state.player.pos.z = EYEHEIGHT + state.map.sectors[state.player.sector - 1].zfloor;
-				break;
-			}
+	if (p->inAir) {
+		p->velocity.z += gravity;
+		f32 dvel = p->velocity.z * ((f32)state.deltaTime / 1000.0f);
+		if (p->velocity.z < 0 && (p->pos.z + dvel) < (curSec.zfloor + EYEHEIGHT)) {
+			p->velocity.z = 0;
+			p->inAir = 0;
+			p->pos.z = (curSec.zfloor + EYEHEIGHT);
+		}
+		else if (p->velocity.z > 0 && (p->pos.z + dvel) > (curSec.zceil - HEADMARGIN)) {
+			p->velocity.z = 0;
+			p->pos.z = curSec.zceil - HEADMARGIN;
+		}
+		else {
+			p->pos.z += dvel;
 		}
 	}
+	//horizontal
+
+	v2 dpos = { 0, 0 };
+
+	if (keyboardstate[SDL_SCANCODE_W]) { dpos.x += p->anglecos; dpos.y += p->anglesin; }
+	if (keyboardstate[SDL_SCANCODE_S]) { dpos.x -= p->anglecos; dpos.y -= p->anglesin; }
+	if (keyboardstate[SDL_SCANCODE_A]) { dpos.x -= p->anglesin; dpos.y += p->anglecos; }
+	if (keyboardstate[SDL_SCANCODE_D]) { dpos.x += p->anglesin; dpos.y -= p->anglecos; }
+
+	u8 moved = keyboardstate[SDL_SCANCODE_W] || keyboardstate[SDL_SCANCODE_S] || keyboardstate[SDL_SCANCODE_A] || keyboardstate[SDL_SCANCODE_D];
+
+	f32 acceleration = moved ? 0.4 : 0.3;
+
+	p->velocity.x = p->velocity.x * (1 - acceleration) + dpos.x * acceleration * movespeed;
+	p->velocity.y = p->velocity.y * (1 - acceleration) + dpos.y * acceleration * movespeed;
+
+	v3 oldPos = p->pos;
+	i32 oldSec = p->sector;
+
+	//check for collision and if player entered new sector
+	for (i32 i = curSec.index; i < curSec.index + curSec.numWalls; i++) {
+		Wall curwall = map->walls[i];
+		if (BOXINTERSECT2D(p->pos.x, p->pos.y, p->pos.x + p->velocity.x, p->pos.y + p->velocity.y, curwall.a.x, curwall.a.y, curwall.b.x, curwall.b.y) &&
+			POINTSIDE2D(p->pos.x + p->velocity.x, p->pos.y + p->velocity.y, curwall.a.x, curwall.a.y, curwall.b.x, curwall.b.y) > 0)) {
+				f32 stepl = curwall.portal > 0 ? map->sectors[curwall.portal - 1].zfloor : 10e10;
+				f32 steph = curwall.portal > 0 ? map->sectors[curwall.portal - 1].zceil : -10e10;
+				if (stepl > p->pos.z - EYEHEIGHT + STEPHEIGHT ||
+					steph < p->pos.z + HEADMARGIN) {
+					//collide with wall, project velocity vector onto wall vector
+					v2 wallVec = { curwall.b.x - curwall.a.x, curwall.b.y - curwall.a.y };
+					v2 projVel = {
+						(p->velocity.x * wallVec.x + p->velocity.y * wallVec.y) / (wallVec.x * wallVec.x + wallVec.y * wallVec.y) * wallVec.x,
+						(p->velocity.x * wallVec.x + p->velocity.y * wallVec.y) / (wallVec.x * wallVec.x + wallVec.y * wallVec.y) * wallVec.y
+					};
+					p->velocity.x = projVel.x;
+					p->velocity.y = projVel.y;
+				}
+				else if (curwall.portal > 0){
+					curSec = state.map.sectors[curwall.portal - 1];
+					p->sector = curSec.id;;
+					if (p->pos.z < EYEHEIGHT + curSec.zfloor) p->pos.z = EYEHEIGHT + curSec.zfloor;
+					else if (p->pos.z > EYEHEIGHT + curSec.zfloor) p->inAir = 1;
+				}
+			}
+	}
+
+	p->pos.x += p->velocity.x;
+	p->pos.y += p->velocity.y;
 }
 
 void init() {
@@ -174,22 +204,23 @@ void init() {
 	state.player.pos = (v3){ 15.0f, 15.0f, 0.0f};
 	state.player.sector = 1;
 	state.player.pos.z = EYEHEIGHT + state.map.sectors[state.player.sector - 1].zfloor;
+	state.player.inAir = 0;
 
 	state.player.angle = PI_2;
 	state.player.anglecos = cos(state.player.angle);
 	state.player.anglesin = sin(state.player.angle);
 
 	//init global render variables 
-
+	//yslope if camera had z position 1, this value is later scaled by the actual height value
 	for (i32 y = 0; y < SCREEN_HEIGHT; y++) {
 		f32 dy = y - SCREEN_HEIGHT / 2;
-		yslope[y] = (SCREEN_HEIGHT / 2) / dy;
+		yslope[y] = (SCREEN_HEIGHT * 0.5f) / dy;
 	}
+	yslope[360] = 1000;
 
 	for (i32 x = 0; x < SCREEN_WIDTH; x++) {
 		screenxtoangle[x] = screen_x_to_angle(x);
 	}
-
 }
 
 void close() {
@@ -223,7 +254,7 @@ void loadTextures(Texture* textures) {
 
 void loadLevel() {
 	FILE* fp = NULL;
-	fopen_s(&fp,"level2.txt", "r");
+	fopen_s(&fp,"level.txt", "r");
 	ASSERT(fp, "error opening leveldata file");
 	enum {SECTOR, WALL, NONE} sm = NONE;
 	u8 done = 0;

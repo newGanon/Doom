@@ -63,6 +63,7 @@ typedef struct {
 	v3 pos, velocity;
 	f32 angle, anglecos, anglesin;
 	u32 sector;
+	u8 inAir;
 }Player;
 
 typedef struct Sector {

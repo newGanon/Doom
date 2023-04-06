@@ -26,6 +26,7 @@ void render();
 void close();
 void loadTextures(Texture* textures);
 void loadLevel();
+u8 pointInsideSector(Map* map, i32 sec, v2 p);
 
 
 int main(int argc, char* args[]) {
@@ -44,7 +45,7 @@ int main(int argc, char* args[]) {
 				close();
 				break;
 			case SDL_MOUSEMOTION: {
-				f32 rotaionspeed = 0.1f * ((f32)state.deltaTime / 1000.0f);
+				f32 rotaionspeed = 0.001f;
 				state.player.angle -= e.motion.xrel * rotaionspeed; 
 				state.player.anglecos = cos(state.player.angle);
 				state.player.anglesin = sin(state.player.angle); }
@@ -88,11 +89,7 @@ void update() {
 	Map* map = &state.map;
 	Sector curSec = state.map.sectors[p->sector - 1];
 
-
-	//TODO: wall collsion checks
-
-
-	//vertical TODO FPS independent
+	//vertical collision detection
 	if (keyboardstate[SDL_SCANCODE_SPACE] && !p->inAir) {
 		p->inAir = 1;
 		p->velocity.z = 25.0f;
@@ -101,21 +98,24 @@ void update() {
 	if (p->inAir) {
 		p->velocity.z += gravity;
 		f32 dvel = p->velocity.z * ((f32)state.deltaTime / 1000.0f);
+		//floor collision
 		if (p->velocity.z < 0 && (p->pos.z + dvel) < (curSec.zfloor + EYEHEIGHT)) {
 			p->velocity.z = 0;
 			p->inAir = 0;
 			p->pos.z = (curSec.zfloor + EYEHEIGHT);
 		}
+		//ceiling collision
 		else if (p->velocity.z > 0 && (p->pos.z + dvel) > (curSec.zceil - HEADMARGIN)) {
 			p->velocity.z = 0;
 			p->pos.z = curSec.zceil - HEADMARGIN;
 		}
+		//if no collision was detected just add the velocity
 		else {
 			p->pos.z += dvel;
 		}
 	}
-	//horizontal
 
+	//horizontal collision detection
 	v2 dpos = { 0, 0 };
 
 	if (keyboardstate[SDL_SCANCODE_W]) { dpos.x += p->anglecos; dpos.y += p->anglesin; }
@@ -140,6 +140,7 @@ void update() {
 			POINTSIDE2D(p->pos.x + p->velocity.x, p->pos.y + p->velocity.y, curwall.a.x, curwall.a.y, curwall.b.x, curwall.b.y) > 0)) {
 				f32 stepl = curwall.portal > 0 ? map->sectors[curwall.portal - 1].zfloor : 10e10;
 				f32 steph = curwall.portal > 0 ? map->sectors[curwall.portal - 1].zceil : -10e10;
+				//collision with wall, top or lower part of portal
 				if (stepl > p->pos.z - EYEHEIGHT + STEPHEIGHT ||
 					steph < p->pos.z + HEADMARGIN) {
 					//collide with wall, project velocity vector onto wall vector
@@ -151,6 +152,7 @@ void update() {
 					p->velocity.x = projVel.x;
 					p->velocity.y = projVel.y;
 				}
+				//if player fits throught portal change playersector
 				else if (curwall.portal > 0){
 					curSec = state.map.sectors[curwall.portal - 1];
 					p->sector = curSec.id;;
@@ -160,8 +162,15 @@ void update() {
 			}
 	}
 
-	p->pos.x += p->velocity.x;
-	p->pos.y += p->velocity.y;
+	//check if point is outside
+	if (pointInsideSector(&state.map, p->sector, (v2) { p->pos.x + p->velocity.x, p->pos.y + p->velocity.y })) {
+		p->pos.x += p->velocity.x;
+		p->pos.y += p->velocity.y;
+	}
+
+	//reset player pos
+	if (keyboardstate[SDL_SCANCODE_R]) { state.player.pos = (v3){ 15.0f, 15.0f, EYEHEIGHT + state.map.sectors[0].zfloor }; state.player.sector = 1; }
+
 }
 
 void init() {
@@ -254,7 +263,7 @@ void loadTextures(Texture* textures) {
 
 void loadLevel() {
 	FILE* fp = NULL;
-	fopen_s(&fp,"level.txt", "r");
+	fopen_s(&fp,"level2.txt", "r");
 	ASSERT(fp, "error opening leveldata file");
 	enum {SECTOR, WALL, NONE} sm = NONE;
 	u8 done = 0;
@@ -288,4 +297,16 @@ void loadLevel() {
 		}
 	}
 	fclose(fp);
+}
+
+
+u8 pointInsideSector(Map* map, i32 sec, v2 p) {
+	Sector s = map->sectors[sec - 1];
+	for (i32 i = s.index; i < (s.index + s.numWalls); i++) {
+		Wall w = map->walls[i];
+		if (POINTSIDE2D(p.x, p.y, w.a.x, w.a.y, w.b.x, w.b.y) > 0) {
+			return 0;
+		}
+	}
+	return 1;
 }

@@ -43,7 +43,7 @@ i32 screen_angle_to_x(f32 angle) {
 	return ((i32)(SCREEN_WIDTH / 2)) * t;
 }
 
-//convert x from [0, SCREEN_WIDTH -1] to  [-HFOV/2, HFOV/2]
+//convert x from [0, SCREEN_WIDTH -1] to  [-HFOV/2, HFOV/2], only used to fill lookuptable
 f32 screen_x_to_angle(i32 x) {
 	f32 at = atan(((-2 * x) / (f32)SCREEN_WIDTH) + 1);
 	return (f32)((2 * HFOV * at) / PI);

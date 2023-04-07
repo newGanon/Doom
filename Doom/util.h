@@ -33,11 +33,12 @@ typedef struct v3u_s8 { i32 x, y, z; } v3u8;
 #define SCREEN_WIDTH 1280	
 #define SCREEN_HEIGHT 720
 #define EYEHEIGHT 6
-#define SNEAKHEIGHT 2.5  
+#define SNEAKHEIGHT 2.5f
 #define HEADMARGIN 1   
 #define STEPHEIGHT 2    
 #define HFOV PI_2
 #define VFOV 0.5f   
+#define LIGHTDIMINISHINGDFACTOR 0.1f
 
 #define ZNEAR 0.0001f
 #define ZFAR 32768.0f

@@ -17,4 +17,5 @@ void drawCircle(i32 x0, i32 y0, i32 a, i32 b, u32 color, u32* pixels);
 void draw3D(Player player, Map* map, u32* pixels, Texture* tex);
 
 u32 changeRGBBrightness(u32 color, f32 factor);
-f32 calcShade(v2 start, v2 end);
+f32 calcWallShade(v2 start, v2 end, f32 dis);
+f32 calcFlatShade(f32 dis);

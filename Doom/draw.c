@@ -230,8 +230,9 @@ void draw3D(Player player, Map* map, u32* pixels, Texture* tex) {
 					v2 p = camera_pos_to_world((v2) { xt, yt }, player);
 					// texutre coordinates
 					//v2i t = { (i32)(fabs((p.x - (i32)p.x) * 256)), (i32)(fabs((p.y - (i32)p.y) * 256))};
+					f32 pixelshade = calcFlatShade(dis);
 					v2i t = { abs(fmod((p.x), 8) * 32) ,abs(fmod(fabs(p.y), 8) * 32) };
-					u32 color = tex[0].pixels[(256 - t.y) * tex->width + t.x];
+					u32 color = changeRGBBrightness(tex[0].pixels[(256 - t.y) * tex->width + t.x], pixelshade);
 					drawPixel(x, y, color, pixels);
 				}
 
@@ -246,8 +247,9 @@ void draw3D(Player player, Map* map, u32* pixels, Texture* tex) {
 					// absolute ones
 					v2 p = camera_pos_to_world((v2) { xt, yt }, player);
 					// texutre coordinates
+					f32 pixelshade = calcFlatShade(dis);
 					v2i t = { abs((p.x - (i32)p.x) * 256) ,abs((p.y - (i32)p.y) * 256) };
-					u32 color = tex[0].pixels[(256 - t.y) * tex->width + t.x];
+					u32 color = changeRGBBrightness(tex[0].pixels[(256 - t.y) * tex->width + t.x], pixelshade);
 					drawPixel(x, y, color, pixels);
 
 				}
@@ -257,8 +259,6 @@ void draw3D(Player player, Map* map, u32* pixels, Texture* tex) {
 				//draw ceiling
 				//if (yc < map->ceilingclip[x]) { drawVerticalLine(x, yc, map->ceilingclip[x], changeRGBBrightness(PURPLE, 1.0f + (f32)((i32)sec.zceil % 10) / 10.0f), pixels); } 
 
-
-				f32 wallshade = calcShade(map->walls[i].a, map->walls[i].b);
 
 
 				//variables used in wikipedia equation for texture mapping https://en.wikipedia.org/wiki/Texture_mapping
@@ -277,6 +277,11 @@ void draw3D(Player player, Map* map, u32* pixels, Texture* tex) {
 				f32 z1 = p2.y;
 
 				f64 u = ((1.0f - a) * (u0 / z0) + a * (u1 / z1)) / ((1.0f - a) * 1 / z0 + a * (1.0f / z1));
+
+				
+				//wall distance for lightlevel calc
+				f32 dis = tp1.y * (1 - u) + tp2.y * (u);
+				f32 wallshade = calcWallShade(map->walls[i].a, map->walls[i].b, dis);
 				
 				//draw Wall
 				if (map->walls[i].portal == 0) {
@@ -329,9 +334,13 @@ void draw3D(Player player, Map* map, u32* pixels, Texture* tex) {
 }
 
 
-f32 calcShade(v2 start, v2 end) {
+f32 calcWallShade(v2 start, v2 end, f32 dis) {
 	v2 difNorm = v2Normalize(v2Sub(end, start));
-	return (f32)1 + 0.5f * (fabsf(difNorm.x));
+	return (f32)1.0f + 1.0f * (fabsf(difNorm.x)) + fabsf(dis) * LIGHTDIMINISHINGDFACTOR;
+}
+
+f32 calcFlatShade(f32 dis) {
+	return (f32)1 + fabsf(dis) * LIGHTDIMINISHINGDFACTOR;
 }
 
 void drawTexLine(i32 x, i32 y0, i32 y1, i32 yf, i32 yc, f64 u, Texture* tex, f32 shade, u32* pixels) {

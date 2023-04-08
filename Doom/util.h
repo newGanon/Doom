@@ -88,3 +88,5 @@ typedef struct Map {
 
 f32 yslope[SCREEN_HEIGHT];
 f32 screenxtoangle[SCREEN_WIDTH];
+
+f32 zBuffer[SCREEN_HEIGHT * SCREEN_WIDTH];

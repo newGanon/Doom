@@ -109,6 +109,9 @@ u32 changeRGBBrightness(u32 color, f32 factor) {
 
 void draw3D(Player player, Map* map, u32* pixels, Texture* tex) {
 
+	//clear zBuffer
+	for (i32 i = 0; i < SCREEN_HEIGHT * SCREEN_WIDTH; i++) { zBuffer[i] = 0.0f; }
+
 	u8 renderedSectors[SECTOR_MAX];
 	memset(renderedSectors, 0, sizeof(renderedSectors));
 
@@ -199,7 +202,7 @@ void draw3D(Player player, Map* map, u32* pixels, Texture* tex) {
 			i32 pc0 = (SCREEN_HEIGHT / 2) + (i32)((nzceil - player.pos.z) * sy0);
 			i32 pc1 = (SCREEN_HEIGHT / 2) + (i32)((nzceil - player.pos.z) * sy1);
 
-			u32 color = (map->walls[i].portal) ? BLUE : RED;
+			//u32 color = (map->walls[i].portal) ? BLUE : RED;
 
 			//wall texture mapping varaibles
 			v2 difp1 = v2Sub(p1, tp1);
@@ -222,10 +225,10 @@ void draw3D(Player player, Map* map, u32* pixels, Texture* tex) {
 				for (i32 y = map->floorclip[x]; y < yf; y++){
 					f32 a = screenxtoangle[x];
 					//scale normalized yslope by actual camera pos and divide by the cosine of angle to prevent fisheye effect
-					f32 dis = ((player.pos.z - sec.zfloor) * yslope[y]) / (cos(a));
+					f32 dis = fabsf(((player.pos.z - sec.zfloor) * yslope[y]) / (cos(a)));
 					//relative coordinates to player
-					f32 xt = cos(a - HFOV) * dis;
-					f32 yt = sin(a - HFOV) * dis;
+					f32 xt = cos(a + HFOV) * dis;
+					f32 yt = sin(a + HFOV) * dis;
 					// absolute ones
 					v2 p = camera_pos_to_world((v2) { xt, yt }, player);
 					// texutre coordinates
@@ -234,13 +237,14 @@ void draw3D(Player player, Map* map, u32* pixels, Texture* tex) {
 					v2i t = { abs(fmod((p.x), 8) * 32) ,abs(fmod(fabs(p.y), 8) * 32) };
 					u32 color = changeRGBBrightness(tex[0].pixels[(256 - t.y) * tex->width + t.x], pixelshade);
 					drawPixel(x, y, color, pixels);
+					zBuffer[y * SCREEN_WIDTH + x] = dis;
 				}
 
 				//ceiling
 				for (i32 y = yc; y < map->ceilingclip[x]; y++) {
 					f32 a = screenxtoangle[x];
 					//scale normalized yslope by actual camera pos and divide by the cosine of angle to prevent fisheye effect
-					f32 dis = ((sec.zceil - player.pos.z) * yslope[y]) / (cos(a));
+					f32 dis = fabsf(((sec.zceil - player.pos.z) * yslope[y]) / (cos(a)));
 					//relative coordinates to player
 					f32 xt = cos(a + HFOV) * dis;
 					f32 yt = sin(a + HFOV) * dis;
@@ -251,7 +255,7 @@ void draw3D(Player player, Map* map, u32* pixels, Texture* tex) {
 					v2i t = { abs((p.x - (i32)p.x) * 256) ,abs((p.y - (i32)p.y) * 256) };
 					u32 color = changeRGBBrightness(tex[0].pixels[(256 - t.y) * tex->width + t.x], pixelshade);
 					drawPixel(x, y, color, pixels);
-
+					zBuffer[y * SCREEN_WIDTH + x] = dis;
 				}
 				//draw floor
 				// if (yf > map->floorclip[x]) { drawVerticalLine(x, map->floorclip[x], yf, changeRGBBrightness(ORANGE, 1.0f + (f32)((i32)sec.zceil % 10) / 10.0f), pixels); } 
@@ -286,7 +290,10 @@ void draw3D(Player player, Map* map, u32* pixels, Texture* tex) {
 				//draw Wall
 				if (map->walls[i].portal == 0) {
 					//drawVerticalLine(x, yf, yc, changeRGBBrightness(color, wallshade), pixels); wall in one color
-					if(yc > tyf && yf < tyc)drawTexLine(x, yf, yc, tyf, tyc, u, tex, wallshade, pixels);
+					if (yc > tyf && yf < tyc) {
+						drawTexLine(x, yf, yc, tyf, tyc, u, tex, wallshade, pixels);
+						for (i32 y = yf; y < yc; y++){ zBuffer[y * SCREEN_WIDTH + x] = dis; }
+					}
 				}
 				
 				//draw Portal
@@ -299,11 +306,11 @@ void draw3D(Player player, Map* map, u32* pixels, Texture* tex) {
 
 					//if neighborfloor is higher than current sectorceiling then draw it
 					//if (pyf > yf) { drawVerticalLine(x, yf, pyf, changeRGBBrightness(YELLOW, wallshade), pixels); }
-					if (pyf > yf) { drawTexLine(x, yf, pyf, tyf, tpyf, u, tex, wallshade, pixels); }
+					if (pyf > yf) { drawTexLine(x, yf, pyf, tyf, tpyf, u, tex, wallshade, pixels); for (i32 y = yf; y < pyf; y++) { zBuffer[y * SCREEN_WIDTH + x] = dis; }}
 					//draw window
 					//drawVerticalLine(x, pyf, pyc, color, pixels);
 					//if neighborceiling is lower than current sectorceiling then draw it
-					if (pyc < yc) { drawTexLine(x, pyc, yc, tpyc, tyc,u, tex, wallshade, pixels); }
+					if (pyc < yc) { drawTexLine(x, pyc, yc, tpyc, tyc,u, tex, wallshade, pixels); for (i32 y = pyc; y < yc; y++) { zBuffer[y * SCREEN_WIDTH + x] = dis; }}
 
 					//update vertical clipping arrays
 					map->ceilingclip[x] = clamp(pyc, 0, SCREEN_HEIGHT - 1);
@@ -317,6 +324,49 @@ void draw3D(Player player, Map* map, u32* pixels, Texture* tex) {
 
 		}
 		++renderedSectors[now.sectorno - 1];
+	}
+
+	//drawing sprites 
+	//TODO: PROPER ENTITYHANDER AND ENTITY
+	v2 spriteScale = { 7.5f, 7.5f };
+	f32 spritez = 6.0f;
+
+	f32 spritevMove = -256.0f * 1.5f * (spritez - player.pos.z);
+	v2 spritepos = { 20.0f ,20.0f };
+	v2 spritep = world_pos_to_camera(spritepos, player);
+	v2 test = camera_pos_to_world(spritep, player);
+	f32 spritea = atan2(spritep.y, spritep.x) - PI / 2;
+	i32 spriteScreenX = screen_angle_to_x(spritea);
+	i32 vMoveScreen = spritevMove / spritep.y;
+
+	//calculate camera spriteheight and textureheight
+	i32 spriteHeight = (SCREEN_HEIGHT / spritep.y) * spriteScale.y;
+	i32 y0 = -spriteHeight / 2 + SCREEN_HEIGHT / 2 + vMoveScreen;
+	if (y0 < 0) y0 = 0;
+	i32 y1 = spriteHeight / 2 + SCREEN_HEIGHT / 2 + vMoveScreen;
+	if (y1 >= SCREEN_HEIGHT) y1 = SCREEN_HEIGHT - 1;
+
+	i32 spriteWidth = (SCREEN_HEIGHT / spritep.y) * spriteScale.x;
+	i32 x0 = -spriteWidth / 2 + spriteScreenX;
+	if (x0 < 0) x0 = 0;
+	i32 x1 = spriteWidth / 2 + spriteScreenX;
+	if (x1 >= SCREEN_WIDTH) x1 = SCREEN_WIDTH - 1;
+
+	Texture sprite = tex[1];
+
+	for (i32 x = x0; x < x1; x++) {
+		v2i tex;
+		tex.x = (i32)((x - (-spriteWidth / 2 + spriteScreenX)) * sprite.width / spriteWidth);
+		if (spritep.y > 0 && x >= 0 && x < SCREEN_WIDTH) {
+			for (i32 y = y0; y < y1; y++) {
+				if (zBuffer[(SCREEN_HEIGHT - y) * SCREEN_WIDTH + x] > spritep.y) {
+					i32 d = (y - vMoveScreen) - SCREEN_HEIGHT / 2 + spriteHeight / 2;
+					tex.y = (d * sprite.height) / spriteHeight;
+					u32 color = changeRGBBrightness(sprite.pixels[tex.y * sprite.width + tex.x], calcFlatShade(spritep.y));
+					drawPixel(x, SCREEN_HEIGHT - y, color, pixels);
+				}
+			}
+		}
 	}
 
 	v2i mapoffset = (v2i){ 100 , SCREEN_HEIGHT - 200};
@@ -336,7 +386,7 @@ void draw3D(Player player, Map* map, u32* pixels, Texture* tex) {
 
 f32 calcWallShade(v2 start, v2 end, f32 dis) {
 	v2 difNorm = v2Normalize(v2Sub(end, start));
-	return (f32)1.0f + 1.0f * (fabsf(difNorm.x)) + fabsf(dis) * LIGHTDIMINISHINGDFACTOR;
+	return (f32)1.0f + (10.0f * (fabsf(difNorm.x)) + fabsf(dis)) * LIGHTDIMINISHINGDFACTOR;
 }
 
 f32 calcFlatShade(f32 dis) {

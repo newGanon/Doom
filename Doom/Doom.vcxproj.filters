@@ -48,5 +48,8 @@
     <Image Include="test.bmp">
       <Filter>Resource Files</Filter>
     </Image>
+    <Image Include="spritetest2.bmp">
+      <Filter>Resource Files</Filter>
+    </Image>
   </ItemGroup>
 </Project>

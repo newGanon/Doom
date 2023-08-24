@@ -27,8 +27,8 @@ typedef struct v3i_s { i32 x, y, z; } v3i;
 typedef struct v3u_s8 { i32 x, y, z; } v3u8;
 
 #define PI 3.14159265359f
-#define PI_2 (PI / 2.0f)
-#define PI_4 (PI / 4.0f)
+#define PI_2 1.57079632679f
+#define PI_4 0.78539816339f
 
 #define SCREEN_WIDTH 1280	
 #define SCREEN_HEIGHT 720
@@ -46,8 +46,8 @@ typedef struct v3u_s8 { i32 x, y, z; } v3u8;
 #define SECTOR_MAX 256
 #define WALL_MAX 2048
 
-#define SCREEN_FPS 500
-#define SCREEN_TICKS_PER_FRAME 1000 / SCREEN_FPS
+#define SCREEN_FPS 60
+#define SCREEN_TICKS_PER_FRAME (1000 / SCREEN_FPS)
 
 #define RED 0xFFFF0000
 #define GREEN 0xFF00FF00
@@ -75,6 +75,7 @@ typedef struct Sector {
 typedef struct Wall {
 	v2 a, b;
 	i32 portal;
+	f32 distance;
 }Wall;
 
 typedef struct Map {
@@ -82,8 +83,9 @@ typedef struct Map {
 	i32 wallnum;
 	Sector sectors[SECTOR_MAX];
 	i32 sectornum;
-	u16 ceilingclip[SCREEN_WIDTH];
-	u16 floorclip[SCREEN_WIDTH];
+	u16 ceilingclip[SCREEN_WIDTH * SECTOR_MAX];
+	u16 floorclip[SCREEN_WIDTH * SECTOR_MAX];
+	u16 curclipnum;
 } Map;
 
 f32 yslope[SCREEN_HEIGHT];

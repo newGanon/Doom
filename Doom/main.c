@@ -26,6 +26,7 @@ void render();
 void close();
 void loadTextures(Texture* textures);
 void loadLevel();
+void sortWalls();
 u8 pointInsideSector(Map* map, i32 sec, v2 p);
 
 
@@ -82,6 +83,8 @@ void render() {
 
 void update() {
 
+	sortWalls();
+
 	const f32 movespeed = 20.0f * ((f32)state.deltaTime / 1000.0f);
 	const f32 gravity = -80.0f * ((f32)state.deltaTime / 1000.0f);
 	const u8* keyboardstate = SDL_GetKeyboardState(NULL);
@@ -130,9 +133,6 @@ void update() {
 	p->velocity.x = p->velocity.x * (1 - acceleration) + dpos.x * acceleration * movespeed;
 	p->velocity.y = p->velocity.y * (1 - acceleration) + dpos.y * acceleration * movespeed;
 
-	v3 oldPos = p->pos;
-	i32 oldSec = p->sector;
-
 	//check for collision and if player entered new sector
 	for (i32 i = curSec.index; i < curSec.index + curSec.numWalls; i++) {
 		Wall curwall = map->walls[i];
@@ -163,13 +163,18 @@ void update() {
 	}
 
 	//check if point is outside
-	if (pointInsideSector(&state.map, p->sector, (v2) { p->pos.x + p->velocity.x, p->pos.y + p->velocity.y })) {
+	/*if (pointInsideSector(&state.map, p->sector, (v2) { p->pos.x + p->velocity.x, p->pos.y + p->velocity.y })) {
 		p->pos.x += p->velocity.x;
 		p->pos.y += p->velocity.y;
-	}
+	}*/
+
+	p->pos.x += p->velocity.x;
+	p->pos.y += p->velocity.y;
 
 	//reset player pos
 	if (keyboardstate[SDL_SCANCODE_R]) { state.player.pos = (v3){ 15.0f, 15.0f, EYEHEIGHT + state.map.sectors[0].zfloor }; state.player.sector = 1; }
+
+	
 
 }
 
@@ -263,7 +268,7 @@ void loadTextures(Texture* textures) {
 
 void loadLevel() {
 	FILE* fp = NULL;
-	fopen_s(&fp,"level.txt", "r");
+	fopen_s(&fp,"level2.txt", "r");
 	ASSERT(fp, "error opening leveldata file");
 	enum {SECTOR, WALL, NONE} sm = NONE;
 	u8 done = 0;
@@ -309,4 +314,32 @@ u8 pointInsideSector(Map* map, i32 sec, v2 p) {
 		}
 	}
 	return 1;
+}
+
+void sortWalls() {
+	Map* map = &state.map;
+	//calc distances
+	for (i32 wallind= 0; wallind < map->wallnum; wallind++)
+	{
+		v2 p1 = world_pos_to_camera(map->walls[wallind].a, state.player);
+		v2 p2 = world_pos_to_camera(map->walls[wallind].b, state.player);
+
+		map->walls[wallind].distance = (p1.y + p2.y) / 2;
+	}
+	//sort wall with distance from player
+	for (i32 secind = 0; secind < map->sectornum; secind++)
+	{
+		Sector sec = map->sectors[secind];
+		for (i32 step = sec.index; step < sec.index + sec.numWalls; step++)
+		{
+			for (i32 i = sec.index; i < sec.index + sec.numWalls - 1; i++)
+			{
+				if (map->walls[i].distance > map->walls[i + 1].distance){
+					Wall tempWall = map->walls[i];
+					map->walls[i] = map->walls[i + 1];
+					map->walls[i+1] = tempWall;
+				}
+			}
+		}
+	}
 }

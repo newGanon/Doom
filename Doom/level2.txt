@@ -1,19 +1,44 @@
-#SECTOR <id> <index(number of walls before this secor)> <num walls in sector> <floorheight> <ceilingheigt>
+#Jump and run Build
+#SECTOR <id> <index(number of walls before this sector)> <num walls in sector> <floorheight> <ceilingheigt>
 {SECTORS}
-1 0 5 0.0 12.0
-2 5 3 2.0 10.0
+1 0 4 0.0 15.0
+2 4 8 2.0 12.0
+3 12 4 5.0 15.0
+4 16 4 5.0 17.0
+
+
 
 #WALL <x0> <y0> <x1> <y1> <portal?>
 #SECTOR 1:
 {WALLS}
-10 10 10 30 0
-10 30 20 40 0
-20 40 30 30 2
-30 30 30 10 0
-30 10 10 10 0
+10 40 40 40 0
+40 40 40 10 2
+40 10 10 10 0
+10 10 10 40 0
 
 #SECTOR 2:
-20 40 30 50 0
-30 50 30 30 0
-30 30 20 40 1
+
+50 30 50 20 3
+50 20 60 20 3
+60 20 60 30 3
+60 30 50 30 3
+
+40 40 70 40 0
+70 40 70 10 4
+70 10 40 10 0
+40 10 40 40 1
+
+
+#SECTOR 3:
+50 20 50 30 2
+50 30 60 30 2
+60 30 60 20 2
+60 20 50 20 2
+
+#SECTOR 4:
+70 40 100 40 0
+100 40 100 10 0
+100 10 70 10 0
+70 10 70 40 2
+
 {END}

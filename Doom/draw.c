@@ -3,7 +3,7 @@
 #include "math.h"
 
 
-void drawTexLine(i32 x, i32 y0, i32 y1, i32 yf, i32 yc, f64 u, Texture* tex, f32 shade, u32* pixels);
+void drawTexLine(i32 x, i32 y0, i32 y1, i32 yf, i32 yc, f64 u, Texture* tex, f32 shade,f32 dis, u32* pixels);
 
 void drawPixel(i32 x, i32 y, i32 color, u32* pixels) {
 	if (x >= 0 && x < SCREEN_WIDTH && y >= 0 && y < SCREEN_HEIGHT && (color & 0xFF000000) != 0) {
@@ -110,7 +110,7 @@ u32 changeRGBBrightness(u32 color, f32 factor) {
 void draw3D(Player player, Map* map, u32* pixels, Texture* tex) {
 
 	//clear zBuffer
-	for (i32 i = 0; i < SCREEN_HEIGHT * SCREEN_WIDTH; i++) { zBuffer[i] = 0.0f; }
+	for (i32 i = 0; i < SCREEN_HEIGHT * SCREEN_WIDTH; i++) { zBuffer[i] = 999999.0f; }
 
 	u8 renderedSectors[SECTOR_MAX];
 	memset(renderedSectors, 0, sizeof(renderedSectors));
@@ -145,7 +145,7 @@ void draw3D(Player player, Map* map, u32* pixels, Texture* tex) {
 			v2 p1 = world_pos_to_camera(map->walls[i].a, player);
 			v2 p2 = world_pos_to_camera(map->walls[i].b, player);
 
-			v2 tp1  = p1;
+			v2 tp1 = p1;
 			v2 tp2 = p2;
 
 			f32 a1 = atan2(p1.y, p1.x) - PI / 2;
@@ -291,8 +291,7 @@ void draw3D(Player player, Map* map, u32* pixels, Texture* tex) {
 				if (map->walls[i].portal == 0) {
 					//drawVerticalLine(x, yf, yc, changeRGBBrightness(color, wallshade), pixels); wall in one color
 					if (yc > tyf && yf < tyc) {
-						drawTexLine(x, yf, yc, tyf, tyc, u, tex, wallshade, pixels);
-						for (i32 y = yf; y < yc; y++){ zBuffer[y * SCREEN_WIDTH + x] = dis; }
+						drawTexLine(x, yf, yc, tyf, tyc, u, tex, wallshade, dis, pixels);
 					}
 				}
 				
@@ -306,11 +305,11 @@ void draw3D(Player player, Map* map, u32* pixels, Texture* tex) {
 
 					//if neighborfloor is higher than current sectorceiling then draw it
 					//if (pyf > yf) { drawVerticalLine(x, yf, pyf, changeRGBBrightness(YELLOW, wallshade), pixels); }
-					if (pyf > yf) { drawTexLine(x, yf, pyf, tyf, tpyf, u, tex, wallshade, pixels); for (i32 y = yf; y < pyf; y++) { zBuffer[y * SCREEN_WIDTH + x] = dis; }}
+					if (pyf > yf) { drawTexLine(x, yf, pyf, tyf, tpyf, u, tex, wallshade, dis, pixels); for (i32 y = yf; y < pyf; y++); }
 					//draw window
 					//drawVerticalLine(x, pyf, pyc, color, pixels);
 					//if neighborceiling is lower than current sectorceiling then draw it
-					if (pyc < yc) { drawTexLine(x, pyc, yc, tpyc, tyc,u, tex, wallshade, pixels); for (i32 y = pyc; y < yc; y++) { zBuffer[y * SCREEN_WIDTH + x] = dis; }}
+					if (pyc < yc) { drawTexLine(x, pyc, yc, tpyc, tyc, u, tex, wallshade, dis, pixels); for (i32 y = pyc; y < yc; y++); }
 
 					//update vertical clipping arrays
 					map->ceilingclip[x] = clamp(pyc, 0, SCREEN_HEIGHT - 1);
@@ -393,12 +392,15 @@ f32 calcFlatShade(f32 dis) {
 	return (f32)1 + fabsf(dis) * LIGHTDIMINISHINGDFACTOR;
 }
 
-void drawTexLine(i32 x, i32 y0, i32 y1, i32 yf, i32 yc, f64 u, Texture* tex, f32 shade, u32* pixels) {
+void drawTexLine(i32 x, i32 y0, i32 y1, i32 yf, i32 yc, f64 u, Texture* tex, f32 shade,f32 dis, u32* pixels) {
 	i32 tx = u * tex[0].width;
 	for (i32 y = y0; y <= y1; y++) {
-		f64 v = 1.0 - ((y - yf) / (f64)(yc - yf));
-		i32 ty = v * tex[0].height;
-		u32 color = changeRGBBrightness(tex[0].pixels[ty * tex[0].width + tx], shade);
-		drawPixel(x, y, color, pixels);
+		if (zBuffer[y * SCREEN_WIDTH + x] > dis) {
+			f64 v = 1.0 - ((y - yf) / (f64)(yc - yf));
+			i32 ty = v * tex[0].height;
+			u32 color = changeRGBBrightness(tex[0].pixels[ty * tex[0].width + tx], shade);
+			drawPixel(x, y, color, pixels);
+			zBuffer[y * SCREEN_WIDTH + x] = dis;
+		}
 	}
 }

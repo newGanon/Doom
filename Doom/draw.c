@@ -110,11 +110,9 @@ u32 changeRGBBrightness(u32 color, f32 factor) {
 void draw3D(Player player, Map* map, u32* pixels, Texture* tex) {
 
 	//clear zBuffer
-	for (i32 i = 0; i < SCREEN_HEIGHT * SCREEN_WIDTH; i++) { zBuffer[i] = 999999.0f; }
+	for (i32 i = 0; i < SCREEN_HEIGHT * SCREEN_WIDTH; i++) { zBuffer[i] = ZFAR; }
 
-	//u8 renderedSectors[SECTOR_MAX];
-	//memset(renderedSectors, 0, sizeof(renderedSectors));
-
+	//draw Walls and floor
 	for (int i = 0; i < SCREEN_WIDTH; i++) {
 		map->ceilingclip[i] = SCREEN_HEIGHT - 1;
 		map->floorclip[i] = 0;
@@ -136,7 +134,7 @@ void draw3D(Player player, Map* map, u32* pixels, Texture* tex) {
 	f32 spritez = 6.0f;
 
 	f32 spritevMove = -256.0f * 1.5f * (spritez - player.pos.z);
-	v2 spritepos = { 20.0f ,20.0f };
+	v2 spritepos = { 18.0f ,18.0f };
 	v2 spritep = world_pos_to_camera(spritepos, player);
 	v2 test = camera_pos_to_world(spritep, player);
 	f32 spritea = atan2(spritep.y, spritep.x) - PI / 2;
@@ -288,8 +286,11 @@ void drawWall3D(Player player, Map* map, u32* pixels, Texture* tex, WallRenderin
 				f32 pixelshade = calcFlatShade(dis);
 				v2i t = { abs(fmod((p.x), 8) * 32) ,abs(fmod(fabs(p.y), 8) * 32) };
 				u32 color = changeRGBBrightness(tex[0].pixels[(256 - t.y) * tex->width + t.x], pixelshade);
-				drawPixel(x, y, color, pixels);
-				zBuffer[y * SCREEN_WIDTH + x] = dis;
+				if (zBuffer[y * SCREEN_WIDTH + x] > dis) 
+				{
+					drawPixel(x, y, color, pixels);
+					zBuffer[y * SCREEN_WIDTH + x] = dis;
+				}
 			}
 
 			//ceiling
@@ -306,15 +307,17 @@ void drawWall3D(Player player, Map* map, u32* pixels, Texture* tex, WallRenderin
 				f32 pixelshade = calcFlatShade(dis);
 				v2i t = { abs((p.x - (i32)p.x) * 256) ,abs((p.y - (i32)p.y) * 256) };
 				u32 color = changeRGBBrightness(tex[0].pixels[(256 - t.y) * tex->width + t.x], pixelshade);
-				drawPixel(x, y, color, pixels);
-				zBuffer[y * SCREEN_WIDTH + x] = dis;
+				if (zBuffer[y * SCREEN_WIDTH + x] > dis)
+				{
+					drawPixel(x, y, color, pixels);
+					zBuffer[y * SCREEN_WIDTH + x] = dis;
+				}
 			}
 			//draw floor
 			// if (yf > map->floorclip[x]) { drawVerticalLine(x, map->floorclip[x], yf, changeRGBBrightness(ORANGE, 1.0f + (f32)((i32)sec.zceil % 10) / 10.0f), pixels); } 
 
 			//draw ceiling
 			//if (yc < map->ceilingclip[x]) { drawVerticalLine(x, yc, map->ceilingclip[x], changeRGBBrightness(PURPLE, 1.0f + (f32)((i32)sec.zceil % 10) / 10.0f), pixels); } 
-
 
 
 			//variables used in wikipedia equation for texture mapping https://en.wikipedia.org/wiki/Texture_mapping
@@ -338,6 +341,8 @@ void drawWall3D(Player player, Map* map, u32* pixels, Texture* tex, WallRenderin
 			//wall distance for lightlevel calc
 			f32 dis = tp1.y * (1 - u) + tp2.y * (u);
 			f32 wallshade = calcWallShade(map->walls[i].a, map->walls[i].b, dis);
+
+			if (zBuffer[(yf + 1) * SCREEN_WIDTH + x] < dis) continue;
 
 			//draw Wall
 			if (map->walls[i].portal == 0) {
@@ -387,7 +392,7 @@ f32 calcFlatShade(f32 dis) {
 }
 
 void drawTexLine(i32 x, i32 y0, i32 y1, i32 yf, i32 yc, f64 u, Texture* tex, f32 shade,f32 dis, u32* pixels) {
-	i32 tx = u * tex[0].width;
+	i32 tx = u * tex[0].width;		
 	for (i32 y = y0; y <= y1; y++) {
 		f64 v = 1.0 - ((y - yf) / (f64)(yc - yf));
 		i32 ty = v * tex[0].height;

@@ -149,6 +149,7 @@
   <ItemGroup>
     <Text Include="level.txt" />
     <Text Include="level2.txt" />
+    <Text Include="level3.txt" />
   </ItemGroup>
   <ItemGroup>
     <Image Include="spritetest2.bmp" />

@@ -334,7 +334,7 @@ void sortWalls() {
 		{
 			for (i32 i = sec.index; i < sec.index + sec.numWalls - 1; i++)
 			{
-				if (map->walls[i].distance > map->walls[i + 1].distance){
+				if (map->walls[i].distance > map->walls[i + 1].distance) {
 					Wall tempWall = map->walls[i];
 					map->walls[i] = map->walls[i + 1];
 					map->walls[i+1] = tempWall;

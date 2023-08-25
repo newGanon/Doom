@@ -88,6 +88,11 @@ typedef struct Map {
 	u16 curclipnum;
 } Map;
 
+typedef struct WallRenderingInfo {
+	int sectorno, sx1, sx2;
+	u8 renderedSectors[SECTOR_MAX];
+} WallRenderingInfo;
+
 f32 yslope[SCREEN_HEIGHT];
 f32 screenxtoangle[SCREEN_WIDTH];
 

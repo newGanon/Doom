@@ -112,8 +112,8 @@ void draw3D(Player player, Map* map, u32* pixels, Texture* tex) {
 	//clear zBuffer
 	for (i32 i = 0; i < SCREEN_HEIGHT * SCREEN_WIDTH; i++) { zBuffer[i] = 999999.0f; }
 
-	u8 renderedSectors[SECTOR_MAX];
-	memset(renderedSectors, 0, sizeof(renderedSectors));
+	//u8 renderedSectors[SECTOR_MAX];
+	//memset(renderedSectors, 0, sizeof(renderedSectors));
 
 	for (int i = 0; i < SCREEN_WIDTH; i++) {
 		map->ceilingclip[i] = SCREEN_HEIGHT - 1;
@@ -127,203 +127,8 @@ void draw3D(Player player, Map* map, u32* pixels, Texture* tex) {
 		zfl = (v2){ zdl.x * ZFAR, zdl.y * ZFAR },
 		zfr = (v2){ zdr.x * ZFAR, zdr.y * ZFAR };
 
-	enum { MaxQueue = 64 };
-	struct item { int sectorno, sx1, sx2; } queue[MaxQueue], *head = queue, *tail = queue;
+	drawWall3D(player, map, pixels, tex, &(WallRenderingInfo) { player.sector, 0, SCREEN_WIDTH - 1, { 0 }}, zdl, zdr, znl, znr, zfl, zfr, 0);
 
-	*head = (struct item){ player.sector, 0, SCREEN_WIDTH - 1 };
-	if (++head == queue + MaxQueue) head = queue;
-
-
-	while (head != tail) {
-		const struct item now = *tail;
-		if (++tail == queue + MaxQueue) tail = queue;
-
-		Sector sec = map->sectors[now.sectorno - 1];
-		for (i32 i = sec.index; i < (sec.index + sec.numWalls); i++) {
-
-			//world pos
-			v2 p1 = world_pos_to_camera(map->walls[i].a, player);
-			v2 p2 = world_pos_to_camera(map->walls[i].b, player);
-
-			v2 tp1 = p1;
-			v2 tp2 = p2;
-
-			f32 a1 = atan2(p1.y, p1.x) - PI / 2;
-			f32 a2 = atan2(p2.y, p2.x) - PI / 2;
-
-			//calculate intersection between walls and view frustum and clip walls
-			if (p1.y < ZNEAR || p2.y < ZNEAR || a1 > +(HFOV / 2) || a2 < -(HFOV / 2)) {
-				v2 il;
-				i32 hitl = get_line_intersection(p1, p2, znl, zfl, &il);
-				v2 ir;
-				i32 hitr = get_line_intersection(p1, p2, znr, zfr, &ir);
-				if (hitl) {
-					p1 = il;
-					a1 = atan2(p1.y, p1.x) - PI / 2;
-				}
-				if (hitr) {
-					p2 = ir;
-					a2 = atan2(p2.y, p2.x) - PI / 2;
-				}
-			}
-			if (a1 < a2 || a2 < -(HFOV / 2) - 0.0001f || a1 > +(HFOV / 2) + 0.0001f) continue;
-
-			//convert the angle of the wall into screen coordinates (player FOV is 90 degrees or 1/2 PI)
-			f32 tx1 = screen_angle_to_x(a1);
-			f32 tx2 = screen_angle_to_x(a2);
-
-			if (tx1 > now.sx2) continue;
-			if (tx2 < now.sx1) continue;
-
-			f32 x1 = clamp(tx1, now.sx1, now.sx2);
-			f32 x2 = clamp(tx2, now.sx1, now.sx2);
-
-
-			//get floor and ceiling height of sector behind wall if wall is a portal
-			i32 nzfloor = sec.zfloor;
-			i32 nzceil = sec.zceil;
-
-			if (map->walls[i].portal != 0) {
-				nzfloor = map->sectors[map->walls[i].portal - 1].zfloor;
-				nzceil = map->sectors[map->walls[i].portal - 1].zceil;
-			}
-
-			f32 sy0 = (VFOV * SCREEN_HEIGHT) / p1.y;
-			f32 sy1 = (VFOV * SCREEN_HEIGHT) / p2.y;
-
-			//wall coordinates
-			i32 yf0 = (SCREEN_HEIGHT / 2) + (i32)((sec.zfloor - player.pos.z) * sy0);
-			i32 yf1 = (SCREEN_HEIGHT / 2) + (i32)((sec.zfloor - player.pos.z) * sy1);
-			i32 yc0 = (SCREEN_HEIGHT / 2) + (i32)((sec.zceil - player.pos.z) * sy0);
-			i32 yc1 = (SCREEN_HEIGHT / 2) + (i32)((sec.zceil - player.pos.z) * sy1);
-			//portal coordinates in the wall
-			i32 pf0 = (SCREEN_HEIGHT / 2) + (i32)((nzfloor - player.pos.z) * sy0);
-			i32 pf1 = (SCREEN_HEIGHT / 2) + (i32)((nzfloor - player.pos.z) * sy1);
-			i32 pc0 = (SCREEN_HEIGHT / 2) + (i32)((nzceil - player.pos.z) * sy0);
-			i32 pc1 = (SCREEN_HEIGHT / 2) + (i32)((nzceil - player.pos.z) * sy1);
-
-			//u32 color = (map->walls[i].portal) ? BLUE : RED;
-
-			//wall texture mapping varaibles
-			v2 difp1 = v2Sub(p1, tp1);
-			v2 difp2 = v2Sub(p2, tp2);
-			f32 twlen = v2Len(v2Sub(tp1, tp2));
-			v2 cutoff = { fabsf(v2Len(difp1) / twlen), fabsf(v2Len(difp2) / twlen) };
-
-			for (i32 x = x1; x < x2; x++) {
-				//calculate x stepsize
-				f32 xp = (x - tx1) / (f32)(tx2 - tx1);
-
-				//get top and bottom coordinates of the wall
-				i32 tyf = (i32)(xp * (yf1 - yf0)) + yf0;
-				i32 tyc = (i32)(xp * (yc1 - yc0)) + yc0;
-				i32 yf = clamp(tyf, map->floorclip[x], map->ceilingclip[x]);
-				i32 yc = clamp(tyc, map->floorclip[x], map->ceilingclip[x]);
-
-				//used lookuptables screenxtoangle and yslope to make rendering flats faster
-				//floor
-				for (i32 y = map->floorclip[x]; y < yf; y++){
-					f32 a = screenxtoangle[x];
-					//scale normalized yslope by actual camera pos and divide by the cosine of angle to prevent fisheye effect
-					f32 dis = fabsf(((player.pos.z - sec.zfloor) * yslope[y]) / (cos(a)));
-					//relative coordinates to player
-					f32 xt = cos(a + HFOV) * dis;
-					f32 yt = sin(a + HFOV) * dis;
-					// absolute ones
-					v2 p = camera_pos_to_world((v2) { xt, yt }, player);
-					// texutre coordinates
-					//v2i t = { (i32)(fabs((p.x - (i32)p.x) * 256)), (i32)(fabs((p.y - (i32)p.y) * 256))};
-					f32 pixelshade = calcFlatShade(dis);
-					v2i t = { abs(fmod((p.x), 8) * 32) ,abs(fmod(fabs(p.y), 8) * 32) };
-					u32 color = changeRGBBrightness(tex[0].pixels[(256 - t.y) * tex->width + t.x], pixelshade);
-					drawPixel(x, y, color, pixels);
-					zBuffer[y * SCREEN_WIDTH + x] = dis;
-				}
-
-				//ceiling
-				for (i32 y = yc; y < map->ceilingclip[x]; y++) {
-					f32 a = screenxtoangle[x];
-					//scale normalized yslope by actual camera pos and divide by the cosine of angle to prevent fisheye effect
-					f32 dis = fabsf(((sec.zceil - player.pos.z) * yslope[y]) / (cos(a)));
-					//relative coordinates to player
-					f32 xt = cos(a + HFOV) * dis;
-					f32 yt = sin(a + HFOV) * dis;
-					// absolute ones
-					v2 p = camera_pos_to_world((v2) { xt, yt }, player);
-					// texutre coordinates
-					f32 pixelshade = calcFlatShade(dis);
-					v2i t = { abs((p.x - (i32)p.x) * 256) ,abs((p.y - (i32)p.y) * 256) };
-					u32 color = changeRGBBrightness(tex[0].pixels[(256 - t.y) * tex->width + t.x], pixelshade);
-					drawPixel(x, y, color, pixels);
-					zBuffer[y * SCREEN_WIDTH + x] = dis;
-				}
-				//draw floor
-				// if (yf > map->floorclip[x]) { drawVerticalLine(x, map->floorclip[x], yf, changeRGBBrightness(ORANGE, 1.0f + (f32)((i32)sec.zceil % 10) / 10.0f), pixels); } 
-
-				//draw ceiling
-				//if (yc < map->ceilingclip[x]) { drawVerticalLine(x, yc, map->ceilingclip[x], changeRGBBrightness(PURPLE, 1.0f + (f32)((i32)sec.zceil % 10) / 10.0f), pixels); } 
-
-
-
-				//variables used in wikipedia equation for texture mapping https://en.wikipedia.org/wiki/Texture_mapping
-				//affine texture mapping: (1.0f-a) * u0 + a*u1
-				//perspective correct texture mapping: ((1.0f-a) * u0/z0 + a*(u1/z1)) / ((1.0f-a) * 1/z0 + a*(1.0f/z1))
-
-				//a: x part where we currently are on the wall [0...1]
-				f32 a = xp;
-				//u0: how much of the left part of the wall is cut off
-				f32 u0 = cutoff.x;
-				//u1: how much of the right part of the wall is cut off 
-				f32 u1 = 1.0f - cutoff.y;
-				//z0: how far away the left wallpoint is from the player
-				f32 z0 = p1.y;
-				//z1: how far away the right wallpoint ist from the player
-				f32 z1 = p2.y;
-
-				f64 u = ((1.0f - a) * (u0 / z0) + a * (u1 / z1)) / ((1.0f - a) * 1 / z0 + a * (1.0f / z1));
-
-				
-				//wall distance for lightlevel calc
-				f32 dis = tp1.y * (1 - u) + tp2.y * (u);
-				f32 wallshade = calcWallShade(map->walls[i].a, map->walls[i].b, dis);
-				
-				//draw Wall
-				if (map->walls[i].portal == 0) {
-					//drawVerticalLine(x, yf, yc, changeRGBBrightness(color, wallshade), pixels); wall in one color
-					if (yc > tyf && yf < tyc) {
-						drawTexLine(x, yf, yc, tyf, tyc, u, tex, wallshade, dis, pixels);
-					}
-				}
-				
-				//draw Portal
-				else {
-					//get top and bottom coordinates of the portal
-					i32 tpyf = (i32)(xp * (pf1 - pf0)) + pf0;
-					i32 pyf = clamp(tpyf, yf, yc);
-					i32 tpyc = (i32)(xp * (pc1 - pc0)) + pc0;
-					i32 pyc = clamp(tpyc, yf, yc);
-
-					//if neighborfloor is higher than current sectorceiling then draw it
-					//if (pyf > yf) { drawVerticalLine(x, yf, pyf, changeRGBBrightness(YELLOW, wallshade), pixels); }
-					if (pyf > yf) { drawTexLine(x, yf, pyf, tyf, tpyf, u, tex, wallshade, dis, pixels); for (i32 y = yf; y < pyf; y++); }
-					//draw window
-					//drawVerticalLine(x, pyf, pyc, color, pixels);
-					//if neighborceiling is lower than current sectorceiling then draw it
-					if (pyc < yc) { drawTexLine(x, pyc, yc, tpyc, tyc, u, tex, wallshade, dis, pixels); for (i32 y = pyc; y < yc; y++); }
-
-					//update vertical clipping arrays
-					map->ceilingclip[x] = clamp(pyc, 0, SCREEN_HEIGHT - 1);
-					map->floorclip[x] = clamp(pyf, 0, SCREEN_HEIGHT - 1);
-				}
-			}
-			if (map->walls[i].portal && !renderedSectors[now.sectorno - 1] && (head + MaxQueue + 1 - tail) % MaxQueue) {
-				*head = (struct item){ map->walls[i].portal, x1, x2 };
-				if (++head == queue + MaxQueue) head = queue;
-			}
-
-		}
-		++renderedSectors[now.sectorno - 1];
-	}
 
 	//drawing sprites 
 	//TODO: PROPER ENTITYHANDER AND ENTITY
@@ -367,6 +172,7 @@ void draw3D(Player player, Map* map, u32* pixels, Texture* tex) {
 			}
 		}
 	}
+	//draw minimap
 
 	v2i mapoffset = (v2i){ 100 , SCREEN_HEIGHT - 200};
 
@@ -382,6 +188,194 @@ void draw3D(Player player, Map* map, u32* pixels, Texture* tex) {
 	drawLine(player.pos.x + mapoffset.x, player.pos.y + mapoffset.y, player.anglecos*10 + player.pos.x + mapoffset.x, player.anglesin*10 + player.pos.y + mapoffset.y, WHITE, pixels);
 }
 
+void drawWall3D(Player player, Map* map, u32* pixels, Texture* tex, WallRenderingInfo* now, v2 zdl, v2 zdr, v2 znl, v2 znr, v2 zfl, v2 zfr, u32 sd)
+{
+	Sector sec = map->sectors[now->sectorno - 1];
+	for (i32 i = sec.index; i < (sec.index + sec.numWalls); i++) {
+
+		//world pos
+		v2 p1 = world_pos_to_camera(map->walls[i].a, player);
+		v2 p2 = world_pos_to_camera(map->walls[i].b, player);
+
+		v2 tp1 = p1;
+		v2 tp2 = p2;
+
+		f32 a1 = atan2(p1.y, p1.x) - PI / 2;
+		f32 a2 = atan2(p2.y, p2.x) - PI / 2;
+
+		//calculate intersection between walls and view frustum and clip walls
+		if (p1.y < ZNEAR || p2.y < ZNEAR || a1 > +(HFOV / 2) || a2 < -(HFOV / 2)) {
+			v2 il;
+			i32 hitl = get_line_intersection(p1, p2, znl, zfl, &il);
+			v2 ir;
+			i32 hitr = get_line_intersection(p1, p2, znr, zfr, &ir);
+			if (hitl) {
+				p1 = il;
+				a1 = atan2(p1.y, p1.x) - PI / 2;
+			}
+			if (hitr) {
+				p2 = ir;
+				a2 = atan2(p2.y, p2.x) - PI / 2;
+			}
+		}
+		if (a1 < a2 || a2 < -(HFOV / 2) - 0.0001f || a1 > +(HFOV / 2) + 0.0001f) continue;
+
+		//convert the angle of the wall into screen coordinates (player FOV is 90 degrees or 1/2 PI)
+		f32 tx1 = screen_angle_to_x(a1);
+		f32 tx2 = screen_angle_to_x(a2);
+
+		if (tx1 > now->sx2) continue;
+		if (tx2 < now->sx1) continue;
+
+		f32 x1 = clamp(tx1, now->sx1, now->sx2);
+		f32 x2 = clamp(tx2, now->sx1, now->sx2);
+
+
+		//get floor and ceiling height of sector behind wall if wall is a portal
+		i32 nzfloor = sec.zfloor;
+		i32 nzceil = sec.zceil;
+
+		if (map->walls[i].portal != 0) {
+			nzfloor = map->sectors[map->walls[i].portal - 1].zfloor;
+			nzceil = map->sectors[map->walls[i].portal - 1].zceil;
+		}
+
+		f32 sy0 = (VFOV * SCREEN_HEIGHT) / p1.y;
+		f32 sy1 = (VFOV * SCREEN_HEIGHT) / p2.y;
+
+		//wall coordinates
+		i32 yf0 = (SCREEN_HEIGHT / 2) + (i32)((sec.zfloor - player.pos.z) * sy0);
+		i32 yf1 = (SCREEN_HEIGHT / 2) + (i32)((sec.zfloor - player.pos.z) * sy1);
+		i32 yc0 = (SCREEN_HEIGHT / 2) + (i32)((sec.zceil - player.pos.z) * sy0);
+		i32 yc1 = (SCREEN_HEIGHT / 2) + (i32)((sec.zceil - player.pos.z) * sy1);
+		//portal coordinates in the wall
+		i32 pf0 = (SCREEN_HEIGHT / 2) + (i32)((nzfloor - player.pos.z) * sy0);
+		i32 pf1 = (SCREEN_HEIGHT / 2) + (i32)((nzfloor - player.pos.z) * sy1);
+		i32 pc0 = (SCREEN_HEIGHT / 2) + (i32)((nzceil - player.pos.z) * sy0);
+		i32 pc1 = (SCREEN_HEIGHT / 2) + (i32)((nzceil - player.pos.z) * sy1);
+
+		//u32 color = (map->walls[i].portal) ? BLUE : RED;
+
+		//wall texture mapping varaibles
+		v2 difp1 = v2Sub(p1, tp1);
+		v2 difp2 = v2Sub(p2, tp2);
+		f32 twlen = v2Len(v2Sub(tp1, tp2));
+		v2 cutoff = { fabsf(v2Len(difp1) / twlen), fabsf(v2Len(difp2) / twlen) };
+
+		for (i32 x = x1; x < x2; x++) {
+			//calculate x stepsize
+			f32 xp = (x - tx1) / (f32)(tx2 - tx1);
+
+			//get top and bottom coordinates of the wall
+			i32 tyf = (i32)(xp * (yf1 - yf0)) + yf0;
+			i32 tyc = (i32)(xp * (yc1 - yc0)) + yc0;
+			i32 yf = clamp(tyf, map->floorclip[x], map->ceilingclip[x]);
+			i32 yc = clamp(tyc, map->floorclip[x], map->ceilingclip[x]);
+
+			//used lookuptables screenxtoangle and yslope to make rendering flats faster
+			//floor
+			for (i32 y = map->floorclip[x]; y < yf; y++) {
+				f32 a = screenxtoangle[x];
+				//scale normalized yslope by actual camera pos and divide by the cosine of angle to prevent fisheye effect
+				f32 dis = fabsf(((player.pos.z - sec.zfloor) * yslope[y]) / (cos(a)));
+				//relative coordinates to player
+				f32 xt = cos(a + HFOV) * dis;
+				f32 yt = sin(a + HFOV) * dis;
+				// absolute ones
+				v2 p = camera_pos_to_world((v2) { xt, yt }, player);
+				// texutre coordinates
+				//v2i t = { (i32)(fabs((p.x - (i32)p.x) * 256)), (i32)(fabs((p.y - (i32)p.y) * 256))};
+				f32 pixelshade = calcFlatShade(dis);
+				v2i t = { abs(fmod((p.x), 8) * 32) ,abs(fmod(fabs(p.y), 8) * 32) };
+				u32 color = changeRGBBrightness(tex[0].pixels[(256 - t.y) * tex->width + t.x], pixelshade);
+				drawPixel(x, y, color, pixels);
+				zBuffer[y * SCREEN_WIDTH + x] = dis;
+			}
+
+			//ceiling
+			for (i32 y = yc; y < map->ceilingclip[x]; y++) {
+				f32 a = screenxtoangle[x];
+				//scale normalized yslope by actual camera pos and divide by the cosine of angle to prevent fisheye effect
+				f32 dis = fabsf(((sec.zceil - player.pos.z) * yslope[y]) / (cos(a)));
+				//relative coordinates to player
+				f32 xt = cos(a + HFOV) * dis;
+				f32 yt = sin(a + HFOV) * dis;
+				// absolute ones
+				v2 p = camera_pos_to_world((v2) { xt, yt }, player);
+				// texutre coordinates
+				f32 pixelshade = calcFlatShade(dis);
+				v2i t = { abs((p.x - (i32)p.x) * 256) ,abs((p.y - (i32)p.y) * 256) };
+				u32 color = changeRGBBrightness(tex[0].pixels[(256 - t.y) * tex->width + t.x], pixelshade);
+				drawPixel(x, y, color, pixels);
+				zBuffer[y * SCREEN_WIDTH + x] = dis;
+			}
+			//draw floor
+			// if (yf > map->floorclip[x]) { drawVerticalLine(x, map->floorclip[x], yf, changeRGBBrightness(ORANGE, 1.0f + (f32)((i32)sec.zceil % 10) / 10.0f), pixels); } 
+
+			//draw ceiling
+			//if (yc < map->ceilingclip[x]) { drawVerticalLine(x, yc, map->ceilingclip[x], changeRGBBrightness(PURPLE, 1.0f + (f32)((i32)sec.zceil % 10) / 10.0f), pixels); } 
+
+
+
+			//variables used in wikipedia equation for texture mapping https://en.wikipedia.org/wiki/Texture_mapping
+			//affine texture mapping: (1.0f-a) * u0 + a*u1
+			//perspective correct texture mapping: ((1.0f-a) * u0/z0 + a*(u1/z1)) / ((1.0f-a) * 1/z0 + a*(1.0f/z1))
+
+			//a: x part where we currently are on the wall [0...1]
+			f32 a = xp;
+			//u0: how much of the left part of the wall is cut off
+			f32 u0 = cutoff.x;
+			//u1: how much of the right part of the wall is cut off 
+			f32 u1 = 1.0f - cutoff.y;
+			//z0: how far away the left wallpoint is from the player
+			f32 z0 = p1.y;
+			//z1: how far away the right wallpoint ist from the player
+			f32 z1 = p2.y;
+
+			f64 u = ((1.0f - a) * (u0 / z0) + a * (u1 / z1)) / ((1.0f - a) * 1 / z0 + a * (1.0f / z1));
+
+
+			//wall distance for lightlevel calc
+			f32 dis = tp1.y * (1 - u) + tp2.y * (u);
+			f32 wallshade = calcWallShade(map->walls[i].a, map->walls[i].b, dis);
+
+			//draw Wall
+			if (map->walls[i].portal == 0) {
+				//drawVerticalLine(x, yf, yc, changeRGBBrightness(color, wallshade), pixels); wall in one color
+				if (yc > tyf && yf < tyc) {
+					drawTexLine(x, yf, yc, tyf, tyc, u, tex, wallshade, dis, pixels);
+				}
+			}
+
+			//draw Portal
+			else {
+				//get top and bottom coordinates of the portal
+				i32 tpyf = (i32)(xp * (pf1 - pf0)) + pf0;
+				i32 pyf = clamp(tpyf, yf, yc);
+				i32 tpyc = (i32)(xp * (pc1 - pc0)) + pc0;
+				i32 pyc = clamp(tpyc, yf, yc);
+
+				//if neighborfloor is higher than current sectorceiling then draw it
+				//if (pyf > yf) { drawVerticalLine(x, yf, pyf, changeRGBBrightness(YELLOW, wallshade), pixels); }
+				if (pyf > yf) { drawTexLine(x, yf, pyf, tyf, tpyf, u, tex, wallshade, dis, pixels); for (i32 y = yf; y < pyf; y++); }
+				//draw window
+				//drawVerticalLine(x, pyf, pyc, color, pixels);
+				//if neighborceiling is lower than current sectorceiling then draw it
+				if (pyc < yc) { drawTexLine(x, pyc, yc, tpyc, tyc, u, tex, wallshade, dis, pixels); for (i32 y = pyc; y < yc; y++); }
+
+				//update vertical clipping arrays
+				map->ceilingclip[x] = clamp(pyc, 0, SCREEN_HEIGHT - 1);
+				map->floorclip[x] = clamp(pyf, 0, SCREEN_HEIGHT - 1);
+			}
+		}
+		if (map->walls[i].portal && !now->renderedSectors[map->walls[i].portal - 1]) {
+			WallRenderingInfo* w = &(WallRenderingInfo){ map->walls[i].portal, x1, x2};
+			memcpy(w->renderedSectors, now->renderedSectors, SECTOR_MAX * sizeof(u8));
+			w->renderedSectors[now->sectorno - 1] = 1;
+			drawWall3D(player, map, pixels, tex, w, zdl, zdr, znl, znr, zfl, zfr, ++sd);
+		}
+	}
+}
 
 f32 calcWallShade(v2 start, v2 end, f32 dis) {
 	v2 difNorm = v2Normalize(v2Sub(end, start));
@@ -395,12 +389,10 @@ f32 calcFlatShade(f32 dis) {
 void drawTexLine(i32 x, i32 y0, i32 y1, i32 yf, i32 yc, f64 u, Texture* tex, f32 shade,f32 dis, u32* pixels) {
 	i32 tx = u * tex[0].width;
 	for (i32 y = y0; y <= y1; y++) {
-		if (zBuffer[y * SCREEN_WIDTH + x] > dis) {
-			f64 v = 1.0 - ((y - yf) / (f64)(yc - yf));
-			i32 ty = v * tex[0].height;
-			u32 color = changeRGBBrightness(tex[0].pixels[ty * tex[0].width + tx], shade);
-			drawPixel(x, y, color, pixels);
-			zBuffer[y * SCREEN_WIDTH + x] = dis;
-		}
+		f64 v = 1.0 - ((y - yf) / (f64)(yc - yf));
+		i32 ty = v * tex[0].height;
+		u32 color = changeRGBBrightness(tex[0].pixels[ty * tex[0].width + tx], shade);
+		drawPixel(x, y, color, pixels);
+		zBuffer[y * SCREEN_WIDTH + x] = dis;
 	}
 }

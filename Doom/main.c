@@ -46,8 +46,7 @@ int main(int argc, char* args[]) {
 				close();
 				break;
 			case SDL_MOUSEMOTION: {
-				f32 rotaionspeed = 0.001f;
-				state.player.angle -= e.motion.xrel * rotaionspeed; 
+				state.player.angle -= e.motion.xrel * PLAYERTOATIONSPEED; 
 				state.player.anglecos = cos(state.player.angle);
 				state.player.anglesin = sin(state.player.angle); }
 				break;
@@ -55,6 +54,7 @@ int main(int argc, char* args[]) {
 		}
 		state.deltaTime = a - b;
 		if (state.deltaTime > SCREEN_TICKS_PER_FRAME) {
+			printf("%i\n", 1000/(a - b));
 			b = a;
 			update();
 			render();
@@ -151,6 +151,7 @@ void update() {
 					//collision with wall, top or lower part of portal
 					if (stepl > p->pos.z - EYEHEIGHT + STEPHEIGHT ||
 						steph < p->pos.z + HEADMARGIN) {
+						//if player hit a corner set velocity to 0
 						if (wallind != -1) {
 							p->velocity.x = 0;
 							p->velocity.y = 0;
@@ -166,6 +167,7 @@ void update() {
 							(p->velocity.x * wallVec.x + p->velocity.y * wallVec.y) / (wallVec.x * wallVec.x + wallVec.y * wallVec.y) * wallVec.x,
 							(p->velocity.x * wallVec.x + p->velocity.y * wallVec.y) / (wallVec.x * wallVec.x + wallVec.y * wallVec.y) * wallVec.y
 						};
+
 						p->velocity.x = projVel.x;
 						p->velocity.y = projVel.y;
 						wallind = i;

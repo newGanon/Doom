@@ -7,6 +7,11 @@ typedef struct {
 	u32 height;
 }Texture;  
 
+typedef struct WallRenderingInfo {
+	int sectorno, sx1, sx2;
+	u8 renderedSectors[SECTOR_MAX];
+} WallRenderingInfo;
+
 void drawPixel(i32 x, i32 y, i32 color, u32* pixels);
 void drawVerticalLine(i32 x, i32 y0, i32 y1, u32 color, u32* pixels);
 void drawLine(i32 x0, i32 y0, i32 x1, i32 y1, u32 color, u32* pixels);

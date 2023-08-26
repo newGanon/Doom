@@ -134,32 +134,57 @@ void update() {
 	p->velocity.y = p->velocity.y * (1 - acceleration) + dpos.y * acceleration * movespeed;
 
 	//check for collision and if player entered new sector
-	for (i32 i = curSec.index; i < curSec.index + curSec.numWalls; i++) {
-		Wall curwall = map->walls[i];
-		if (BOXINTERSECT2D(p->pos.x, p->pos.y, p->pos.x + p->velocity.x, p->pos.y + p->velocity.y, curwall.a.x, curwall.a.y, curwall.b.x, curwall.b.y) &&
-			POINTSIDE2D(p->pos.x + p->velocity.x, p->pos.y + p->velocity.y, curwall.a.x, curwall.a.y, curwall.b.x, curwall.b.y) > 0)) {
-				f32 stepl = curwall.portal > 0 ? map->sectors[curwall.portal - 1].zfloor : 10e10;
-				f32 steph = curwall.portal > 0 ? map->sectors[curwall.portal - 1].zceil : -10e10;
-				//collision with wall, top or lower part of portal
-				if (stepl > p->pos.z - EYEHEIGHT + STEPHEIGHT ||
-					steph < p->pos.z + HEADMARGIN) {
-					//collide with wall, project velocity vector onto wall vector
-					v2 wallVec = { curwall.b.x - curwall.a.x, curwall.b.y - curwall.a.y };
-					v2 projVel = {
-						(p->velocity.x * wallVec.x + p->velocity.y * wallVec.y) / (wallVec.x * wallVec.x + wallVec.y * wallVec.y) * wallVec.x,
-						(p->velocity.x * wallVec.x + p->velocity.y * wallVec.y) / (wallVec.x * wallVec.x + wallVec.y * wallVec.y) * wallVec.y
-					};
-					p->velocity.x = projVel.x;
-					p->velocity.y = projVel.y;
-				}
-				//if player fits throught portal change playersector
-				else if (curwall.portal > 0){
-					curSec = state.map.sectors[curwall.portal - 1];
-					p->sector = curSec.id;;
-					if (p->pos.z < EYEHEIGHT + curSec.zfloor) p->pos.z = EYEHEIGHT + curSec.zfloor;
-					else if (p->pos.z > EYEHEIGHT + curSec.zfloor) p->inAir = 1;
-				}
+	//TODO: fix hack that loops 2 times
+	i32 wallind = -1;
+	Sector oldSec = curSec;
+	u8 oldinAir = p->inAir;
+	f32 oldz = p->pos.z;
+	u8 hitPortal = 0;
+	Sector newSec;
+	for (u8 t = 0; t < 2; t++){
+		for (i32 i = curSec.index; i < curSec.index + curSec.numWalls; i++) {
+			Wall curwall = map->walls[i];
+			if (BOXINTERSECT2D(p->pos.x, p->pos.y, p->pos.x + p->velocity.x, p->pos.y + p->velocity.y, curwall.a.x, curwall.a.y, curwall.b.x, curwall.b.y) &&
+				POINTSIDE2D(p->pos.x + p->velocity.x, p->pos.y + p->velocity.y, curwall.a.x, curwall.a.y, curwall.b.x, curwall.b.y) > 0)) {
+					f32 stepl = curwall.portal > 0 ? map->sectors[curwall.portal - 1].zfloor : 10e10;
+					f32 steph = curwall.portal > 0 ? map->sectors[curwall.portal - 1].zceil : -10e10;
+					//collision with wall, top or lower part of portal
+					if (stepl > p->pos.z - EYEHEIGHT + STEPHEIGHT ||
+						steph < p->pos.z + HEADMARGIN) {
+						if (wallind != -1) {
+							p->velocity.x = 0;
+							p->velocity.y = 0;
+							curSec = oldSec;
+							p->sector = oldSec.id;
+							p->inAir = oldinAir;
+							p->pos.z = oldz;
+							break;
+						}
+						//collide with wall, project velocity vector onto wall vector
+						v2 wallVec = { curwall.b.x - curwall.a.x, curwall.b.y - curwall.a.y };
+						v2 projVel = {
+							(p->velocity.x * wallVec.x + p->velocity.y * wallVec.y) / (wallVec.x * wallVec.x + wallVec.y * wallVec.y) * wallVec.x,
+							(p->velocity.x * wallVec.x + p->velocity.y * wallVec.y) / (wallVec.x * wallVec.x + wallVec.y * wallVec.y) * wallVec.y
+						};
+						p->velocity.x = projVel.x;
+						p->velocity.y = projVel.y;
+						wallind = i;
+					}
+					//if player fits throught portal change playersector
+					else if (curwall.portal > 0) {
+						hitPortal = 1;
+						newSec = state.map.sectors[curwall.portal - 1];
+					}
 			}
+		}
+		if (hitPortal) {
+			t = 0;
+			hitPortal = 0;
+			curSec = newSec;
+			p->sector = curSec.id;
+			if (p->pos.z < EYEHEIGHT + curSec.zfloor) p->pos.z = EYEHEIGHT + curSec.zfloor;
+			else if (p->pos.z > EYEHEIGHT + curSec.zfloor) p->inAir = 1;
+		}
 	}
 
 	//check if point is outside
@@ -173,9 +198,6 @@ void update() {
 
 	//reset player pos
 	if (keyboardstate[SDL_SCANCODE_R]) { state.player.pos = (v3){ 15.0f, 15.0f, EYEHEIGHT + state.map.sectors[0].zfloor }; state.player.sector = 1; }
-
-	
-
 }
 
 void init() {
@@ -268,7 +290,7 @@ void loadTextures(Texture* textures) {
 
 void loadLevel() {
 	FILE* fp = NULL;
-	fopen_s(&fp,"level.txt", "r");
+	fopen_s(&fp,"level4.txt", "r");
 	ASSERT(fp, "error opening leveldata file");
 	enum {SECTOR, WALL, NONE} sm = NONE;
 	u8 done = 0;

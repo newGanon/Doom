@@ -46,6 +46,9 @@
     <Text Include="level3.txt">
       <Filter>Resource Files</Filter>
     </Text>
+    <Text Include="level4.txt">
+      <Filter>Resource Files</Filter>
+    </Text>
   </ItemGroup>
   <ItemGroup>
     <Image Include="test.bmp">

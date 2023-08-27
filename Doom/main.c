@@ -180,6 +180,7 @@ void update() {
 			}
 		}
 		if (hitPortal) {
+			//TODO REWORK SOMTIMES FREEZES 
 			t = 0;
 			hitPortal = 0;
 			curSec = newSec;
@@ -219,7 +220,7 @@ void init() {
 
 	state.renderer = SDL_CreateRenderer(state.window,
 		-1,
-		SDL_RENDERER_PRESENTVSYNC);
+		SDL_RENDERER_ACCELERATED);
 	ASSERT(state.renderer,
 		"Error creating SDL_Renderer %s\n",
 		SDL_GetError());
@@ -235,11 +236,13 @@ void init() {
 
 	SDL_SetRelativeMouseMode(SDL_TRUE);
 
+	drawInit();
+
 	loadTextures(&state.textures);
 
 	loadLevel();
 
-	state.player.pos = (v3){ 15.0f, 15.0f, 0.0f};
+	state.player.pos = (v3){ 20.0f, 20.0f, 0.0f};
 	state.player.sector = 1;
 	state.player.pos.z = EYEHEIGHT + state.map.sectors[state.player.sector - 1].zfloor;
 	state.player.inAir = 0;
@@ -292,7 +295,7 @@ void loadTextures(Texture* textures) {
 
 void loadLevel() {
 	FILE* fp = NULL;
-	fopen_s(&fp,"level4.txt", "r");
+	fopen_s(&fp,"level.txt", "r");
 	ASSERT(fp, "error opening leveldata file");
 	enum {SECTOR, WALL, NONE} sm = NONE;
 	u8 done = 0;

@@ -295,7 +295,7 @@ void loadTextures(Texture* textures) {
 
 void loadLevel() {
 	FILE* fp = NULL;
-	fopen_s(&fp,"level.txt", "r");
+	fopen_s(&fp,"level2.txt", "r");
 	ASSERT(fp, "error opening leveldata file");
 	enum {SECTOR, WALL, NONE} sm = NONE;
 	u8 done = 0;

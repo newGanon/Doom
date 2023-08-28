@@ -62,6 +62,8 @@ typedef struct v3u_s8 { i32 x, y, z; } v3u8;
 #define DARKGRAY 0xFF424242
 #define WHITE 0xFFFFFFFF
 
+#define LIGHTING 0
+
 typedef struct {
 	v3 pos, velocity;
 	f32 angle, anglecos, anglesin;

@@ -13,7 +13,7 @@ v2  zdl, zdr, znl, znr, zfl, zfr;
 
 void drawPixel(i32 x, i32 y, u32 color, u32* pixels) {
 	if (x >= 0 && x < SCREEN_WIDTH && y >= 0 && y < SCREEN_HEIGHT && (color & 0xFF000000) != 0) {
-		pixels[((SCREEN_HEIGHT - 1) - y) * SCREEN_WIDTH + x] = color;
+		pixels[y * SCREEN_WIDTH + x] = color;
 	}
 }
 
@@ -244,55 +244,10 @@ void drawWall3D(Player player, Map* map, u32* pixels, Texture* tex, WallRenderin
 			i32 yf = clamp(tyf, floorclip[x], ceilingclip[x]);
 			i32 yc = clamp(tyc, floorclip[x], ceilingclip[x]);
 
-
-			//draw floor
-			// if (yf > floorclip[x]) { drawVerticalLine(x, map->floorclip[x], yf, changeRGBBrightness(ORANGE, 1.0f + (f32)((i32)sec.zceil % 10) / 10.0f), pixels); } 
-
-			//draw ceiling
-			//if (yc < ceilingclip[x]) { drawVerticalLine(x, yc, map->ceilingclip[x], changeRGBBrightness(PURPLE, 1.0f + (f32)((i32)sec.zceil % 10) / 10.0f), pixels); } 
-
 			//used lookuptables screenxtoangle and yslope to make rendering flats faster
 			Texture floorTex = tex[0];
 			Texture ceilTex = tex[0];
-			/*
-			//floor
-			for (i32 y = floorclip[x]; y < yf; y++) {
-				f32 a = screenxtoangle[x];
-				//scale normalized yslope by actual camera pos and divide by the cosine of angle to prevent fisheye effect
-				f32 dis = fabs(((player.pos.z - sec.zfloor) * yslope[y]) / (cos(a)));
-				//relative coordinates to player
-				f32 xt = -sin(a) * dis;
-				f32 yt = cos(a) * dis;
-				// absolute ones
-				v2 p = camera_pos_to_world((v2) { xt, yt }, player);
-				// texutre coordinates
-				f32 pixelshade = calcFlatShade(dis);
-				v2i t = { abs((i32)(fmod((p.x), 8.0f) * 32.0f)) ,abs((i32)(fmod((p.y), 8.0f) * 32.0f))};
-				u32 color = changeRGBBrightness(floorTex.pixels[(256 - t.y) * floorTex.width + t.x], pixelshade);
-				drawPixel(x, y, color, pixels);
-				zBuffer[y * SCREEN_WIDTH + x] = dis;
-			}
-
-			//ceiling
-			for (i32 y = yc; y < ceilingclip[x]; y++) {
-				f32 a = screenxtoangle[x];
-				//scale normalized yslope by actual camera pos and divide by the cosine of angle to prevent fisheye effect
-				f32 dis = fabs(((sec.zceil - player.pos.z) * yslope[y]) / (cos(a)));
-				//relative coordinates to player
-				f32 xt = -sin(a) * dis;
-				f32 yt = cos(a) * dis;
-				// absolute ones
-				v2 p = camera_pos_to_world((v2) { xt, yt }, player);
-				// texutre coordinates
-				f32 pixelshade = calcFlatShade(dis);
-				v2i t = { (abs((i32)((p.x - (i32)p.x) * 256.0f))) ,abs((i32)((p.y - (i32)p.y) * 256.0f))};
-				u32 color = changeRGBBrightness(ceilTex.pixels[(256 - t.y) * ceilTex.width + t.x], pixelshade);
-				drawPixel(x, y, color, pixels);
-				zBuffer[y * SCREEN_WIDTH + x] = dis;
-			}
-
-			*/
-
+			
 			//set visplane top and bottom clipping
 			if (yc < ceilingclip[x]) {
 				ceilplane->bottom[x] = yc;
@@ -302,8 +257,6 @@ void drawWall3D(Player player, Map* map, u32* pixels, Texture* tex, WallRenderin
 				floorplane->bottom[x] = floorclip[x];
 				floorplane->top[x] = yf;
 			}
-
-
 
 			//variables used in wikipedia equation for texture mapping https://en.wikipedia.org/wiki/Texture_mapping
 			//affine texture mapping: (1.0f-a) * u0 + a*u1
@@ -401,7 +354,7 @@ void clearPlanes() {
 }
 
 visplane_t* findPlane(f32 height, i32 picnum) {
-	u8 getNewest = 0;
+	u8 getNewest = 1;
 	visplane_t* check;
 
 	//reversed doom algorithm
@@ -437,7 +390,8 @@ visplane_t* findPlane(f32 height, i32 picnum) {
 	check->maxx = -1;
 
 	for (int i = 0; i < SCREEN_WIDTH; i++) {
-		check->top[i] = SCREEN_HEIGHT + 1;
+		check->bottom[i] = SCREEN_HEIGHT + 1;
+		check->top[i] = 0;
 	}
 
 	return check;
@@ -464,7 +418,7 @@ visplane_t* checkPlane(visplane_t* v, i32 start, i32 stop) {
 	}
 	
 	for (x = intrl; x <= intrh; x++) {
-		if (v->top[x] != SCREEN_HEIGHT + 1) break;
+		if (v->bottom[x] != SCREEN_HEIGHT + 1) break;
 	}
 
 	if (x >= intrh) {
@@ -482,84 +436,109 @@ visplane_t* checkPlane(visplane_t* v, i32 start, i32 stop) {
 	v->maxx = stop;
 
 	for (int i = 0; i < SCREEN_WIDTH; i++) {
-		v->top[i] = SCREEN_HEIGHT + 1;
+		v->bottom[i] = SCREEN_HEIGHT + 1;
+		v->top[i] = 0;
 	}
 
 	return v;
 }
 
-void makeSpans(i32 x, i32 t1, i32 b1, i32 t2, i32 b2) {
-
-	while (t1 < t2 && t1 <= b1) {
-		mapPlane(t1, spanstart[t1], x - 1);
-		t1++;
+void makeSpans(i32 x, i32 t1, i32 b1, i32 t2, i32 b2, visplane_t* v, Player player, Map* map, u32* pixels, Texture* tex) {
+	while (t1 > t2 && t1 >= b1) {
+		mapPlane(t1, spanstart[t1], x+1, v, player, map, pixels, tex);
+		t1--;
 	}
-	while (b1 > b2 && b1 >= t1) {
-		mapPlane(b1, spanstart[b1], x - 1);
-		b1--;
+	while (b1 < b2 && b1 <= t1) {
+		mapPlane(b1, spanstart[b1], x+1, v, player, map, pixels, tex);
+		b1++;
 	}
 
-	while (t2 < t1 && t2 <= b2) {
+	while (t2 > t1 && t2 >= b2) {
 		spanstart[t2] = x;
-		t2++;
+		t2--;
 	}
-	while (b2 > b1 && b2 >= t2) {
+	while (b2 < b1 && b2 <= t2) {
 		spanstart[b2] = x;
-		b2--;
+		b2++;
 	}
 }
 
-void mapPlane(i32 y, i32 x1, i32 x2) {
-	i32 x = 4;
+void mapPlane(i32 y, i32 x1, i32 x2, visplane_t* v, Player player, Map* map, u32* pixels, Texture* tex) {
+	f32 a = screenxtoangle[x1];
+	//scale normalized yslope by actual camera pos and divide by the cosine of angle to prevent fisheye effect
+	f32 dis = fabs(((player.pos.z - v->height) * yslope[y]));
+	//relative coordinates to player
+	f32 xt = -sin(a) * dis / cos(a);
+	f32 yt = cos(a) * dis / cos(a);
+	// absolute coordinates
+	v2 p = camera_pos_to_world((v2) { xt, yt }, player);
+
+	f32 step = dis / (SCREEN_WIDTH / 2);
+
+	f32 xstep = step * cos(player.angle - PI_2);
+	f32 ystep = step * sin(player.angle - PI_2);
+
+	f32 pixelshade = calcFlatShade(dis);
+
+	for (i32 x = x1; x <= x2; x++)
+	{
+		v2i t = {abs((i32)(fmod((p.x), 8.0f) * 32.0f)) ,abs((i32)(fmod((p.y), 8.0f) * 32.0f))};
+		u32 color = changeRGBBrightness(tex[0].pixels[(256 - t.y) * tex[0].width + t.x], pixelshade);
+		drawPixel(x, y, color, pixels);
+		zBuffer[y * SCREEN_WIDTH + x] = dis;
+		p.x += xstep;
+		p.y += ystep;
+	}
+
 }
 
 void drawPlanes3D(Player player, Map* map, u32* pixels, Texture* tex) {
 	
-	/*for (visplane_t* v = visplanes; v < lastvisplane; v++) {
+	for (visplane_t* v = visplanes; v < lastvisplane; v++) {
 		if (v->minx > v->maxx) continue;
+		
+		v->top[v->maxx] = 0;
+		v->top[v->minx] = 0;
 
-		v->top[v->maxx] = SCREEN_HEIGHT + 1;
-		v->top[v->minx] = SCREEN_HEIGHT + 1;
-
-		for (i32 x = v->minx ; x <= v->maxx ; x++)
+		for (i32 x = v->minx ; x < v->maxx; x++)
 		{
-			makeSpans(x, v->top[x], v->bottom[x], v->top[x+1], v->bottom[x+1]);
+			makeSpans(x, v->top[x], v->bottom[x], v->top[x+1], v->bottom[x+1], v, player, map, pixels, tex);
 		}
-	}*/
+	}
 
 
-	u32 colors[8] = { BLUE,RED,GREEN,YELLOW,PURPLE,ORANGE,WHITE,LIGHTGRAY };
+	/*u32 colors[8] = {BLUE,RED,GREEN,YELLOW,PURPLE,ORANGE,WHITE,LIGHTGRAY};
 	visplane_t* v;
 	u32 color = 0;
 	for (v = visplanes; v < lastvisplane; v++) {
 		color++;
 		for (i32 x = v->minx; x <= v->maxx; x++) {
 			for (i32 y = v->bottom[x]; y < v->top[x]; y++) {
-				if (v->top[x] == SCREEN_HEIGHT + 1) continue;
 				f32 a = screenxtoangle[x];
 				//scale normalized yslope by actual camera pos and divide by the cosine of angle to prevent fisheye effect
-				f32 dis = fabs(((player.pos.z - v->height) * yslope[y]) / (cos(a)));
+				f32 dis = fabs(((player.pos.z - v->height) * yslope[y]));
 				//relative coordinates to player
-				f32 xt = -sin(a) * dis;
-				f32 yt = cos(a) * dis;
+				f32 xt = -sin(a) * dis / (cos(a));
+				f32 yt = cos(a) * dis / (cos(a));
 				// absolute coordinates
 				v2 p = camera_pos_to_world((v2) { xt, yt }, player);
 				// texutre coordinates
 				f32 pixelshade = calcFlatShade(dis);
 				v2i t = { abs((i32)(fmod((p.x), 8.0f) * 32.0f)) ,abs((i32)(fmod((p.y), 8.0f) * 32.0f)) };
-				//u32 color = changeRGBBrightness(tex[0].pixels[(256 - t.y) * tex[0].width + t.x], pixelshade);
-				drawPixel(x, y, colors[color%8], pixels);
+				u32 color = changeRGBBrightness(tex[0].pixels[(256 - t.y) * tex[0].width + t.x], pixelshade);
+				//drawPixel(x, y, colors[color%8], pixels);
+				drawPixel(x, y, color, pixels);
 				zBuffer[y * SCREEN_WIDTH + x] = dis;
 			}
 		}
-	}
+	}*/
 }
 
 
 void drawSprites(Player player, Map* map, u32* pixels, Texture* tex) {
 	//TODO: PROPER ENTITYHANDER AND ENTITY
 	v2 spriteScale = { 7.5f, 7.5f };
-	f32 spritez = 6.0f;
+	f32 spritez = 12.0f;
 
 	f32 spritevMove = -SCREEN_HEIGHT / 2 * (spritez - player.pos.z);
 	v2 spritepos = { 18.0f ,18.0f };

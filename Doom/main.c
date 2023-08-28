@@ -7,6 +7,7 @@
 struct {
 	SDL_Window* window;
 	SDL_Texture* texture;
+	SDL_Surface* surfaces[100];
 	SDL_Renderer* renderer;
 	i32 deltaTime;
 	u32 pixels[SCREEN_WIDTH * SCREEN_HEIGHT];
@@ -65,9 +66,6 @@ int main(int argc, char* args[]) {
 }
 void render() {
 
-	memset(state.pixels, 0, sizeof(state.pixels));
-	//SDL_RenderClear(state.renderer);
-
 	draw3D(state.player, &state.map, &state.pixels, &state.textures);
 
 	/* draw crosshair */
@@ -75,8 +73,23 @@ void render() {
 	fillRectangle(SCREEN_WIDTH / 2 - 8, SCREEN_HEIGHT / 2 - 1, SCREEN_WIDTH / 2 + 8, SCREEN_HEIGHT / 2 + 1, GREEN, &state.pixels);
 	fillRectangle(SCREEN_WIDTH / 2 - 1, SCREEN_HEIGHT / 2 - 8, SCREEN_WIDTH / 2 + 1, SCREEN_HEIGHT / 2 + 8, GREEN, &state.pixels);
 
-	SDL_UpdateTexture(state.texture, NULL, &state.pixels, SCREEN_WIDTH * 4);
-	SDL_RenderCopy(state.renderer, state.texture, NULL, NULL);
+	u8* px;
+	int pitch;
+	SDL_LockTexture(state.texture, NULL, &px, &pitch);
+	{
+		for (usize y = 0; y < SCREEN_HEIGHT; y++) {
+			memcpy(&px[y * pitch], &state.pixels[y * SCREEN_WIDTH], SCREEN_WIDTH * 4);
+		}
+	}
+	SDL_UnlockTexture(state.texture);
+
+	SDL_SetRenderTarget(state.renderer, NULL);
+	SDL_SetRenderDrawColor(state.renderer, 0, 0, 0, 0xFF);
+	SDL_SetRenderDrawBlendMode(state.renderer, SDL_BLENDMODE_NONE);
+
+	SDL_RenderClear(state.renderer);
+	SDL_RenderCopyEx(state.renderer, state.texture, NULL, NULL, 0.0, NULL, SDL_FLIP_VERTICAL);
+
 	SDL_RenderPresent(state.renderer);
 }
 
@@ -190,12 +203,6 @@ void update() {
 		}
 	}
 
-	//check if point is outside
-	/*if (pointInsideSector(&state.map, p->sector, (v2) { p->pos.x + p->velocity.x, p->pos.y + p->velocity.y })) {
-		p->pos.x += p->velocity.x;
-		p->pos.y += p->velocity.y;
-	}*/
-
 	p->pos.x += p->velocity.x;
 	p->pos.y += p->velocity.y;
 
@@ -290,6 +297,7 @@ void loadTextures(Texture* textures) {
 			"Error loading texture %s\n",
 			SDL_GetError());
 		state.textures[i] = (Texture){ (u32*)bmpTex->pixels, bmpTex->w, bmpTex->h };
+		state.surfaces[i] = bmpTex;
 	}
 }
 

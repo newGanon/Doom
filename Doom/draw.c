@@ -126,9 +126,9 @@ void draw3D(Player player, Map* map, u32* pixels, Texture* tex) {
 
 	clearPlanes();
 
-	drawWall3D(player, map, pixels, tex, &(WallRenderingInfo) { player.sector, 0, SCREEN_WIDTH, { 0 }}, 0);
+	drawWall3D(player, map, pixels, tex, &(WallRenderingInfo) { player.sector, 0, SCREEN_WIDTH - 1, { 0 }}, 0);
 
-	//drawPlanes3D(player, map, pixels, tex);
+	drawPlanes3D(player, map, pixels, tex);
 
 	drawSprites(player, map, pixels, tex);
 
@@ -181,16 +181,16 @@ void drawWall3D(Player player, Map* map, u32* pixels, Texture* tex, WallRenderin
 
 
 		//rempove part of wall that is already covered by wall, works because we sort walls from near to far
-		for (i32 i = x1; i < x2; i++) {
+		for (i32 i = x1; i <= x2; i++) {
 			if (ceilingclip[i] == 0) {
 				x1 = i+1;
 			}
 			else break;
 		}
 
-		for (i32 i = x2; i > x1; i--) {
+		for (i32 i = x2; i >= x1; i--) {
 			if (ceilingclip[i] == 0) {
-				x2 = i;
+				x2 = i-1;
 			}
 			else break;
 		}
@@ -234,7 +234,7 @@ void drawWall3D(Player player, Map* map, u32* pixels, Texture* tex, WallRenderin
 
 		//TODO: remove varialbe
 		Wall wall = map->walls[i];
-		for (i32 x = x1; x < x2; x++) {
+		for (i32 x = x1; x <= x2; x++) {
 			//calculate x stepsize
 			f32 xp = (x - tx1) / (f32)(tx2 - tx1);
 
@@ -254,6 +254,7 @@ void drawWall3D(Player player, Map* map, u32* pixels, Texture* tex, WallRenderin
 			//used lookuptables screenxtoangle and yslope to make rendering flats faster
 			Texture floorTex = tex[0];
 			Texture ceilTex = tex[0];
+			/*
 			//floor
 			for (i32 y = floorclip[x]; y < yf; y++) {
 				f32 a = screenxtoangle[x];
@@ -290,18 +291,19 @@ void drawWall3D(Player player, Map* map, u32* pixels, Texture* tex, WallRenderin
 				zBuffer[y * SCREEN_WIDTH + x] = dis;
 			}
 
-			
+			*/
 
 			//set visplane top and bottom clipping
+			if (yc < ceilingclip[x]) {
+				ceilplane->bottom[x] = yc;
+				ceilplane->top[x] = ceilingclip[x];
+			}
 			if (yf > floorclip[x]) {
 				floorplane->bottom[x] = floorclip[x];
 				floorplane->top[x] = yf;
 			}
 
-			if (yc < ceilingclip[x]) {
-				ceilplane->bottom[x] = yc;
-				ceilplane->top[x] = ceilingclip[x];
-			}
+
 
 			//variables used in wikipedia equation for texture mapping https://en.wikipedia.org/wiki/Texture_mapping
 			//affine texture mapping: (1.0f-a) * u0 + a*u1
@@ -399,13 +401,31 @@ void clearPlanes() {
 }
 
 visplane_t* findPlane(f32 height, i32 picnum) {
+	u8 getNewest = 0;
 	visplane_t* check;
-	for (check = visplanes; check < lastvisplane; check++) {
-		if (height == check->height && picnum == check->picnum) {
-			break;
+
+	//reversed doom algorithm
+	if (getNewest) {
+		for (check = lastvisplane - 1; check >= visplanes; check--) {
+			if (height == check->height && picnum == check->picnum) {
+				break;
+			}
 		}
+		//if (check < lastvisplane) return check;
+		if (check >= visplanes) return check;
+
+		check = lastvisplane;
 	}
-	if (check < lastvisplane) return check;
+	//like doom used to do it
+	else {
+		for (check = visplanes; check < lastvisplane; check++) {
+			if (height == check->height && picnum == check->picnum) {
+				break;
+			}
+		}
+		//if (check < lastvisplane) return check;
+		if (check < lastvisplane) return check;
+	}
 
 	if (lastvisplane - visplanes == MAXVISPLANES) return NULL;
 
@@ -413,7 +433,7 @@ visplane_t* findPlane(f32 height, i32 picnum) {
 
 	check->height = height;
 	check->picnum = picnum;
-	check->minx = SCREEN_WIDTH;
+	check->minx = SCREEN_WIDTH - 1;
 	check->maxx = -1;
 
 	for (int i = 0; i < SCREEN_WIDTH; i++) {
@@ -426,7 +446,7 @@ visplane_t* findPlane(f32 height, i32 picnum) {
 visplane_t* checkPlane(visplane_t* v, i32 start, i32 stop) {
 	i32 intrl, intrh, unionl, unionh, x;
 	if (start < v->minx) {
-		intrl = v->minx + 1;
+		intrl = v->minx;
 		unionl = start;
 	}
 	else {
@@ -435,7 +455,7 @@ visplane_t* checkPlane(visplane_t* v, i32 start, i32 stop) {
 	}
 
 	if (stop > v->maxx) {
-		intrh = v->maxx + 1;
+		intrh = v->maxx;
 		unionh = stop;
 	}
 	else {
@@ -468,13 +488,52 @@ visplane_t* checkPlane(visplane_t* v, i32 start, i32 stop) {
 	return v;
 }
 
+void makeSpans(i32 x, i32 t1, i32 b1, i32 t2, i32 b2) {
+
+	while (t1 < t2 && t1 <= b1) {
+		mapPlane(t1, spanstart[t1], x - 1);
+		t1++;
+	}
+	while (b1 > b2 && b1 >= t1) {
+		mapPlane(b1, spanstart[b1], x - 1);
+		b1--;
+	}
+
+	while (t2 < t1 && t2 <= b2) {
+		spanstart[t2] = x;
+		t2++;
+	}
+	while (b2 > b1 && b2 >= t2) {
+		spanstart[b2] = x;
+		b2--;
+	}
+}
+
+void mapPlane(i32 y, i32 x1, i32 x2) {
+	i32 x = 4;
+}
+
 void drawPlanes3D(Player player, Map* map, u32* pixels, Texture* tex) {
+	
+	/*for (visplane_t* v = visplanes; v < lastvisplane; v++) {
+		if (v->minx > v->maxx) continue;
+
+		v->top[v->maxx] = SCREEN_HEIGHT + 1;
+		v->top[v->minx] = SCREEN_HEIGHT + 1;
+
+		for (i32 x = v->minx ; x <= v->maxx ; x++)
+		{
+			makeSpans(x, v->top[x], v->bottom[x], v->top[x+1], v->bottom[x+1]);
+		}
+	}*/
+
+
 	u32 colors[8] = { BLUE,RED,GREEN,YELLOW,PURPLE,ORANGE,WHITE,LIGHTGRAY };
 	visplane_t* v;
 	u32 color = 0;
 	for (v = visplanes; v < lastvisplane; v++) {
 		color++;
-		for (i32 x = v->minx; x < v->maxx; x++) {
+		for (i32 x = v->minx; x <= v->maxx; x++) {
 			for (i32 y = v->bottom[x]; y < v->top[x]; y++) {
 				if (v->top[x] == SCREEN_HEIGHT + 1) continue;
 				f32 a = screenxtoangle[x];
@@ -488,13 +547,14 @@ void drawPlanes3D(Player player, Map* map, u32* pixels, Texture* tex) {
 				// texutre coordinates
 				f32 pixelshade = calcFlatShade(dis);
 				v2i t = { abs((i32)(fmod((p.x), 8.0f) * 32.0f)) ,abs((i32)(fmod((p.y), 8.0f) * 32.0f)) };
-				u32 color = changeRGBBrightness(tex[0].pixels[(256 - t.y) * tex[0].width + t.x], pixelshade);
-				drawPixel(x, y, color, pixels);
+				//u32 color = changeRGBBrightness(tex[0].pixels[(256 - t.y) * tex[0].width + t.x], pixelshade);
+				drawPixel(x, y, colors[color%8], pixels);
 				zBuffer[y * SCREEN_WIDTH + x] = dis;
 			}
 		}
 	}
 }
+
 
 void drawSprites(Player player, Map* map, u32* pixels, Texture* tex) {
 	//TODO: PROPER ENTITYHANDER AND ENTITY

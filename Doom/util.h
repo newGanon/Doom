@@ -26,7 +26,7 @@ typedef struct v3_s { f32 x, y, z; } v3;
 typedef struct v3i_s { i32 x, y, z; } v3i;
 typedef struct v3u_s8 { i32 x, y, z; } v3u8;
 
-#define PI 3.14159265359f
+#define PI   3.14159265359f
 #define PI_2 1.57079632679f
 #define PI_4 0.78539816339f
 
@@ -106,3 +106,5 @@ f32 zBuffer[SCREEN_HEIGHT * SCREEN_WIDTH];
 
 u16 ceilingclip[SCREEN_WIDTH * SECTOR_MAX];
 u16 floorclip[SCREEN_WIDTH * SECTOR_MAX];
+
+i32 spanstart[SCREEN_HEIGHT];

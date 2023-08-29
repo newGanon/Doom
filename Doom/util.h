@@ -46,7 +46,7 @@ typedef struct v3u_s8 { i32 x, y, z; } v3u8;
 
 #define SECTOR_MAX 256
 #define WALL_MAX 2048
-#define MAXVISPLANES 512
+#define MAXVISPLANES 4096
 
 #define SCREEN_FPS 240
 #define SCREEN_TICKS_PER_FRAME (1000 / SCREEN_FPS)

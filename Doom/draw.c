@@ -115,6 +115,7 @@ void drawCircle(i32 x0, i32 y0, i32 a, i32 b, u32 color, u32* pixels) {
 }
 
 u32 changeRGBBrightness(u32 color, f32 factor) {
+	return color;
 	i32 a = (color & 0xFF000000);
 	i32 r = (color & 0x00FF0000) >> 16;
 	i32 g = (color & 0x0000FF00) >> 8;
@@ -172,6 +173,7 @@ void drawWall3D(Player player, Map* map, u32* pixels, Texture* tex, WallRenderin
 		//convert the angle of the wall into screen coordinates (player FOV is 90 degrees or 1/2 PI)
 		i32 tx1 = screen_angle_to_x(a1);
 		i32 tx2 = screen_angle_to_x(a2);
+		if (tx1 != 0) tx1++;
 
 		if (tx1 > now->sx2) continue;
 		if (tx2 < now->sx1) continue;
@@ -180,21 +182,25 @@ void drawWall3D(Player player, Map* map, u32* pixels, Texture* tex, WallRenderin
 		i32 x2 = clamp(tx2, now->sx1, now->sx2);
 
 
-		//rempove part of wall that is already covered by wall, works because we sort walls from near to far
-		for (i32 i = x1; i <= x2; i++) {
+		Wall wall = map->walls[i];
+
+		if (x1 >= x2) continue;
+
+		//rempove part of wall that is already covered by wall, works because we sort walls from near to far, only happens in non konvex rooms
+		for (i32 i = x1; i < x2; i++) {
 			if (ceilingclip[i] == 0) {
 				x1 = i+1;
 			}
 			else break;
 		}
 
-		for (i32 i = x2; i >= x1; i--) {
+		for (i32 i = x2; i > x1; i--) {
 			if (ceilingclip[i] == 0) {
 				x2 = i-1;
 			}
 			else break;
 		}
-
+		
 		floorplane = findPlane(sec.zfloor, 0);
 		ceilplane = findPlane(sec.zceil, 0);
 
@@ -202,8 +208,8 @@ void drawWall3D(Player player, Map* map, u32* pixels, Texture* tex, WallRenderin
 		ceilplane = checkPlane(ceilplane, x1, x2);
 
 		//get floor and ceiling height of sector behind wall if wall is a portal
-		i32 nzfloor = sec.zfloor;
-		i32 nzceil = sec.zceil;
+		f32 nzfloor = sec.zfloor;
+		f32 nzceil = sec.zceil;
 
 		if (map->walls[i].portal != 0) {
 			nzfloor = map->sectors[map->walls[i].portal - 1].zfloor;
@@ -232,8 +238,6 @@ void drawWall3D(Player player, Map* map, u32* pixels, Texture* tex, WallRenderin
 		f32 twlen = v2Len(v2Sub(tp1, tp2));
 		v2 cutoff = { fabsf(v2Len(difp1) / twlen), fabsf(v2Len(difp2) / twlen) };
 
-		//TODO: remove varialbe
-		Wall wall = map->walls[i];
 		for (i32 x = x1; x <= x2; x++) {
 			//calculate x stepsize
 			f32 xp = (x - tx1) / (f32)(tx2 - tx1);
@@ -252,10 +256,12 @@ void drawWall3D(Player player, Map* map, u32* pixels, Texture* tex, WallRenderin
 			if (yc < ceilingclip[x]) {
 				ceilplane->bottom[x] = yc;
 				ceilplane->top[x] = ceilingclip[x];
+				if (yc != (SCREEN_HEIGHT-1)) ceilplane->bottom[x] += 1;
 			}
 			if (yf > floorclip[x]) {
 				floorplane->bottom[x] = floorclip[x];
 				floorplane->top[x] = yf;
+				if (yf != (SCREEN_HEIGHT-1)) ceilplane->bottom[x] += 1;
 			}
 
 			//variables used in wikipedia equation for texture mapping https://en.wikipedia.org/wiki/Texture_mapping
@@ -464,6 +470,18 @@ void makeSpans(i32 x, i32 t1, i32 b1, i32 t2, i32 b2, visplane_t* v, Player play
 }
 
 void mapPlane(i32 y, i32 x1, i32 x2, visplane_t* v, Player player, Map* map, u32* pixels, Texture* tex) {
+	f32 texesize = 2.0f;
+
+	i32 texheight = 256;
+	i32 texwidth = 256;
+
+	v2 texsizefactor = { texwidth / texesize, texheight / texesize };
+
+	//other implementation
+	//f32 dis = fabs(((player.pos.z - v->height) * (SCREEN_WIDTH / 2) * yslope[y]));
+	// absolute coordinates
+	//v2 p = {player.pos.x * (SCREEN_WIDTH / 2) + (dis/cos(a)) * cos(player.angle + a),  player.pos.y * (SCREEN_WIDTH / 2) + (dis / cos(a)) * sin(player.angle + a)};
+
 	f32 a = screenxtoangle[x1];
 	//scale normalized yslope by actual camera pos and divide by the cosine of angle to prevent fisheye effect
 	f32 dis = fabs(((player.pos.z - v->height) * yslope[y]));
@@ -472,24 +490,29 @@ void mapPlane(i32 y, i32 x1, i32 x2, visplane_t* v, Player player, Map* map, u32
 	f32 yt = cos(a) * dis / cos(a);
 	// absolute coordinates
 	v2 p = camera_pos_to_world((v2) { xt, yt }, player);
+	p.x *= texsizefactor.x;
+	p.y *= texsizefactor.y;
 
 	f32 step = dis / (SCREEN_WIDTH / 2);
 
-	f32 xstep = step * cos(player.angle - PI_2);
-	f32 ystep = step * sin(player.angle - PI_2);
+	f32 xstep = step * cos(player.angle - PI_2) * texsizefactor.x;
+	f32 ystep = step * sin(player.angle - PI_2) * texsizefactor.y;
 
 	f32 pixelshade = calcFlatShade(dis);
 
 	for (i32 x = x1; x <= x2; x++)
 	{
-		v2i t = {abs((i32)(fmod((p.x), 8.0f) * 32.0f)) ,abs((i32)(fmod((p.y), 8.0f) * 32.0f))};
-		u32 color = changeRGBBrightness(tex[0].pixels[(256 - t.y) * tex[0].width + t.x], pixelshade);
+		v2i t = { (i32)(p.x) & (texwidth - 1), (i32)(p.y) & (texwidth - 1) };
+
+		u32 color = changeRGBBrightness(tex[0].pixels[(255 - t.y) * tex[0].width + t.x], pixelshade);
+		if ((color & 0xFF000000) == 0) {
+			i32 test = 4;
+		}
 		drawPixel(x, y, color, pixels);
 		zBuffer[y * SCREEN_WIDTH + x] = dis;
 		p.x += xstep;
 		p.y += ystep;
 	}
-
 }
 
 void drawPlanes3D(Player player, Map* map, u32* pixels, Texture* tex) {
@@ -510,6 +533,8 @@ void drawPlanes3D(Player player, Map* map, u32* pixels, Texture* tex) {
 	/*u32 colors[8] = {BLUE,RED,GREEN,YELLOW,PURPLE,ORANGE,WHITE,LIGHTGRAY};
 	visplane_t* v;
 	u32 color = 0;
+	i32 texheight = 256;
+	i32 texwidth = 256;
 	for (v = visplanes; v < lastvisplane; v++) {
 		color++;
 		for (i32 x = v->minx; x <= v->maxx; x++) {
@@ -524,10 +549,10 @@ void drawPlanes3D(Player player, Map* map, u32* pixels, Texture* tex) {
 				v2 p = camera_pos_to_world((v2) { xt, yt }, player);
 				// texutre coordinates
 				f32 pixelshade = calcFlatShade(dis);
-				v2i t = { abs((i32)(fmod((p.x), 8.0f) * 32.0f)) ,abs((i32)(fmod((p.y), 8.0f) * 32.0f)) };
-				u32 color = changeRGBBrightness(tex[0].pixels[(256 - t.y) * tex[0].width + t.x], pixelshade);
-				//drawPixel(x, y, colors[color%8], pixels);
-				drawPixel(x, y, color, pixels);
+				v2i t = { (i32)((p.x - ((i32)p.x)) * texheight) & (texwidth - 1), (i32)((p.y - ((i32)p.y)) * texheight) & (texwidth - 1)};
+				//u32 color = changeRGBBrightness(tex[0].pixels[(256 - t.y) * tex[0].width + t.x], pixelshade);
+				drawPixel(x, y, colors[color%8], pixels);
+				//drawPixel(x, y, color, pixels);
 				zBuffer[y * SCREEN_WIDTH + x] = dis;
 			}
 		}
@@ -538,7 +563,7 @@ void drawPlanes3D(Player player, Map* map, u32* pixels, Texture* tex) {
 void drawSprites(Player player, Map* map, u32* pixels, Texture* tex) {
 	//TODO: PROPER ENTITYHANDER AND ENTITY
 	v2 spriteScale = { 7.5f, 7.5f };
-	f32 spritez = 12.0f;
+	f32 spritez = 6.0f;
 
 	f32 spritevMove = -SCREEN_HEIGHT / 2 * (spritez - player.pos.z);
 	v2 spritepos = { 18.0f ,18.0f };

@@ -66,6 +66,8 @@ int main(int argc, char* args[]) {
 }
 void render() {
 
+	//memset(state.pixels, 0, sizeof(state.pixels));
+
 	draw3D(state.player, &state.map, &state.pixels, &state.textures);
 
 	/* draw crosshair */
@@ -155,6 +157,7 @@ void update() {
 	u8 hitPortal = 0;
 	Sector newSec;
 	for (u8 t = 0; t < 2; t++){
+		hitPortal = 0;
 		for (i32 i = curSec.index; i < curSec.index + curSec.numWalls; i++) {
 			Wall curwall = map->walls[i];
 			if (BOXINTERSECT2D(p->pos.x, p->pos.y, p->pos.x + p->velocity.x, p->pos.y + p->velocity.y, curwall.a.x, curwall.a.y, curwall.b.x, curwall.b.y) &&
@@ -193,7 +196,7 @@ void update() {
 			}
 		}
 		if (hitPortal) {
-			//TODO REWORK SOMTIMES FREEZES 
+			//TODO REWORK SOMTIMES FREEZESs
 			t = 0;
 			hitPortal = 0;
 			curSec = newSec;
@@ -264,7 +267,7 @@ void init() {
 		f32 dy = y - SCREEN_HEIGHT / 2;
 		yslope[y] = (SCREEN_HEIGHT * 0.5f) / dy;
 	}
-	yslope[360] = 1000;
+	yslope[SCREEN_HEIGHT/2] = 1000;
 
 	for (i32 x = 0; x < SCREEN_WIDTH; x++) {
 		screenxtoangle[x] = screen_x_to_angle(x);

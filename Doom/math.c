@@ -27,6 +27,7 @@ v2 world_pos_to_camera(v2 pos, Player player) {
 		u.x * player.anglecos + u.y * player.anglesin
 	};
 }
+
 //player relative pos to absolute one
 v2 camera_pos_to_world(v2 pos, Player player) {
 	v2 r = {
@@ -80,4 +81,9 @@ v2 v2Mul(v2 a, f32 b) {
 f32 clamp(f32 d, f32 min, f32 max) {
 	const f32 t = d < min ? min : d;
 	return t > max ? max : t;
+}
+
+f32 easeInOutCubic(f32 x) {
+  //return x < 0.5 ? 4 * x * x * x : 1 - pow(-2 * x + 2, 3) / 2;
+	return x < 0.5 ? 2 * x * x : 1 - pow(-2 * x + 2, 2) / 2;
 }

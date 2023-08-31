@@ -1,7 +1,7 @@
 #include <math.h>
 #include "draw.h"
 #include "math.h"
-
+#include "entity.h"
 
 visplane_t visplanes[MAXVISPLANES];
 visplane_t* lastvisplane;
@@ -18,6 +18,19 @@ void drawPixel(i32 x, i32 y, u32 color, u32* pixels) {
 }
 
 void drawInit() {
+	//init global render variables 
+	//yslope if camera had z position 1, this value is later scaled by the actual height value
+	for (i32 y = 0; y < SCREEN_HEIGHT; y++) {
+		f32 dy = y - SCREEN_HEIGHT / 2;
+		yslope[y] = (SCREEN_HEIGHT * 0.5f) / dy;
+	}
+	yslope[SCREEN_HEIGHT / 2] = 1000;
+
+	for (i32 x = 0; x < SCREEN_WIDTH; x++) {
+		screenxtoangle[x] = screen_x_to_angle(x);
+	}
+
+	//Set wall drawing varables that dont change
 	zdl = v2Rotate(((v2) { 0.0f, 1.0f }), +(HFOV / 2.0f)),
 	zdr = v2Rotate(((v2) { 0.0f, 1.0f }), -(HFOV / 2.0f)),
 	znl = (v2){ zdl.x * ZNEAR, zdl.y * ZNEAR },
@@ -114,8 +127,9 @@ void drawCircle(i32 x0, i32 y0, i32 a, i32 b, u32 color, u32* pixels) {
 	}
 }
 
+//slow, dont use
 u32 changeRGBBrightness(u32 color, f32 factor) {
-	return color;
+	//return color;
 	i32 a = (color & 0xFF000000);
 	i32 r = (color & 0x00FF0000) >> 16;
 	i32 g = (color & 0x0000FF00) >> 8;
@@ -123,7 +137,16 @@ u32 changeRGBBrightness(u32 color, f32 factor) {
 	return a | (i32)(r / factor) << 16 | (i32)(g / factor) << 8 | (i32)(b / factor);
 }
 
-void draw3D(Player player, Map* map, u32* pixels, Texture* tex) {
+f32 calcWallShade(v2 start, v2 end, f32 dis) {
+	v2 difNorm = v2Normalize(v2Sub(end, start));
+	return (f32)1.0f + (10.0f * (fabsf(difNorm.x)) + fabsf(dis)) * LIGHTDIMINISHINGDFACTOR;
+}
+
+f32 calcFlatShade(f32 dis) {
+	return (f32)1 + fabsf(dis) * LIGHTDIMINISHINGDFACTOR;
+}
+
+void draw3D(Player player, Map* map, u32* pixels, Texture* tex, EntityHandler* h) {
 
 	clearPlanes();
 
@@ -131,7 +154,7 @@ void draw3D(Player player, Map* map, u32* pixels, Texture* tex) {
 
 	drawPlanes3D(player, map, pixels, tex);
 
-	drawSprites(player, map, pixels, tex);
+	drawSprites(player, map, pixels, tex, h);
 
 	drawMinimap(player, map, pixels);
 }
@@ -253,15 +276,14 @@ void drawWall3D(Player player, Map* map, u32* pixels, Texture* tex, WallRenderin
 			Texture ceilTex = tex[0];
 			
 			//set visplane top and bottom clipping
+			//TODO: DRAW PLANES 1 PIXEL ON TOP AND BOTTOM HIGHER
 			if (yc < ceilingclip[x]) {
 				ceilplane->bottom[x] = yc;
 				ceilplane->top[x] = ceilingclip[x];
-				if (yc != (SCREEN_HEIGHT-1)) ceilplane->bottom[x] += 1;
 			}
 			if (yf > floorclip[x]) {
 				floorplane->bottom[x] = floorclip[x];
 				floorplane->top[x] = yf;
-				if (yf != (SCREEN_HEIGHT-1)) ceilplane->bottom[x] += 1;
 			}
 
 			//variables used in wikipedia equation for texture mapping https://en.wikipedia.org/wiki/Texture_mapping
@@ -284,7 +306,11 @@ void drawWall3D(Player player, Map* map, u32* pixels, Texture* tex, WallRenderin
 
 			//wall distance for lightlevel calc
 			f32 dis = tp1.y * (1 - u) + tp2.y * (u);
+
+
+			//TODO PROPER LIGHTING
 			f32 wallshade = calcWallShade(map->walls[i].a, map->walls[i].b, dis);
+			//f32 wallshade = 1;
 
 			//draw Wall
 			if (map->walls[i].portal == 0) {
@@ -325,15 +351,6 @@ void drawWall3D(Player player, Map* map, u32* pixels, Texture* tex, WallRenderin
 			drawWall3D(player, map, pixels, tex, w, ++rd);
 		}
 	}
-}
-
-f32 calcWallShade(v2 start, v2 end, f32 dis) {
-	v2 difNorm = v2Normalize(v2Sub(end, start));
-	return (f32)1.0f + (10.0f * (fabsf(difNorm.x)) + fabsf(dis)) * LIGHTDIMINISHINGDFACTOR;
-}
-
-f32 calcFlatShade(f32 dis) {
-	return (f32)1 + fabsf(dis) * LIGHTDIMINISHINGDFACTOR;
 }
 
 void drawTexLine(i32 x, i32 y0, i32 y1, i32 yf, i32 yc, f64 u, Texture* tex, f32 shade,f32 dis, u32* pixels) {
@@ -477,12 +494,13 @@ void mapPlane(i32 y, i32 x1, i32 x2, visplane_t* v, Player player, Map* map, u32
 
 	v2 texsizefactor = { texwidth / texesize, texheight / texesize };
 
+	f32 a = screenxtoangle[x1];
+
 	//other implementation
 	//f32 dis = fabs(((player.pos.z - v->height) * (SCREEN_WIDTH / 2) * yslope[y]));
 	// absolute coordinates
 	//v2 p = {player.pos.x * (SCREEN_WIDTH / 2) + (dis/cos(a)) * cos(player.angle + a),  player.pos.y * (SCREEN_WIDTH / 2) + (dis / cos(a)) * sin(player.angle + a)};
 
-	f32 a = screenxtoangle[x1];
 	//scale normalized yslope by actual camera pos and divide by the cosine of angle to prevent fisheye effect
 	f32 dis = fabs(((player.pos.z - v->height) * yslope[y]));
 	//relative coordinates to player
@@ -498,16 +516,15 @@ void mapPlane(i32 y, i32 x1, i32 x2, visplane_t* v, Player player, Map* map, u32
 	f32 xstep = step * cos(player.angle - PI_2) * texsizefactor.x;
 	f32 ystep = step * sin(player.angle - PI_2) * texsizefactor.y;
 
+	//TODO PRPOPER LIGHTING
 	f32 pixelshade = calcFlatShade(dis);
+	//f32 pixelshade = 1.0f;
 
 	for (i32 x = x1; x <= x2; x++)
 	{
 		v2i t = { (i32)(p.x) & (texwidth - 1), (i32)(p.y) & (texwidth - 1) };
 
 		u32 color = changeRGBBrightness(tex[0].pixels[(255 - t.y) * tex[0].width + t.x], pixelshade);
-		if ((color & 0xFF000000) == 0) {
-			i32 test = 4;
-		}
 		drawPixel(x, y, color, pixels);
 		zBuffer[y * SCREEN_WIDTH + x] = dis;
 		p.x += xstep;
@@ -560,45 +577,58 @@ void drawPlanes3D(Player player, Map* map, u32* pixels, Texture* tex) {
 }
 
 
-void drawSprites(Player player, Map* map, u32* pixels, Texture* tex) {
-	//TODO: PROPER ENTITYHANDER AND ENTITY
-	v2 spriteScale = { 7.5f, 7.5f };
-	f32 spritez = 6.0f;
+void drawSprites(Player player, Map* map, u32* pixels, Texture* tex, EntityHandler* h) {
 
-	f32 spritevMove = -SCREEN_HEIGHT / 2 * (spritez - player.pos.z);
-	v2 spritepos = { 18.0f ,18.0f };
-	v2 spritep = world_pos_to_camera(spritepos, player);
-	v2 test = camera_pos_to_world(spritep, player);
-	f32 spritea = atan2(spritep.y, spritep.x) - PI / 2;
-	i32 spriteScreenX = screen_angle_to_x(spritea);
-	i32 vMoveScreen = spritevMove / spritep.y;
+	for (i32 i = 0; i < h->used; i++)
+	{
+		Entity e = h->entities[i];
 
-	//calculate camera spriteheight and textureheight
-	i32 spriteHeight = (SCREEN_HEIGHT / spritep.y) * spriteScale.y;
-	i32 y0 = -spriteHeight / 2 + SCREEN_HEIGHT / 2 + vMoveScreen;
-	if (y0 < 0) y0 = 0;
-	i32 y1 = spriteHeight / 2 + SCREEN_HEIGHT / 2 + vMoveScreen;
-	if (y1 >= SCREEN_HEIGHT) y1 = SCREEN_HEIGHT - 1;
+		if (e.relCamPos.y <= 0) continue;
 
-	i32 spriteWidth = (SCREEN_HEIGHT / spritep.y) * spriteScale.x;
-	i32 x0 = -spriteWidth / 2 + spriteScreenX;
-	if (x0 < 0) x0 = 0;
-	i32 x1 = spriteWidth / 2 + spriteScreenX;
-	if (x1 >= SCREEN_WIDTH) x1 = SCREEN_WIDTH - 1;
+		f32 spritevMove = -SCREEN_HEIGHT / 2 * (e.vMove - player.pos.z);
+		f32 spritea = atan2(e.relCamPos.y, e.relCamPos.x) - PI / 2;
+		i32 spriteScreenX = screen_angle_to_x(spritea);
+		i32 vMoveScreen = spritevMove / e.relCamPos.y;
 
-	Texture sprite = tex[1];
+		//calculate camera spriteheight and textureheight
+		i32 spriteHeight = (SCREEN_HEIGHT / e.relCamPos.y) * e.scale.y;
+		i32 y0 = -spriteHeight / 2 + SCREEN_HEIGHT / 2 + vMoveScreen;
+		if (y0 < 0) y0 = 0;
+		i32 y1 = spriteHeight / 2 + SCREEN_HEIGHT / 2 + vMoveScreen;
+		if (y1 >= SCREEN_HEIGHT) y1 = SCREEN_HEIGHT;
 
-	for (i32 x = x0; x < x1; x++) {
-		v2i tex;
-		tex.x = (i32)((x - (-spriteWidth / 2 + spriteScreenX)) * sprite.width / spriteWidth);
-		if (spritep.y > 0 && x >= 0 && x < SCREEN_WIDTH) {
-			for (i32 y = y0; y < y1; y++) {
-				if (zBuffer[((SCREEN_HEIGHT - 1) - y) * SCREEN_WIDTH + x] > spritep.y) {
-					i32 d = (y - vMoveScreen) - SCREEN_HEIGHT / 2 + spriteHeight / 2;
-					tex.y = (d * sprite.height) / spriteHeight;
-					u32 color = changeRGBBrightness(sprite.pixels[tex.y * sprite.width + tex.x], calcFlatShade(spritep.y));
+		i32 spriteWidth = (SCREEN_HEIGHT / e.relCamPos.y) * e.scale.x;
+		i32 x0 = -spriteWidth / 2 + spriteScreenX;
+		if (x0 < 0) x0 = 0;
+		i32 x1 = spriteWidth / 2 + spriteScreenX;
+		if (x1 >= SCREEN_WIDTH) x1 = SCREEN_WIDTH;
+
+		Texture sprite = tex[e.spriteNum[0]];
+
+		//calc tex pos and tex steps
+		f32 texy0 = ((y0 - vMoveScreen - SCREEN_HEIGHT / 2 + spriteHeight / 2) * sprite.height) / spriteHeight;
+		f32 texy1 = (((y1)-vMoveScreen - SCREEN_HEIGHT / 2 + spriteHeight / 2) * sprite.height) / spriteHeight;
+		f32 ystep = (texy1 - texy0) / (y1 - y0);
+
+		f32 texx0 = (i32)((x0 - (-spriteWidth / 2 + spriteScreenX)) * sprite.width / spriteWidth);
+		f32 texx1 = (i32)((x1 - (-spriteWidth / 2 + spriteScreenX)) * sprite.width / spriteWidth);
+		f32 xstep = (texx1 - texx0) / (x1 - x0);
+
+		v2 texpos;
+
+		f32 pixelshade = calcFlatShade(e.relCamPos.y);
+		texpos.y = texy0;
+		for (i32 y = y0; y < y1; y++) {
+			texpos.y += ystep;
+			texpos.x = texx0;
+			for (i32 x = x0; x < x1; x++) {
+				i32 index = ((SCREEN_HEIGHT - 1) - y) * SCREEN_WIDTH + x;
+				if (zBuffer[index] > e.relCamPos.y) {
+					u32 color = changeRGBBrightness(sprite.pixels[(i32)texpos.y * sprite.width + (i32)texpos.x], pixelshade);
 					drawPixel(x, SCREEN_HEIGHT - y, color, pixels);
+					if ((color & 0xFF000000) != 0) zBuffer[index] = e.relCamPos.y;
 				}
+				texpos.x += xstep;
 			}
 		}
 	}

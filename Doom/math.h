@@ -23,3 +23,4 @@ v2 v2Mul(v2 a, f32 b);
 f32 v2Len(v2 a);
 f32 clamp(f32 d, f32 min, f32 max);
 
+f32 easeInOutCubic(f32 x);

@@ -13,6 +13,31 @@ typedef struct WallRenderingInfo {
 	u8 renderedSectors[SECTOR_MAX];
 } WallRenderingInfo;
 
+typedef struct visplane_t {
+	f32	height;
+	i32	picnum;
+	i32	lightlevel;
+	i32	minx;
+	i32	maxx;
+	u16 top[SCREEN_WIDTH];
+	u16 bottom[SCREEN_WIDTH];
+
+} visplane_t;
+
+//lockuptable of how far you would need to travel in y direction to move 1 in horizontal direction for each y value
+f32 yslope[SCREEN_HEIGHT];
+//lockuptable of pixel x value to angle
+f32 screenxtoangle[SCREEN_WIDTH];
+
+f32 zBuffer[SCREEN_HEIGHT * SCREEN_WIDTH];
+
+//clipping information of walls
+u16 ceilingclip[SCREEN_WIDTH * SECTOR_MAX];
+u16 floorclip[SCREEN_WIDTH * SECTOR_MAX];
+
+//used for horizontal drawing of visplain strips
+i32 spanstart[SCREEN_HEIGHT];
+
 void drawPixel(i32 x, i32 y, u32 color, u32* pixels);
 void drawInit();
 void drawVerticalLine(i32 x, i32 y0, i32 y1, u32 color, u32* pixels);

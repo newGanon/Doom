@@ -48,7 +48,7 @@ typedef struct v3u_s8 { i32 x, y, z; } v3u8;
 #define WALL_MAX 2048
 #define MAXVISPLANES 4096
 
-#define SCREEN_FPS 240
+#define SCREEN_FPS 60
 #define SCREEN_TICKS_PER_FRAME (1000 / SCREEN_FPS)
 
 #define RED 0xFFFF0000
@@ -88,25 +88,3 @@ typedef struct Map {
 	Sector sectors[SECTOR_MAX];
 	i32 sectornum;
 } Map;
-
-typedef struct visplane_t
-{
-	f32	height;
-	i32	picnum;
-	i32	lightlevel;
-	i32	minx;
-	i32	maxx;
-	u16 top[SCREEN_WIDTH];
-	u16 bottom[SCREEN_WIDTH];
-
-} visplane_t;
-
-f32 yslope[SCREEN_HEIGHT];
-f32 screenxtoangle[SCREEN_WIDTH];
-
-f32 zBuffer[SCREEN_HEIGHT * SCREEN_WIDTH];
-
-u16 ceilingclip[SCREEN_WIDTH * SECTOR_MAX];
-u16 floorclip[SCREEN_WIDTH * SECTOR_MAX];
-
-i32 spanstart[SCREEN_HEIGHT];

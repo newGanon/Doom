@@ -138,12 +138,17 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="draw.c" />
+    <ClCompile Include="entity.c" />
     <ClCompile Include="main.c" />
     <ClCompile Include="math.c" />
+    <ClCompile Include="tick.c" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="draw.h" />
+    <ClInclude Include="entity.h" />
     <ClInclude Include="math.h" />
+    <ClInclude Include="ticker.h" />
+    <ClInclude Include="tick.h" />
     <ClInclude Include="util.h" />
   </ItemGroup>
   <ItemGroup>

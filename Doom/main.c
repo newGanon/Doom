@@ -2,6 +2,9 @@
 #include "util.h"
 #include "draw.h"
 #include "math.h"
+#include "entity.h"
+#include "ticker.h"
+#include "tick.h"
 #include <ctype.h>
 
 struct {
@@ -12,6 +15,8 @@ struct {
 	i32 deltaTime;
 	u32 pixels[SCREEN_WIDTH * SCREEN_HEIGHT];
 	Texture textures[100];
+
+	EntityHandler entityhandler;
 
 	Map map;
 
@@ -66,9 +71,9 @@ int main(int argc, char* args[]) {
 }
 void render() {
 
-	//memset(state.pixels, 0, sizeof(state.pixels));
+	memset(state.pixels, 0, sizeof(state.pixels));
 
-	draw3D(state.player, &state.map, &state.pixels, &state.textures);
+	draw3D(state.player, &state.map, &state.pixels, &state.textures, &state.entityhandler);
 
 	/* draw crosshair */
 	/* drawCircle(SCREEN_WIDTH / 2, SCREEN_HEIGHT / 2, 10, 10, RED); */
@@ -99,6 +104,10 @@ void render() {
 void update() {
 
 	sortWalls();
+
+	calcAllRelCamPos(&state.entityhandler, &state.player);
+
+	run_tickers();
 
 	const f32 movespeed = 20.0f * ((f32)state.deltaTime / 1000.0f);
 	const f32 gravity = -80.0f * ((f32)state.deltaTime / 1000.0f);
@@ -157,7 +166,6 @@ void update() {
 	u8 hitPortal = 0;
 	Sector newSec;
 	for (u8 t = 0; t < 2; t++){
-		hitPortal = 0;
 		for (i32 i = curSec.index; i < curSec.index + curSec.numWalls; i++) {
 			Wall curwall = map->walls[i];
 			if (BOXINTERSECT2D(p->pos.x, p->pos.y, p->pos.x + p->velocity.x, p->pos.y + p->velocity.y, curwall.a.x, curwall.a.y, curwall.b.x, curwall.b.y) &&
@@ -190,6 +198,7 @@ void update() {
 					}
 					//if player fits throught portal change playersector
 					else if (curwall.portal > 0) {
+						if (hitPortal == 1) break;
 						hitPortal = 1;
 						newSec = state.map.sectors[curwall.portal - 1];
 					}
@@ -252,6 +261,46 @@ void init() {
 
 	loadLevel();
 
+	initEntityHandler(&state.entityhandler, 128);
+
+	init_tickers();
+
+
+	Entity e = (Entity){
+		.tick.function = &tick_item,
+		.pos = {22.0f, 22.0f},
+		.angle = PI,
+		.vMove = 2.0f,
+		.speed = 0,
+		.damage = 0,
+		.scale = { 3.0f, 3.0f },
+		.spriteAmt = 1,
+		.spriteNum = { 2 },
+		.type = Item,
+		.animationtick = 0
+	};
+	addEntity(&state.entityhandler,e);
+
+	add_ticker(&state.entityhandler.entities[0].tick);
+
+
+	Entity e1 = (Entity){
+	.tick.function = (actionf)(-1),
+	.pos = {18.0f, 18.0f},
+	.angle = PI,
+	.vMove = 6.0f,
+	.speed = 0,
+	.damage = 0,
+	.scale = { 7.5f, 7.5f },
+	.spriteAmt = 1,
+	.spriteNum = { 1 },
+	.type = Enemy,
+	.animationtick = 0
+	};
+
+	addEntity(&state.entityhandler, e1);
+
+
 	state.player.pos = (v3){ 20.0f, 20.0f, 0.0f};
 	state.player.sector = 1;
 	state.player.pos.z = EYEHEIGHT + state.map.sectors[state.player.sector - 1].zfloor;
@@ -260,18 +309,6 @@ void init() {
 	state.player.angle = PI_2;
 	state.player.anglecos = cos(state.player.angle);
 	state.player.anglesin = sin(state.player.angle);
-
-	//init global render variables 
-	//yslope if camera had z position 1, this value is later scaled by the actual height value
-	for (i32 y = 0; y < SCREEN_HEIGHT; y++) {
-		f32 dy = y - SCREEN_HEIGHT / 2;
-		yslope[y] = (SCREEN_HEIGHT * 0.5f) / dy;
-	}
-	yslope[SCREEN_HEIGHT/2] = 1000;
-
-	for (i32 x = 0; x < SCREEN_WIDTH; x++) {
-		screenxtoangle[x] = screen_x_to_angle(x);
-	}
 }
 
 void close() {
@@ -291,7 +328,7 @@ void close() {
 
 void loadTextures(Texture* textures) {
 	SDL_Surface* bmpTex;
-	char textureFileNames[2][50] = {"test.bmp", "spritetest2.bmp"};
+	char textureFileNames[3][50] = {"test2.bmp", "spritetest2.bmp", "ammo.bmp"};
 	i32 textureAmt = sizeof(textureFileNames) / sizeof(textureFileNames[0]);
 
 	for (i32 i = 0; i < textureAmt; i++) {
@@ -306,7 +343,7 @@ void loadTextures(Texture* textures) {
 
 void loadLevel() {
 	FILE* fp = NULL;
-	fopen_s(&fp,"level.txt", "r");
+	fopen_s(&fp,"level4.txt", "r");
 	ASSERT(fp, "error opening leveldata file");
 	enum {SECTOR, WALL, NONE} sm = NONE;
 	u8 done = 0;

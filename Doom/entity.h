@@ -5,23 +5,23 @@
 
 typedef enum EntityType {
 	Enemy,
-	Item
+	Item,
+	Projectile
 }Entitytype;
 
 typedef struct {
 	ticker tick;
 	Entitytype type;
-	v2 pos;
-	f32 angle;
-	v2 relCamPos;
+	v2 pos, relCamPos;
+	f32 z;
+	v3 velocity, acceleration;
 	u32 spriteNum[8];
 	u8 spriteAmt;
 	v2 scale;
 	f32 vMove;
-	i32 health;
-	i32 damage;
-	f32 speed;
+	i32 health, damage, speed;
 	i32 animationtick;
+	Player* target;
 }Entity;
 
 typedef struct {
@@ -38,3 +38,4 @@ void removeEntity(EntityHandler* h, Entity* e);
 void calcAllRelCamPos(EntityHandler* h, Player* player);
 void sortEntities(EntityHandler* handler, Player* player);
 void tick_item(Entity* item);
+void tick_enemy(Entity* enemy);

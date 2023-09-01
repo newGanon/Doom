@@ -48,7 +48,7 @@ typedef struct v3u_s8 { i32 x, y, z; } v3u8;
 #define WALL_MAX 2048
 #define MAXVISPLANES 4096
 
-#define SCREEN_FPS 60
+#define SCREEN_FPS 240
 #define SCREEN_TICKS_PER_FRAME (1000 / SCREEN_FPS)
 
 #define RED 0xFFFF0000
@@ -64,11 +64,15 @@ typedef struct v3u_s8 { i32 x, y, z; } v3u8;
 
 #define LIGHTING 0
 
-typedef struct {
+#define GRAVITY 80.0f
+
+typedef struct Player{
 	v3 pos, velocity;
 	f32 angle, anglecos, anglesin;
+	f32 speed;
 	u32 sector;
 	u8 inAir;
+	u8 shoot;
 }Player;
 
 typedef struct Sector {
@@ -88,3 +92,5 @@ typedef struct Map {
 	Sector sectors[SECTOR_MAX];
 	i32 sectornum;
 } Map;
+
+i32 deltaTime;

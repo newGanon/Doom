@@ -73,3 +73,23 @@ void tick_item(Entity* item) {
 	item->animationtick += 1;
 	item->animationtick = item->animationtick % (totalanimationticks);
 }
+
+void tick_enemy(Entity* enemy) {
+	Player* player = enemy->target;
+	if (abs(enemy->z + enemy->vMove - player->pos.z) < 10.0f) {
+		f32 dx = player->pos.x - enemy->pos.x;
+		f32 dy = player->pos.y - enemy->pos.y;
+		f32 len = dx * dx + dy * dy;
+		len /= sqrt(len);
+		if (len < 10.0f) {
+			enemy->velocity.x = dx / len * 0.04f;
+			enemy->velocity.y = dy / len * 0.04f;
+		}
+	}
+
+	enemy->pos.x += enemy->velocity.x;
+	enemy->pos.y += enemy->velocity.y;
+	enemy->z += enemy->velocity.z;
+
+	enemy->velocity = (v3){ 0,0,0 };
+}

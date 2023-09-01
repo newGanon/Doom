@@ -42,13 +42,12 @@ void removeEntity(EntityHandler* h, Entity* e) {
 void sortEntities(EntityHandler* h, Player* player) {
 
 	calcAllRelCamPos(h, player);
-	Entity temp;
 	if (h->used == 0) return;
 	//relCamPos.y is the distance from the camera
 	for (u32 i = 0; i < h->used - 1; i++)
 	{
 		if (h->entities[i].relCamPos.y < h->entities[i + 1].relCamPos.y) {
-			temp = h->entities[i];
+			Entity temp = h->entities[i];
 			h->entities[i] = h->entities[i + 1];
 			h->entities[i + 1] = temp;
 		}
@@ -92,4 +91,12 @@ void tick_enemy(Entity* enemy) {
 	enemy->z += enemy->velocity.z;
 
 	enemy->velocity = (v3){ 0,0,0 };
+}
+
+void tick_bullet(Entity* bullet) {
+	bullet->pos.x += bullet->velocity.x;
+	bullet->pos.y += bullet->velocity.y;
+	if (abs(bullet->pos.x + bullet->pos.y) > 200) {
+		remove_ticker(&bullet->tick);
+	}
 }

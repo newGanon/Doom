@@ -41,3 +41,4 @@ void calcAllRelCamPos(EntityHandler* h, Player* player);
 void sortEntities(EntityHandler* handler, Player* player);
 void tick_item(Entity* item);
 void tick_enemy(Entity* enemy);
+void tick_bullet(Entity* bullet);

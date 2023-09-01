@@ -32,6 +32,7 @@ void update();
 void render();
 void close();
 void loadTextures(Texture* textures);
+void check_shoot(Player* p, EntityHandler* h);
 
 
 int main(int argc, char* args[]) {
@@ -114,6 +115,7 @@ void update() {
 	calcAllRelCamPos(&state.entityhandler, &state.player);
 
 	player_tick(&state.player);
+	check_shoot(&state.player, &state.entityhandler);
 
 	run_tickers();
 }
@@ -162,41 +164,38 @@ void init() {
 	init_tickers();
 
 
-	Entity e = (Entity){
+	/*Entity e = (Entity){
 		.tick.function = &tick_item,
 		.pos = {22.0f, 22.0f},
 		.vMove = 2.5f,
-		.speed = 0,
-		.damage = 0,
 		.scale = { 3.0f, 3.0f },
 		.spriteAmt = 1,
 		.spriteNum = { 2 },
 		.type = Item,
-		.animationtick = 0,
+		.animationtick = 0
 	};
 	addEntity(&state.entityhandler,e);
 
 	add_ticker(&state.entityhandler.entities[0].tick);
-
 
 	Entity e1 = (Entity){
 		//.tick.function = (actionf)(-1),
 		.tick.function = &tick_enemy,
 		.pos = {18.0f, 18.0f},
 		.vMove = 6.0f,
-		.speed = 0,
-		.damage = 0,
 		.scale = { 7.5f, 7.5f },
 		.spriteAmt = 1,
 		.spriteNum = { 1 },
 		.type = Enemy,
-		.animationtick = 0,
 		.target = &state.player
 	};
 
 	addEntity(&state.entityhandler, e1);
 
-	add_ticker(&state.entityhandler.entities[1].tick);
+	add_ticker(&state.entityhandler.entities[1].tick);*/
+
+
+
 
 	state.player.pos = (v2){ 20.0f, 20.0f};
 	state.player.sector = 1;
@@ -226,7 +225,7 @@ void close() {
 
 void loadTextures(Texture* textures) {
 	SDL_Surface* bmpTex;
-	char textureFileNames[3][50] = {"test2.bmp", "spritetest2.bmp", "ammo.bmp"};
+	char textureFileNames[3][50] = {"test.bmp", "spritetest2.bmp", "ammo.bmp"};
 	i32 textureAmt = sizeof(textureFileNames) / sizeof(textureFileNames[0]);
 
 	for (i32 i = 0; i < textureAmt; i++) {
@@ -240,3 +239,23 @@ void loadTextures(Texture* textures) {
 }
 
 
+void check_shoot(Player* p, EntityHandler* h) {
+	if (!p->shoot) return;
+	p->shoot = 0;
+
+	Entity bullet = (Entity){
+		.tick.function = &tick_bullet,
+		.pos = p->pos,
+		.speed = 10.0f,
+		.vMove = p->z,
+		.scale = { 2.0f, 2.0f },
+		.spriteAmt = 1,
+		.spriteNum = { 1 },
+		.type = Projectile,
+		.velocity = {p->anglecos, p->anglesin}
+	};
+
+	addEntity(h, bullet);
+
+	add_ticker(&h->entities[h->used - 1].tick);
+}

@@ -4,5 +4,6 @@
 
 void init_tickers();
 void add_ticker(ticker* ticker);
+void remove_ticker(ticker* ticker);
 void run_tickers();
 

@@ -2,9 +2,31 @@
 #include "player.h"
 #include "math.h"
 #include "map.h"
+#include "entity.h"
 
+void calc_playervelocity(Player* p);
+//void check_shoot(Player* p);
 
 void player_tick(Player* p) {
+	const u8* keyboardstate = SDL_GetKeyboardState(NULL);
+
+	//move player
+	calc_playervelocity(p);
+	trymove_player(p);
+
+	//TODO: check if player shot when every sector has its own entityhandler
+	
+	
+	//reset player pos
+	if (keyboardstate[SDL_SCANCODE_R]) {
+		p->pos = (v2){ 15.0f, 15.0f};
+		p->z = EYEHEIGHT;
+		p->sector = 1; 
+	}
+}
+
+
+void calc_playervelocity(Player* p) {
 	const f32 movespeed = p->speed * ((f32)deltaTime / 1000.0f);
 	const u8* keyboardstate = SDL_GetKeyboardState(NULL);
 
@@ -28,13 +50,4 @@ void player_tick(Player* p) {
 
 	p->velocity.x = p->velocity.x * (1 - acceleration) + dpos.x * acceleration * movespeed;
 	p->velocity.y = p->velocity.y * (1 - acceleration) + dpos.y * acceleration * movespeed;
-
-	trymove_player(p);
-	
-	//reset player pos
-	if (keyboardstate[SDL_SCANCODE_R]) {
-		p->pos = (v2){ 15.0f, 15.0f};
-		p->z = EYEHEIGHT;
-		p->sector = 1; 
-	}
 }

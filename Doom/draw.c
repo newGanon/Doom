@@ -131,6 +131,7 @@ void drawCircle(i32 x0, i32 y0, i32 a, i32 b, u32 color) {
 
 //slow, dont use
 u32 changeRGBBrightness(u32 color, f32 factor) {
+	return color;
 	i32 a = (color & 0xFF000000);
 	i32 r = (color & 0x00FF0000) >> 16;
 	i32 g = (color & 0x0000FF00) >> 8;

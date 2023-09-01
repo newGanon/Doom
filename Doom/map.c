@@ -153,6 +153,7 @@ void trymove_player(Player* p) {
 					//if player fits throught portal change playersector
 					else if (curwall.portal > 0) {
 						if (hitPortal == 1) {
+							hitPortal = 0;
 							t = 2;
 							break;
 						}

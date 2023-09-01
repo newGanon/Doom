@@ -15,6 +15,12 @@ void add_ticker(ticker* ticker) {
 	tickercap.prev = ticker;
 }
 
+void remove_ticker(ticker* ticker) {
+	if (ticker == &tickercap) return;
+	ticker->next->prev = ticker->prev;
+	ticker->prev->next = ticker->next;
+}
+
 void run_tickers() {
 	ticker* currentticker;
 	currentticker = tickercap.next;
@@ -29,4 +35,3 @@ void run_tickers() {
 		currentticker = currentticker->next;
 	}
 }
-

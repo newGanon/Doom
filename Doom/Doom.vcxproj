@@ -140,13 +140,17 @@
     <ClCompile Include="draw.c" />
     <ClCompile Include="entity.c" />
     <ClCompile Include="main.c" />
+    <ClCompile Include="map.c" />
     <ClCompile Include="math.c" />
+    <ClCompile Include="player.c" />
     <ClCompile Include="tick.c" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="draw.h" />
     <ClInclude Include="entity.h" />
+    <ClInclude Include="map.h" />
     <ClInclude Include="math.h" />
+    <ClInclude Include="player.h" />
     <ClInclude Include="ticker.h" />
     <ClInclude Include="tick.h" />
     <ClInclude Include="util.h" />

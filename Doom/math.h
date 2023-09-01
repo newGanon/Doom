@@ -1,5 +1,6 @@
 #pragma once
 #include "util.h"
+#include "player.h"
 
 #define SIGN(x) ((x > 0) ? 1 : ((x < 0) ? -1 : 0))
 #define MIN(a, b) (a < b ? a : b)

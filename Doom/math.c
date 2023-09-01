@@ -1,5 +1,4 @@
 #include "math.h"
-#include <math.h>
 
 i32 get_line_intersection(v2 p0, v2 p1, v2 p2, v2 p3, v2* i) {
 	v2 s1 = { p1.x - p0.x, p1.y - p0.y };

@@ -2,6 +2,7 @@
 #include "util.h"
 #include "ticker.h"
 #include "tick.h"
+#include "player.h"
 
 typedef enum EntityType {
 	Enemy,
@@ -21,6 +22,7 @@ typedef struct {
 	f32 vMove;
 	i32 health, damage, speed;
 	i32 animationtick;
+	u8 inAir;
 	Player* target;
 }Entity;
 

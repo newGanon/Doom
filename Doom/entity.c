@@ -76,14 +76,14 @@ void tick_item(Entity* item) {
 
 void tick_enemy(Entity* enemy) {
 	Player* player = enemy->target;
-	if (abs(enemy->z + enemy->vMove - player->pos.z) < 10.0f) {
+	if (abs(enemy->z + enemy->vMove - player->z) < 10.0f) {
 		f32 dx = player->pos.x - enemy->pos.x;
 		f32 dy = player->pos.y - enemy->pos.y;
 		f32 len = dx * dx + dy * dy;
 		len /= sqrt(len);
-		if (len < 10.0f) {
-			enemy->velocity.x = dx / len * 0.04f;
-			enemy->velocity.y = dy / len * 0.04f;
+		if (len < 15.0f) {
+			enemy->velocity.x = dx / len * 0.1f;
+			enemy->velocity.y = dy / len * 0.1f;
 		}
 	}
 

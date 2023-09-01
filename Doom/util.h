@@ -3,6 +3,7 @@
 #include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
+#include <math.h>
 
 #define ASSERT(_e, ...) if (!(_e)) { fprintf(stderr, __VA_ARGS__); exit(1); }
 
@@ -65,32 +66,5 @@ typedef struct v3u_s8 { i32 x, y, z; } v3u8;
 #define LIGHTING 0
 
 #define GRAVITY 80.0f
-
-typedef struct Player{
-	v3 pos, velocity;
-	f32 angle, anglecos, anglesin;
-	f32 speed;
-	u32 sector;
-	u8 inAir;
-	u8 shoot;
-}Player;
-
-typedef struct Sector {
-	i32 id, index, numWalls;
-	f32 zfloor, zceil;
-}Sector;
-
-typedef struct Wall {
-	v2 a, b;
-	i32 portal;
-	f32 distance;
-}Wall;
-
-typedef struct Map {
-	Wall walls[WALL_MAX];
-	i32 wallnum;
-	Sector sectors[SECTOR_MAX];
-	i32 sectornum;
-} Map;
 
 i32 deltaTime;

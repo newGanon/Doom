@@ -116,6 +116,8 @@ void update() {
 	sortEntities(&state.player);
 
 	run_tickers();
+
+	check_entitycollisions(&state.player);
 }
 
 void init() {
@@ -180,20 +182,37 @@ void init() {
 	Entity* e1 = malloc(sizeof(Entity));
 	if (e1) {
 		e1->animationtick = 0;
-		e1->inAir = 1;
-		e1->pos = (v2){ 18.0f, 18.0f };
-		e1->scale = (v2){ 4.0f, 4.0f };
-		e1->velocity = (v3){ 0, 0, 0 };
+		e1->pos = (v2){ 30.0f, 29.0f };
+		e1->scale = (v2){ 3.0f, 3.0f };
 		e1->sector = 1;
 		e1->spriteAmt = 1;
-		e1->spriteNum[0] = 1;
+		e1->spriteNum[0] = 2;
 		e1->speed = 10;
-		e1->tick.function = &tick_enemy;
-		e1->type = Enemy;
-		e1->z = 5.0f;
-		e1->target = &state.player;
+		e1->tick.function = &tick_item;
+		e1->type = Item;
+		e1->z = 2.5f;
 		add_ticker(&e1->tick);
 		addEntity(e1);
+	}
+
+
+	Entity* e2 = malloc(sizeof(Entity));
+	if (e2) {
+		e2->animationtick = 0;
+		e2->inAir = 1;
+		e2->pos = (v2){ 25.0f, 35.0f };
+		e2->scale = (v2){ 4.0f, 4.0f };
+		e2->velocity = (v3){ 0, 0, 0 };
+		e2->sector = 1;
+		e2->spriteAmt = 1;
+		e2->spriteNum[0] = 1;
+		e2->speed = 10;
+		e2->tick.function = &tick_enemy;
+		e2->type = Enemy;
+		e2->z = 5.0f;
+		e2->target = &state.player;
+		add_ticker(&e2->tick);
+		addEntity(e2);
 	}
 
 

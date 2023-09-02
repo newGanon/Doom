@@ -16,8 +16,11 @@ void add_ticker(ticker* ticker) {
 }
 
 void remove_ticker(ticker* ticker) {
-	ticker->next->prev = ticker->prev;
-	ticker->prev->next = ticker->next;
+	if (ticker->next && ticker->prev) {
+		ticker->next->prev = ticker->prev;
+		ticker->prev->next = ticker->next;
+		ticker->function = (actionf)(-1);
+	}
 }
 
 void run_tickers() {
@@ -25,8 +28,13 @@ void run_tickers() {
 	currentticker = tickercap.next;
 	while (currentticker != &tickercap) {
 		ticker* nextticker = currentticker->next;
-		//update entity
-		currentticker->function(currentticker);
+		if (currentticker->function == (actionf)(-1)) {
+			remove_ticker(currentticker);
+		}
+		else {
+			//update entity
+			currentticker->function(currentticker);
+		}
 		currentticker = nextticker;
 	}
 }

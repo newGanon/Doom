@@ -26,7 +26,7 @@ void player_tick(Player* p) {
 
 
 void calc_playervelocity(Player* p) {
-	const f32 movespeed = p->speed * ((f32)deltaTime / 1000.0f);
+	const f32 movespeed = p->speed * FRAMETICKS;
 	const u8* keyboardstate = SDL_GetKeyboardState(NULL);
 
 	//vertical velocity calc
@@ -60,7 +60,7 @@ void check_shoot(Player* p) {
 	if (bullet) {
 		bullet->tick.function = &tick_bullet;
 		bullet->pos = p->pos;
-		bullet->speed = 10.0f;
+		bullet->speed = 80.0f;
 		bullet->z = p->z;
 		bullet->scale = (v2){ 2.0f, 2.0f };
 		bullet->spriteAmt = 1;
@@ -68,6 +68,7 @@ void check_shoot(Player* p) {
 		bullet->type = Projectile;
 		bullet->velocity = (v3){ p->anglecos, p->anglesin, 0 };
 		bullet->sector = p->sector;
+		bullet->target = NULL;
 		add_ticker(&bullet->tick);
 		addEntity(bullet);
 	}

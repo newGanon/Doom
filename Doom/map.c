@@ -88,12 +88,12 @@ void sortWalls(Player* p) {
 void trymove_player(Player* p) {
 
 	//vertical collision detection
-	const f32 gravity = -GRAVITY * ((f32)deltaTime / 1000.0f);
+	const f32 gravity = -GRAVITY * FRAMETICKS;
 	Sector curSec = map->sectors[p->sector - 1];
 
 	if (p->inAir) {
 		p->velocity.z += gravity;
-		f32 dvel = p->velocity.z * ((f32)deltaTime / 1000.0f);
+		f32 dvel = p->velocity.z * FRAMETICKS;
 		//floor collision
 		if (p->velocity.z < 0 && (p->z + dvel) < (curSec.zfloor + EYEHEIGHT)) {
 			p->velocity.z = 0;
@@ -182,11 +182,11 @@ u8 trymove_entity(Entity* e, u8 gravityactive) {
 
 	if (gravityactive) {
 		//vertical collision detection
-		const f32 gravity = -GRAVITY * ((f32)deltaTime / 1000.0f);
+		const f32 gravity = -GRAVITY * FRAMETICKS;
 
 		if (e->inAir) {
 			e->velocity.z += gravity;
-			f32 dvel = e->velocity.z * ((f32)deltaTime / 1000.0f);
+			f32 dvel = e->velocity.z * FRAMETICKS;
 			//floor collision
 			if (e->velocity.z < 0 && (e->z + dvel) < (curSec.zfloor + e->scale.y)) {
 				e->velocity.z = 0;

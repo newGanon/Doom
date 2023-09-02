@@ -20,7 +20,7 @@ typedef struct {
 	u8 spriteAmt;
 	v2 scale;
 	i32 health, damage, speed;
-	i32 animationtick;
+	f32 animationtick;
 	u8 inAir;
 	u32 sector;
 	Player* target;
@@ -41,3 +41,5 @@ void sortEntities(Player* player);
 void tick_item(Entity* item);
 void tick_enemy(Entity* enemy);
 void tick_bullet(Entity* bullet);
+void check_entitycollisions(Player* p);
+void free_and_remove_entity(Entity* e);

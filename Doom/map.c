@@ -110,7 +110,7 @@ void trymove_player(Player* p) {
 			p->z += dvel;
 		}
 	}
-
+	
 	//check for horizontal collision and if player entered new sector
 	//TODO: fix hack that loops 2 times
 	i32 wallind = -1;
@@ -174,8 +174,72 @@ void trymove_player(Player* p) {
 
 	p->pos.x += p->velocity.x;
 	p->pos.y += p->velocity.y;
+
 }
 
+u8 trymove_entity(Entity* e, u8 gravityactive) {
+	Sector curSec = map->sectors[e->sector - 1];
+
+	if (gravityactive) {
+		//vertical collision detection
+		const f32 gravity = -GRAVITY * ((f32)deltaTime / 1000.0f);
+
+		if (e->inAir) {
+			e->velocity.z += gravity;
+			f32 dvel = e->velocity.z * ((f32)deltaTime / 1000.0f);
+			//floor collision
+			if (e->velocity.z < 0 && (e->z + dvel) < (curSec.zfloor + e->scale.y)) {
+				e->velocity.z = 0;
+				e->inAir = 0;
+				e->z = (curSec.zfloor + e->scale.y);
+			}
+			//ceiling collision
+			else if (e->velocity.z > 0 && (e->z + dvel) > (curSec.zceil - HEADMARGIN)) {
+				e->velocity.z = 0;
+				e->z = curSec.zceil - HEADMARGIN;
+			}
+			//if no collision was detected just add the velocity
+			else {
+				e->z += dvel;
+			}
+		}
+	}
+
+	u8 hit = 0;
+	for (i32 i = curSec.index; i < curSec.index + curSec.numWalls; i++) {
+		Wall curwall = map->walls[i];
+		if (BOXINTERSECT2D(e->pos.x, e->pos.y, e->pos.x + e->velocity.x, e->pos.y + e->velocity.y, curwall.a.x, curwall.a.y, curwall.b.x, curwall.b.y) &&
+			POINTSIDE2D(e->pos.x + e->velocity.x, e->pos.y + e->velocity.y, curwall.a.x, curwall.a.y, curwall.b.x, curwall.b.y) > 0)) {
+				f32 stepl = curwall.portal > 0 ? map->sectors[curwall.portal - 1].zfloor : 10e10;
+				f32 steph = curwall.portal > 0 ? map->sectors[curwall.portal - 1].zceil : -10e10;
+				//collision with wall, top or lower part of portal
+				if (stepl > e->z - e->scale.y + STEPHEIGHT ||
+					steph < e->z + HEADMARGIN) {
+					//collide with wall, project velocity vector onto wall vector
+					v2 wallVec = { curwall.b.x - curwall.a.x, curwall.b.y - curwall.a.y };
+					v2 projVel = {
+						(e->velocity.x * wallVec.x + e->velocity.y * wallVec.y) / (wallVec.x * wallVec.x + wallVec.y * wallVec.y) * wallVec.x,
+						(e->velocity.x * wallVec.x + e->velocity.y * wallVec.y) / (wallVec.x * wallVec.x + wallVec.y * wallVec.y) * wallVec.y
+					};
+					e->velocity.x = projVel.x;
+					e->velocity.y = projVel.y;
+					hit = 1;
+				}
+				//if player fits throught portal change playersector
+				else if (curwall.portal > 0) {
+					curSec = map->sectors[curwall.portal - 1];
+					e->sector = curSec.id;;
+					if (e->z < e->scale.y + curSec.zfloor) e->z = e->scale.y + curSec.zfloor;
+					else if (e->z > e->scale.y + curSec.zfloor) e->inAir = 1;
+				}
+			}
+	}
+
+	e->pos.x += e->velocity.x;
+	e->pos.y += e->velocity.y;
+
+	return hit;
+}
 
 Sector* get_sector(i32 index) {
 	if (index > map->sectornum) return NULL;

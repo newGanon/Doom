@@ -5,7 +5,7 @@
 #include "entity.h"
 
 void calc_playervelocity(Player* p);
-//void check_shoot(Player* p);
+void check_shoot(Player* p);
 
 void player_tick(Player* p) {
 	const u8* keyboardstate = SDL_GetKeyboardState(NULL);
@@ -14,8 +14,7 @@ void player_tick(Player* p) {
 	calc_playervelocity(p);
 	trymove_player(p);
 
-	//TODO: check if player shot when every sector has its own entityhandler
-	
+	check_shoot(p);
 	
 	//reset player pos
 	if (keyboardstate[SDL_SCANCODE_R]) {
@@ -50,4 +49,26 @@ void calc_playervelocity(Player* p) {
 
 	p->velocity.x = p->velocity.x * (1 - acceleration) + dpos.x * acceleration * movespeed;
 	p->velocity.y = p->velocity.y * (1 - acceleration) + dpos.y * acceleration * movespeed;
+}
+
+
+void check_shoot(Player* p) {
+	if (!p->shoot) return;
+	p->shoot = 0;
+
+	Entity* bullet = malloc(sizeof(Entity));
+	if (bullet) {
+		bullet->tick.function = &tick_bullet;
+		bullet->pos = p->pos;
+		bullet->speed = 10.0f;
+		bullet->z = p->z;
+		bullet->scale = (v2){ 2.0f, 2.0f };
+		bullet->spriteAmt = 1;
+		bullet->spriteNum[0] = 1;
+		bullet->type = Projectile;
+		bullet->velocity = (v3){ p->anglecos, p->anglesin, 0 };
+		bullet->sector = p->sector;
+		add_ticker(&bullet->tick);
+		addEntity(bullet);
+	}
 }

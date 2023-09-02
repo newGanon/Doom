@@ -1,6 +1,45 @@
 #include "draw.h"
 #include "math.h"
 
+typedef struct WallRenderingInfo {
+	int sectorno, sx1, sx2;
+	u8 renderedSectors[SECTOR_MAX];
+} WallRenderingInfo;
+
+typedef struct visplane_t {
+	f32	height;
+	i32	picnum;
+	i32	lightlevel;
+	i32	minx;
+	i32	maxx;
+	u16 top[SCREEN_WIDTH];
+	u16 bottom[SCREEN_WIDTH];
+
+} visplane_t;
+
+void drawPixel(i32 x, i32 y, u32 color);
+void drawTexLine(i32 x, i32 y0, i32 y1, i32 yf, i32 yc, f64 u, Texture* tex, f32 shade, f32 dis);
+void drawWall3D(Player player, Texture* tex, WallRenderingInfo* now, u32 rd);
+void drawPlanes3D(Player player, Texture* tex);
+void makeSpans(i32 x, i32 t1, i32 b1, i32 t2, i32 b2, visplane_t* v, Player player, Texture* tex);
+void mapPlane(i32 y, i32 x1, i32 x2, visplane_t* v, Player player, Texture* tex);
+void drawMinimap(Player player);
+void clearPlanes();
+void drawSprites(Player player, Texture* tex, EntityHandler* h);
+void drawVerticalLine(i32 x, i32 y0, i32 y1, u32 color);
+void drawLine(i32 x0, i32 y0, i32 x1, i32 y1, u32 color);
+void drawSquare(i32 x0, i32 y0, u32 size, u32 color);
+void fillSquare(i32 x0, i32 y0, u32 size, u32 color);
+void fillRectangle(i32 x0, i32 y0, i32 x1, i32 y1, u32 color);
+void drawCircle(i32 x0, i32 y0, i32 a, i32 b, u32 color);
+
+visplane_t* findPlane(f32 height, i32 picnum);
+visplane_t* checkPlane(visplane_t* v, i32 start, i32 stop);
+
+u32 changeRGBBrightness(u32 color, f32 factor);
+f32 calcWallShade(v2 start, v2 end, f32 dis);
+f32 calcFlatShade(f32 dis);
+
 visplane_t visplanes[MAXVISPLANES];
 visplane_t* lastvisplane;
 visplane_t* floorplane;
@@ -9,6 +48,20 @@ visplane_t* ceilplane;
 v2  zdl, zdr, znl, znr, zfl, zfr;
 
 u32* pixels;
+
+//lockuptable of how far you would need to travel in y direction to move 1 in horizontal direction for each y value
+f32 yslope[SCREEN_HEIGHT];
+//lockuptable of pixel x value to angle
+f32 screenxtoangle[SCREEN_WIDTH];
+
+f32 zBuffer[SCREEN_HEIGHT * SCREEN_WIDTH];
+
+//clipping information of walls
+u16 ceilingclip[SCREEN_WIDTH * SECTOR_MAX];
+u16 floorclip[SCREEN_WIDTH * SECTOR_MAX];
+
+//used for horizontal drawing of visplain strips
+i32 spanstart[SCREEN_HEIGHT];
 
 
 void drawPixel(i32 x, i32 y, u32 color) {
@@ -39,6 +92,19 @@ void drawInit(u32* pixels1) {
 	znr = (v2){ zdr.x * ZNEAR, zdr.y * ZNEAR },
 	zfl = (v2){ zdl.x * ZFAR, zdl.y * ZFAR },
 	zfr = (v2){ zdr.x * ZFAR, zdr.y * ZFAR };
+}
+
+void draw3D(Player player, Texture* tex, EntityHandler* h) {
+
+	clearPlanes();
+
+	drawWall3D(player, tex, &(WallRenderingInfo) { player.sector, 0, SCREEN_WIDTH - 1, { 0 }}, 0);
+
+	drawPlanes3D(player, tex);
+
+	drawSprites(player, tex, h);
+
+	drawMinimap(player);
 }
 
 void drawVerticalLine(i32 x, i32 y0, i32 y1, u32 color) {
@@ -148,18 +214,6 @@ f32 calcFlatShade(f32 dis) {
 	return (f32)1 + fabsf(dis) * LIGHTDIMINISHINGDFACTOR;
 }
 
-void draw3D(Player player, Texture* tex, EntityHandler* h) {
-
-	clearPlanes();
-
-	drawWall3D(player, tex, &(WallRenderingInfo) { player.sector, 0, SCREEN_WIDTH - 1, { 0 }}, 0);
-
-	drawPlanes3D(player, tex);
-
-	drawSprites(player, tex, h);
-
-	drawMinimap(player);
-}
 
 void drawWall3D(Player player, Texture* tex, WallRenderingInfo* now, u32 rd)
 {
@@ -586,17 +640,18 @@ void drawSprites(Player player, Texture* tex, EntityHandler* h) {
 
 	for (i32 i = 0; i < h->used; i++)
 	{
-		Entity e = h->entities[i];
+		Entity e = *h->entities[i];
 
 		if (e.relCamPos.y <= 0) continue;
 
-		f32 spritevMove = -SCREEN_HEIGHT / 2 * (e.vMove - player.z);
+		f32 spritevMove = -SCREEN_HEIGHT / 2 * (e.z - player.z);
 		f32 spritea = atan2(e.relCamPos.y, e.relCamPos.x) - PI / 2;
 		i32 spriteScreenX = screen_angle_to_x(spritea);
 		i32 vMoveScreen = spritevMove / e.relCamPos.y;
 
 		//calculate camera spriteheight and textureheight
 		i32 spriteHeight = (SCREEN_HEIGHT / e.relCamPos.y) * e.scale.y;
+		if (spriteHeight == 0) continue;
 		i32 y0 = -spriteHeight / 2 + SCREEN_HEIGHT / 2 + vMoveScreen;
 		if (y0 < 0) y0 = 0;
 		i32 y1 = spriteHeight / 2 + SCREEN_HEIGHT / 2 + vMoveScreen;

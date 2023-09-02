@@ -13,3 +13,4 @@ typedef struct Player {
 }Player;
 
 void player_tick(Player* p);
+void check_shoot(Player* p);

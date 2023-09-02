@@ -32,7 +32,6 @@ void update();
 void render();
 void close();
 void loadTextures(Texture* textures);
-void check_shoot(Player* p, EntityHandler* h);
 
 
 int main(int argc, char* args[]) {
@@ -112,10 +111,9 @@ void update() {
 
 	sortWalls(&state.player);
 
-	calcAllRelCamPos(&state.entityhandler, &state.player);
-
 	player_tick(&state.player);
-	check_shoot(&state.player, &state.entityhandler);
+
+	sortEntities(&state.player);
 
 	run_tickers();
 }
@@ -163,37 +161,40 @@ void init() {
 
 	init_tickers();
 
+	Entity* e = malloc(sizeof(Entity));
+	if (e) {
+		e->animationtick = 0;
+		e->pos = (v2){ 22.0f, 22.0f };
+		e->scale = (v2){ 3.0f, 3.0f };
+		e->sector = 1;
+		e->spriteAmt = 1;
+		e->spriteNum[0] = 2;
+		e->speed = 10;
+		e->tick.function = &tick_item;
+		e->type = Item;
+		e->z = 2.5f;
+		add_ticker(&e->tick);
+		addEntity(e);
+	}
 
-	/*Entity e = (Entity){
-		.tick.function = &tick_item,
-		.pos = {22.0f, 22.0f},
-		.vMove = 2.5f,
-		.scale = { 3.0f, 3.0f },
-		.spriteAmt = 1,
-		.spriteNum = { 2 },
-		.type = Item,
-		.animationtick = 0
-	};
-	addEntity(&state.entityhandler,e);
-
-	add_ticker(&state.entityhandler.entities[0].tick);
-
-	Entity e1 = (Entity){
-		//.tick.function = (actionf)(-1),
-		.tick.function = &tick_enemy,
-		.pos = {18.0f, 18.0f},
-		.vMove = 6.0f,
-		.scale = { 7.5f, 7.5f },
-		.spriteAmt = 1,
-		.spriteNum = { 1 },
-		.type = Enemy,
-		.target = &state.player
-	};
-
-	addEntity(&state.entityhandler, e1);
-
-	add_ticker(&state.entityhandler.entities[1].tick);*/
-
+	Entity* e1 = malloc(sizeof(Entity));
+	if (e1) {
+		e1->animationtick = 0;
+		e1->inAir = 1;
+		e1->pos = (v2){ 18.0f, 18.0f };
+		e1->scale = (v2){ 4.0f, 4.0f };
+		e1->velocity = (v3){ 0, 0, 0 };
+		e1->sector = 1;
+		e1->spriteAmt = 1;
+		e1->spriteNum[0] = 1;
+		e1->speed = 10;
+		e1->tick.function = &tick_enemy;
+		e1->type = Enemy;
+		e1->z = 5.0f;
+		e1->target = &state.player;
+		add_ticker(&e1->tick);
+		addEntity(e1);
+	}
 
 
 
@@ -236,26 +237,4 @@ void loadTextures(Texture* textures) {
 		state.textures[i] = (Texture){ (u32*)bmpTex->pixels, bmpTex->w, bmpTex->h };
 		state.surfaces[i] = bmpTex;
 	}
-}
-
-
-void check_shoot(Player* p, EntityHandler* h) {
-	if (!p->shoot) return;
-	p->shoot = 0;
-
-	Entity bullet = (Entity){
-		.tick.function = &tick_bullet,
-		.pos = p->pos,
-		.speed = 10.0f,
-		.vMove = p->z,
-		.scale = { 2.0f, 2.0f },
-		.spriteAmt = 1,
-		.spriteNum = { 1 },
-		.type = Projectile,
-		.velocity = {p->anglecos, p->anglesin}
-	};
-
-	addEntity(h, bullet);
-
-	add_ticker(&h->entities[h->used - 1].tick);
 }

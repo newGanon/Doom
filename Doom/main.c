@@ -245,7 +245,7 @@ void close() {
 
 void loadTextures(Texture* textures) {
 	SDL_Surface* bmpTex;
-	char textureFileNames[3][50] = {"test.bmp", "spritetest2.bmp", "ammo.bmp"};
+	char textureFileNames[3][50] = {"test2.bmp", "spritetest2.bmp", "ammo.bmp"};
 	i32 textureAmt = sizeof(textureFileNames) / sizeof(textureFileNames[0]);
 
 	for (i32 i = 0; i < textureAmt; i++) {

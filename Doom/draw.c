@@ -18,7 +18,7 @@ typedef struct visplane_t {
 } visplane_t;
 
 void drawPixel(i32 x, i32 y, u32 color);
-void drawTexLine(i32 x, i32 y0, i32 y1, i32 yf, i32 yc, f64 u, Texture* tex, f32 shade, f32 dis);
+void drawTexLine(i32 x, i32 y0, i32 y1, i32 yf, i32 yc, f64 u, Texture* tex, f32 shade, f32 dis, f32 wallheight);
 void drawWall3D(Player player, Texture* tex, WallRenderingInfo* now, u32 rd);
 void drawPlanes3D(Player player, Texture* tex);
 void makeSpans(i32 x, i32 t1, i32 b1, i32 t2, i32 b2, visplane_t* v, Player player, Texture* tex);
@@ -247,7 +247,7 @@ void drawWall3D(Player player, Texture* tex, WallRenderingInfo* now, u32 rd)
 				a2 = atan2(p2.y, p2.x) - PI / 2;
 			}
 		}
-		if (a1 < a2 || a2 < -(HFOV / 2) - 0.0001f || a1 > +(HFOV / 2) + 0.0001f) continue;
+		if (a1 < a2 || a2 < -(HFOV / 2) - 0.001f || a1 > +(HFOV / 2) + 0.001f) continue;
 
 		//convert the angle of the wall into screen coordinates (player FOV is 90 degrees or 1/2 PI)
 		i32 tx1 = screen_angle_to_x(a1);
@@ -259,7 +259,6 @@ void drawWall3D(Player player, Texture* tex, WallRenderingInfo* now, u32 rd)
 
 		i32 x1 = clamp(tx1, now->sx1, now->sx2);
 		i32 x2 = clamp(tx2, now->sx1, now->sx2);
-
 
 		if (x1 >= x2) continue;
 
@@ -307,8 +306,6 @@ void drawWall3D(Player player, Texture* tex, WallRenderingInfo* now, u32 rd)
 		i32 pf1 = (SCREEN_HEIGHT / 2) + (i32)((nzfloor - player.z) * sy1);
 		i32 pc0 = (SCREEN_HEIGHT / 2) + (i32)((nzceil - player.z) * sy0);
 		i32 pc1 = (SCREEN_HEIGHT / 2) + (i32)((nzceil - player.z) * sy1);
-
-		//u32 color = (map->walls[i].portal) ? BLUE : RED;
 
 		//wall texture mapping varaibles
 		v2 difp1 = v2Sub(p1, tp1);
@@ -358,20 +355,27 @@ void drawWall3D(Player player, Texture* tex, WallRenderingInfo* now, u32 rd)
 
 			f64 u = ((1.0f - a) * (u0 / z0) + a * (u1 / z1)) / ((1.0f - a) * 1 / z0 + a * (1.0f / z1));
 
-
 			//wall distance for lightlevel calc
 			f32 dis = tp1.y * (1 - u) + tp2.y * (u);
-
 
 			//TODO PROPER LIGHTING
 			f32 wallshade = calcWallShade(w.a, w.b, dis);
 			//f32 wallshade = 1;
 
+			f32 dx = w.a.x - w.b.x;
+			f32 dy = w.a.y - w.b.y;
+			f32 wallwidth = sqrt(dx * dx + dy * dy);
+			f32 texheight = wallwidth / 2.0f;
+			u = fmod(u * texheight, 1.0f);
+
+			f32 wallheight;
+
 			//draw Wall
 			if (w.portal == 0) {
 				//drawVerticalLine(x, yf, yc, changeRGBBrightness(color, wallshade), pixels); wall in one color
 				if (yc > tyf && yf < tyc) {
-					drawTexLine(x, yf, yc, tyf, tyc, u, tex, wallshade, dis, pixels);
+					f32 wallheight = sec.zceil - sec.zfloor;
+					drawTexLine(x, yf, yc, tyf, tyc, u, tex, wallshade, dis, wallheight);
 				}
 				ceilingclip[x] = 0;
 				floorclip[x] = SCREEN_HEIGHT - 1;
@@ -388,13 +392,15 @@ void drawWall3D(Player player, Texture* tex, WallRenderingInfo* now, u32 rd)
 				//if neighborfloor is higher than current sectorceiling then draw it
 				//if (pyf > yf) { drawVerticalLine(x, yf, pyf, changeRGBBrightness(YELLOW, wallshade), pixels); }
 				if (pyf > yf) { 
-					drawTexLine(x, yf, pyf, tyf, tpyf, u, tex, wallshade, dis);
+					wallheight = nzfloor - sec.zfloor;
+					drawTexLine(x, yf, pyf, tyf, tpyf, u, tex, wallshade, dis, wallheight);
 				}
 				//draw window
 				//drawVerticalLine(x, pyf, pyc, color, pixels);
 				//if neighborceiling is lower than current sectorceiling then draw it
 				if (pyc < yc) { 
-					drawTexLine(x, pyc, yc, tpyc, tyc, u, tex, wallshade, dis); 
+					wallheight = sec.zceil - nzceil;
+					drawTexLine(x, pyc, yc, tpyc, tyc, u, tex, wallshade, dis, wallheight);
 				}
 
 				//update vertical clipping arrays
@@ -412,10 +418,13 @@ void drawWall3D(Player player, Texture* tex, WallRenderingInfo* now, u32 rd)
 	}
 }
 
-void drawTexLine(i32 x, i32 y0, i32 y1, i32 yf, i32 yc, f64 u, Texture* tex, f32 shade,f32 dis) {
+void drawTexLine(i32 x, i32 y0, i32 y1, i32 yf, i32 yc, f64 u, Texture* tex, f32 shade, f32 dis, f32 wallheight) {
+	f32 texheight = wallheight / 4.0f;
+
 	i32 tx = u * tex[0].width;		
 	for (i32 y = y0; y <= y1; y++) {
 		f64 v = 1.0 - ((y - yf) / (f64)(yc - yf));
+		v = fmod(v * texheight, 1.0f);
 		i32 ty = v * tex[0].height;
 		u32 color = changeRGBBrightness(tex[0].pixels[ty * tex[0].width + tx], shade);
 		drawPixel(x, y, color);

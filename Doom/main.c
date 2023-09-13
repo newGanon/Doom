@@ -31,6 +31,7 @@ void init();
 void update();
 void render();
 void close();
+void sdl_init();
 void loadTextures(Texture* textures);
 
 
@@ -121,37 +122,8 @@ void update() {
 }
 
 void init() {
-	ASSERT(!SDL_Init(SDL_INIT_VIDEO),
-		"Error initializing SDL_Video %s\n",
-		SDL_GetError());
 
-	state.window = SDL_CreateWindow("Doom",
-		SDL_WINDOWPOS_CENTERED,
-		SDL_WINDOWPOS_CENTERED,
-		SCREEN_WIDTH,
-		SCREEN_HEIGHT,
-		SDL_WINDOW_SHOWN);
-	ASSERT(state.window,
-		"Error creating SDL_Window %s\n",
-		SDL_GetError());
-
-	state.renderer = SDL_CreateRenderer(state.window,
-		-1,
-		SDL_RENDERER_ACCELERATED);
-	ASSERT(state.renderer,
-		"Error creating SDL_Renderer %s\n",
-		SDL_GetError());
-
-	state.texture = SDL_CreateTexture(state.renderer,
-		SDL_PIXELFORMAT_ARGB8888,
-		SDL_TEXTUREACCESS_STREAMING,
-		SCREEN_WIDTH,
-		SCREEN_HEIGHT);
-	ASSERT(state.texture,
-		"Error creating SDL_Texture %s\n",
-		SDL_GetError());
-
-	SDL_SetRelativeMouseMode(SDL_TRUE);
+	sdl_init();
 
 	drawInit(state.pixels);
 
@@ -215,8 +187,6 @@ void init() {
 		addEntity(e2);
 	}
 
-
-
 	state.player.pos = (v2){ 20.0f, 20.0f};
 	state.player.sector = 1;
 	state.player.z = EYEHEIGHT + state.map.sectors[state.player.sector - 1].zfloor;
@@ -226,6 +196,28 @@ void init() {
 	state.player.angle = PI_2;
 	state.player.anglecos = cos(state.player.angle);
 	state.player.anglesin = sin(state.player.angle);
+
+	Decal* decal = malloc(sizeof(Decal));
+	if (decal) {
+		decal->tex = &state.textures[1];
+		decal->offset = (v2i){ 500, 500 };
+		decal->next = NULL;
+		decal->prev = NULL;
+		decal->scale = 0.5f;
+
+		state.map.walls[0].decalhead = decal;
+	}
+
+	Decal* decal2 = malloc(sizeof(Decal));
+	if (decal2) {
+		decal2->tex = &state.textures[1];
+		decal2->offset = (v2i){ 200, 200 };
+		decal2->next = NULL;
+		decal2->prev = NULL;
+		decal2->scale = 2.0f;
+
+		state.map.walls[0].decalhead->next = decal2;
+	}
 }
 
 void close() {
@@ -245,7 +237,7 @@ void close() {
 
 void loadTextures(Texture* textures) {
 	SDL_Surface* bmpTex;
-	char textureFileNames[3][50] = {"test2.bmp", "spritetest2.bmp", "ammo.bmp"};
+	char textureFileNames[3][50] = {"test3.bmp", "spritetest2.bmp", "ammo.bmp"};
 	i32 textureAmt = sizeof(textureFileNames) / sizeof(textureFileNames[0]);
 
 	for (i32 i = 0; i < textureAmt; i++) {
@@ -256,4 +248,38 @@ void loadTextures(Texture* textures) {
 		state.textures[i] = (Texture){ (u32*)bmpTex->pixels, bmpTex->w, bmpTex->h };
 		state.surfaces[i] = bmpTex;
 	}
+}
+
+void sdl_init() {
+	ASSERT(!SDL_Init(SDL_INIT_VIDEO),
+		"Error initializing SDL_Video %s\n",
+		SDL_GetError());
+
+	state.window = SDL_CreateWindow("Doom",
+		SDL_WINDOWPOS_CENTERED,
+		SDL_WINDOWPOS_CENTERED,
+		SCREEN_WIDTH,
+		SCREEN_HEIGHT,
+		SDL_WINDOW_SHOWN);
+	ASSERT(state.window,
+		"Error creating SDL_Window %s\n",
+		SDL_GetError());
+
+	state.renderer = SDL_CreateRenderer(state.window,
+		-1,
+		SDL_RENDERER_ACCELERATED);
+	ASSERT(state.renderer,
+		"Error creating SDL_Renderer %s\n",
+		SDL_GetError());
+
+	state.texture = SDL_CreateTexture(state.renderer,
+		SDL_PIXELFORMAT_ARGB8888,
+		SDL_TEXTUREACCESS_STREAMING,
+		SCREEN_WIDTH,
+		SCREEN_HEIGHT);
+	ASSERT(state.texture,
+		"Error creating SDL_Texture %s\n",
+		SDL_GetError());
+
+	SDL_SetRelativeMouseMode(SDL_TRUE);
 }

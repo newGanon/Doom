@@ -2,6 +2,15 @@
 #include "util.h"
 #include "player.h"
 #include "entity.h"
+#include "draw.h"
+
+typedef struct Decal {
+	Texture* tex;
+	v2i offset;
+	struct Decal* next;
+	struct Decal* prev;
+	f32 scale;
+} Decal;
 
 typedef struct Sector {
 	i32 id, index, numWalls;
@@ -12,6 +21,7 @@ typedef struct Wall {
 	v2 a, b;
 	i32 portal;
 	f32 distance;
+	Decal* decalhead;
 }Wall;
 
 typedef struct Map {

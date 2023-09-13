@@ -59,10 +59,10 @@ void check_shoot(Player* p) {
 	Entity* bullet = malloc(sizeof(Entity));
 	if (bullet) {
 		bullet->tick.function = &tick_bullet;
-		bullet->pos = p->pos;
+		bullet->pos = (v2){ p->pos.x, p->pos.y };
 		bullet->speed = 80.0f;
 		bullet->z = p->z;
-		bullet->scale = (v2){ 2.0f, 2.0f };
+		bullet->scale = (v2){ 1.0f, 1.0f };
 		bullet->spriteAmt = 1;
 		bullet->spriteNum[0] = 1;
 		bullet->type = Projectile;
@@ -71,5 +71,5 @@ void check_shoot(Player* p) {
 		bullet->target = NULL;
 		add_ticker(&bullet->tick);
 		addEntity(bullet);
-	}
+	}	
 }

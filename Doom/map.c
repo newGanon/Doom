@@ -240,7 +240,6 @@ u8 trymove_entity(Entity* e, u8 gravityactive) {
 
 	return hit;
 }
-
 Sector* get_sector(i32 index) {
 	if (index > map->sectornum) return NULL;
 	else return &map->sectors[index];

@@ -1,5 +1,6 @@
 #include "draw.h"
 #include "math.h"
+#include "map.h"
 
 typedef struct WallRenderingInfo {
 	int sectorno, sx1, sx2;
@@ -18,7 +19,7 @@ typedef struct visplane_t {
 } visplane_t;
 
 void drawPixel(i32 x, i32 y, u32 color);
-void drawTexLine(i32 x, i32 y0, i32 y1, i32 yf, i32 yc, f64 u, Texture* tex, f32 shade, f32 dis, f32 wallheight);
+void drawTexLine(i32 x, i32 y0, i32 y1, i32 yf, i32 yc, f64 u, Texture* tex, f32 shade, f32 dis, f32 wallheight, f32 wallwidth, Wall* wall);
 void drawWall3D(Player player, Texture* tex, WallRenderingInfo* now, u32 rd);
 void drawPlanes3D(Player player, Texture* tex);
 void makeSpans(i32 x, i32 t1, i32 b1, i32 t2, i32 b2, visplane_t* v, Player player, Texture* tex);
@@ -39,6 +40,8 @@ visplane_t* checkPlane(visplane_t* v, i32 start, i32 stop);
 u32 changeRGBBrightness(u32 color, f32 factor);
 f32 calcWallShade(v2 start, v2 end, f32 dis);
 f32 calcFlatShade(f32 dis);
+
+u8 is_transparent(u32 color);
 
 visplane_t visplanes[MAXVISPLANES];
 visplane_t* lastvisplane;
@@ -65,7 +68,7 @@ i32 spanstart[SCREEN_HEIGHT];
 
 
 void drawPixel(i32 x, i32 y, u32 color) {
-	if (x >= 0 && x < SCREEN_WIDTH && y >= 0 && y < SCREEN_HEIGHT && (color & 0xFF000000) != 0) {
+	if (x >= 0 && x < SCREEN_WIDTH && y >= 0 && y < SCREEN_HEIGHT && !is_transparent(color)) {
 		pixels[y * SCREEN_WIDTH + x] = color;
 	}
 }
@@ -197,7 +200,7 @@ void drawCircle(i32 x0, i32 y0, i32 a, i32 b, u32 color) {
 
 //slow, dont use
 u32 changeRGBBrightness(u32 color, f32 factor) {
-	return color;
+	//return color;
 	i32 a = (color & 0xFF000000);
 	i32 r = (color & 0x00FF0000) >> 16;
 	i32 g = (color & 0x0000FF00) >> 8;
@@ -322,10 +325,6 @@ void drawWall3D(Player player, Texture* tex, WallRenderingInfo* now, u32 rd)
 			i32 tyc = (i32)(xp * (yc1 - yc0)) + yc0;
 			i32 yf = clamp(tyf, floorclip[x], ceilingclip[x]);
 			i32 yc = clamp(tyc, floorclip[x], ceilingclip[x]);
-
-			//used lookuptables screenxtoangle and yslope to make rendering flats faster
-			Texture floorTex = tex[0];
-			Texture ceilTex = tex[0];
 			
 			//set visplane top and bottom clipping
 			//TODO: DRAW PLANES 1 PIXEL ON TOP AND BOTTOM HIGHER
@@ -362,20 +361,18 @@ void drawWall3D(Player player, Texture* tex, WallRenderingInfo* now, u32 rd)
 			f32 wallshade = calcWallShade(w.a, w.b, dis);
 			//f32 wallshade = 1;
 
+			f32 wallheight;
+
 			f32 dx = w.a.x - w.b.x;
 			f32 dy = w.a.y - w.b.y;
 			f32 wallwidth = sqrt(dx * dx + dy * dy);
-			f32 texheight = wallwidth / 2.0f;
-			u = fmod(u * texheight, 1.0f);
-
-			f32 wallheight;
 
 			//draw Wall
 			if (w.portal == 0) {
 				//drawVerticalLine(x, yf, yc, changeRGBBrightness(color, wallshade), pixels); wall in one color
 				if (yc > tyf && yf < tyc) {
 					f32 wallheight = sec.zceil - sec.zfloor;
-					drawTexLine(x, yf, yc, tyf, tyc, u, tex, wallshade, dis, wallheight);
+					drawTexLine(x, yf, yc, tyf, tyc, u, tex, wallshade, dis, wallheight, wallwidth, &w);
 				}
 				ceilingclip[x] = 0;
 				floorclip[x] = SCREEN_HEIGHT - 1;
@@ -393,14 +390,14 @@ void drawWall3D(Player player, Texture* tex, WallRenderingInfo* now, u32 rd)
 				//if (pyf > yf) { drawVerticalLine(x, yf, pyf, changeRGBBrightness(YELLOW, wallshade), pixels); }
 				if (pyf > yf) { 
 					wallheight = nzfloor - sec.zfloor;
-					drawTexLine(x, yf, pyf, tyf, tpyf, u, tex, wallshade, dis, wallheight);
+					drawTexLine(x, yf, pyf, tyf, tpyf, u, tex, wallshade, dis, wallheight, wallwidth, &w);
 				}
 				//draw window
 				//drawVerticalLine(x, pyf, pyc, color, pixels);
 				//if neighborceiling is lower than current sectorceiling then draw it
 				if (pyc < yc) { 
 					wallheight = sec.zceil - nzceil;
-					drawTexLine(x, pyc, yc, tpyc, tyc, u, tex, wallshade, dis, wallheight);
+					drawTexLine(x, pyc, yc, tpyc, tyc, u, tex, wallshade, dis, wallheight, wallwidth, &w);
 				}
 
 				//update vertical clipping arrays
@@ -418,18 +415,48 @@ void drawWall3D(Player player, Texture* tex, WallRenderingInfo* now, u32 rd)
 	}
 }
 
-void drawTexLine(i32 x, i32 y0, i32 y1, i32 yf, i32 yc, f64 u, Texture* tex, f32 shade, f32 dis, f32 wallheight) {
+void drawTexLine(i32 x, i32 y0, i32 y1, i32 yf, i32 yc, f64 u, Texture* tex, f32 shade, f32 dis, f32 wallheight, f32 wallwidth, Wall* wall) {
 	f32 texheight = wallheight / 4.0f;
+	f32 texwidth =wallwidth / 2.0f;
+	v2i walloffset;
 
-	i32 tx = u * tex[0].width;		
+	walloffset.x = (u * texwidth) * tex[0].height;
+
+	i32 tx = walloffset.x % tex[0].width;
 	for (i32 y = y0; y <= y1; y++) {
-		f64 v = 1.0 - ((y - yf) / (f64)(yc - yf));
-		v = fmod(v * texheight, 1.0f);
+		u8 decal = 0;
+		f64 v = (1.0 - ((y - yf) / (f64)(yc - yf)));
+		walloffset.y = (v * texheight) * tex[0].height;
+		for (Decal* d = wall->decalhead; d != NULL ; d = d->next) {
+			if (d->offset.x < walloffset.x && (d->offset.x + (d->tex->width * d->scale))  > walloffset.x &&
+				d->offset.y < walloffset.y && (d->offset.y + (d->tex->height * d->scale)) > walloffset.y) {
+				i32 dy = (walloffset.y - d->offset.y) / d->scale;
+				i32 dx = (walloffset.x - d->offset.x) / d->scale;
+				u32 color = changeRGBBrightness(d->tex->pixels[(i32)(dy * d->tex->width) + dx], shade);
+				if (!is_transparent(color)) {
+					drawPixel(x, y, color);
+					decal = 1;
+					break;
+				}
+			}
+		}
+		if (!decal) {
+			i32 ty = walloffset.y % tex[0].height;
+			u32 color = changeRGBBrightness(tex[0].pixels[ty * tex[0].width + tx], shade);
+			drawPixel(x, y, color);
+			zBuffer[y * SCREEN_WIDTH + x] = dis;
+		}
+	}
+
+	/*i32 tx = u * tex[0].width;
+	for (i32 y = y0; y <= y1; y++) {
+		f64 v = (1.0 - ((y - yf) / (f64)(yc - yf)));
+		v = (v * texheight) - (i32)(v * texheight);
 		i32 ty = v * tex[0].height;
 		u32 color = changeRGBBrightness(tex[0].pixels[ty * tex[0].width + tx], shade);
 		drawPixel(x, y, color);
 		zBuffer[y * SCREEN_WIDTH + x] = dis;
-	}
+	}*/
 }
 
 void clearPlanes() {
@@ -650,6 +677,14 @@ void drawSprites(Player player, Texture* tex, EntityHandler* h) {
 	for (i32 i = 0; i < h->used; i++)
 	{
 		Entity e = *h->entities[i];
+		if (e.type == Projectile){
+			f32 dx = e.pos.x - player.pos.x;
+			f32 dy = e.pos.y - player.pos.y;
+			f32 dis = sqrt(dx * dx + dy * dy);
+			if (dis < 4.0f) {
+				continue;
+			}
+		}
 
 		if (e.relCamPos.y <= 0) continue;
 
@@ -717,4 +752,9 @@ void drawMinimap(Player player) {
 	}
 	drawCircle(player.pos.x + mapoffset.x, player.pos.y + mapoffset.y, 3, 3, WHITE);
 	drawLine(player.pos.x + mapoffset.x, player.pos.y + mapoffset.y, player.anglecos * 10 + player.pos.x + mapoffset.x, player.anglesin * 10 + player.pos.y + mapoffset.y, WHITE);
+}
+
+
+u8 is_transparent(u32 color) {
+	return (color & 0xFF000000) == 0;
 }

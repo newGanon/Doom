@@ -1,6 +1,5 @@
 #pragma once
 #include "util.h"
-#include "map.h"
 #include "sdl.h"
 #include "entity.h"
 

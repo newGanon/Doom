@@ -111,18 +111,19 @@ void trymove_player(Player* p) {
 			p->z += dvel;
 		}
 	}
-	/*v2 intersection;
+	v2 intersection;
 	for (i32 i = curSec.index; i < curSec.index + curSec.numWalls; i++) {
 		Wall curwall = map->walls[i];
-		if ((POINTSIDE2D(p->pos.x, p->pos.y, curwall.a.x, curwall.a.y, curwall.b.x, curwall.b.y) < 0) &&
-			(get_line_intersection(p->pos, (v2) {p->pos.x + p->velocity.x, p->pos.y + p->velocity.y}, curwall.a, curwall.b, & intersection))) {
-
+		if ((POINTSIDE2D(p->pos.x, p->pos.y, curwall.a.x, curwall.a.y, curwall.b.x, curwall.b.y) <= 0) &&
+			(get_line_intersection(p->pos, (v2) {p->pos.x + p->velocity.x, p->pos.y + p->velocity.y}, curwall.a, curwall.b, &intersection))) {
 				f32 stepl = curwall.portal > 0 ? map->sectors[curwall.portal - 1].zfloor : 10e10;
 				f32 steph = curwall.portal > 0 ? map->sectors[curwall.portal - 1].zceil : -10e10;
 				if (stepl > p->z - EYEHEIGHT + STEPHEIGHT ||
 					steph < p->z + HEADMARGIN) {
+					if (fabs(p->velocity.x) + fabs(p->velocity.y) < 0.2) return;
 					v2 velnorm = v2Normalize((v2) { p->velocity.x, p->velocity.y });
 					v2 newPos = (v2){ intersection.x - (velnorm.x * 0.01f), intersection.y - (velnorm.y * 0.01f)};
+
 					v2 posDiff = v2Sub(newPos, p->pos);
 					p->pos = newPos;
 					p->velocity.x = p->velocity.x - posDiff.x;
@@ -136,11 +137,12 @@ void trymove_player(Player* p) {
 					};
 					p->velocity.x = projVel.x;
 					p->velocity.y = projVel.y;
-					i = curSec.index;					
+					i = curSec.index - 1;			
 				}
 				else if (curwall.portal > 0) {
 					curSec = map->sectors[curwall.portal - 1];
-					p->sector = curSec.id;;
+					i = curSec.index - 1;
+					p->sector = curSec.id;
 					if (p->z < EYEHEIGHT + curSec.zfloor) p->z = EYEHEIGHT + curSec.zfloor;
 					else if (p->z > EYEHEIGHT + curSec.zfloor) p->inAir = 1;
 				}
@@ -149,8 +151,8 @@ void trymove_player(Player* p) {
 	p->pos.x += p->velocity.x;
 	p->pos.y += p->velocity.y;
 
-	*/
 	
+	/*
 	//check for horizontal collision and if player entered new sector
 	//TODO: fix hack that loops 2 times
 	i32 wallind = -1;
@@ -214,7 +216,7 @@ void trymove_player(Player* p) {
 
 	p->pos.x += p->velocity.x;
 	p->pos.y += p->velocity.y;
-	
+	*/
 }
 
 u8 trymove_entity(Entity* e, u8 gravityactive) {
@@ -318,7 +320,14 @@ u8 check_hitscan_collsion(Player* p) {
 						//todo when changing walltilsize this has to bve changed too
 						f32 width = 2.0f;
 						f32 height = 4.0f;
-						decal->offset = (v2i){ ((i32)(len/width * 256) - 64), ((curSec.zceil - p->z) * 256 / height - 64)};
+						if (steph < p->z) {
+							decal->offset = (v2i){ ((i32)(len / width * 256) - 64), ((curSec.zceil - p->z) * 256 / height - 64) };
+							decal->onportalbottom = 0;
+						}
+						else {
+							decal->offset = (v2i){ ((i32)(len / width * 256) - 64), ((map->sectors[curwal->portal - 1].zfloor - p->z) * 256 / height - 64) };
+							decal->onportalbottom = 1;
+						}
 						decal->next = NULL;
 						decal->prev = NULL;
 						decal->scale = 0.5f;

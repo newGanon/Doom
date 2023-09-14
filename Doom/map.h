@@ -11,6 +11,7 @@ typedef struct Decal {
 	struct Decal* next;
 	struct Decal* prev;
 	f32 scale;
+	u8 onportalbottom;
 } Decal;
 
 typedef struct Sector {

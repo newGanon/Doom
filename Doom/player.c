@@ -41,14 +41,17 @@ void calc_playervelocity(Player* p) {
 	if (keyboardstate[SDL_SCANCODE_W]) { dpos.x += p->anglecos; dpos.y += p->anglesin; }
 	if (keyboardstate[SDL_SCANCODE_S]) { dpos.x -= p->anglecos; dpos.y -= p->anglesin; }
 	if (keyboardstate[SDL_SCANCODE_A]) { dpos.x -= p->anglesin; dpos.y += p->anglecos; }
-	if (keyboardstate[SDL_SCANCODE_D]) { dpos.x += p->anglesin; dpos.y -= p->anglecos; }
+	if (keyboardstate[SDL_SCANCODE_D]) { dpos.x += p->anglesin; dpos.y -= p->anglecos;}
 
 	u8 moved = keyboardstate[SDL_SCANCODE_W] || keyboardstate[SDL_SCANCODE_S] || keyboardstate[SDL_SCANCODE_A] || keyboardstate[SDL_SCANCODE_D];
 
 	f32 acceleration = moved ? 0.4 : 0.3;
 
-	p->velocity.x = p->velocity.x * (1 - acceleration) + dpos.x * acceleration * movespeed;
-	p->velocity.y = p->velocity.y * (1 - acceleration) + dpos.y * acceleration * movespeed;
+	//p->velocity.x = p->velocity.x * (1 - acceleration) + dpos.x * acceleration * movespeed;
+	//p->velocity.y = p->velocity.y * (1 - acceleration) + dpos.y * acceleration * movespeed;
+
+	p->velocity.x = dpos.x;
+	p->velocity.y = dpos.y;
 }
 
 

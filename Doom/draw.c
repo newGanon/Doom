@@ -19,7 +19,7 @@ typedef struct visplane_t {
 } visplane_t;
 
 void drawPixel(i32 x, i32 y, u32 color);
-void drawTexLine(i32 x, i32 y0, i32 y1, i32 yf, i32 yc, f64 u, Texture* tex, f32 shade, f32 dis, f32 wallheight, f32 wallwidth, Wall* wall);
+void drawTexLine(i32 x, i32 y0, i32 y1, i32 yf, i32 yc, f64 u, Texture* tex, f32 shade, f32 dis, f32 wallheight, f32 wallwidth, Wall* wall, u8 portalbottom);
 void drawWall3D(Player player, Texture* tex, WallRenderingInfo* now, u32 rd);
 void drawPlanes3D(Player player, Texture* tex);
 void makeSpans(i32 x, i32 t1, i32 b1, i32 t2, i32 b2, visplane_t* v, Player player, Texture* tex);
@@ -250,7 +250,7 @@ void drawWall3D(Player player, Texture* tex, WallRenderingInfo* now, u32 rd)
 				a2 = atan2(p2.y, p2.x) - PI / 2;
 			}
 		}
-		if (a1 < a2 || a2 < -(HFOV / 2) - 0.001f || a1 > +(HFOV / 2) + 0.001f) continue;
+		if (a1 < a2 || a2 < -(HFOV / 2) - 0.003f || a1 > +(HFOV / 2) + 0.003f) continue;
 
 		//convert the angle of the wall into screen coordinates (player FOV is 90 degrees or 1/2 PI)
 		i32 tx1 = screen_angle_to_x(a1);
@@ -372,7 +372,7 @@ void drawWall3D(Player player, Texture* tex, WallRenderingInfo* now, u32 rd)
 				//drawVerticalLine(x, yf, yc, changeRGBBrightness(color, wallshade), pixels); wall in one color
 				if (yc > tyf && yf < tyc) {
 					f32 wallheight = sec.zceil - sec.zfloor;
-					drawTexLine(x, yf, yc, tyf, tyc, u, tex, wallshade, dis, wallheight, wallwidth, &w);
+					drawTexLine(x, yf, yc, tyf, tyc, u, tex, wallshade, dis, wallheight, wallwidth, &w, 0);
 				}
 				ceilingclip[x] = 0;
 				floorclip[x] = SCREEN_HEIGHT - 1;
@@ -390,14 +390,14 @@ void drawWall3D(Player player, Texture* tex, WallRenderingInfo* now, u32 rd)
 				//if (pyf > yf) { drawVerticalLine(x, yf, pyf, changeRGBBrightness(YELLOW, wallshade), pixels); }
 				if (pyf > yf) { 
 					wallheight = nzfloor - sec.zfloor;
-					drawTexLine(x, yf, pyf, tyf, tpyf, u, tex, wallshade, dis, wallheight, wallwidth, &w);
+					drawTexLine(x, yf, pyf, tyf, tpyf, u, tex, wallshade, dis, wallheight, wallwidth, &w, 1);
 				}
 				//draw window
 				//drawVerticalLine(x, pyf, pyc, color, pixels);
 				//if neighborceiling is lower than current sectorceiling then draw it
 				if (pyc < yc) { 
 					wallheight = sec.zceil - nzceil;
-					drawTexLine(x, pyc, yc, tpyc, tyc, u, tex, wallshade, dis, wallheight, wallwidth, &w);
+					drawTexLine(x, pyc, yc, tpyc, tyc, u, tex, wallshade, dis, wallheight, wallwidth, &w, 0);
 				}
 
 				//update vertical clipping arrays
@@ -415,7 +415,7 @@ void drawWall3D(Player player, Texture* tex, WallRenderingInfo* now, u32 rd)
 	}
 }
 
-void drawTexLine(i32 x, i32 y0, i32 y1, i32 yf, i32 yc, f64 u, Texture* tex, f32 shade, f32 dis, f32 wallheight, f32 wallwidth, Wall* wall) {
+void drawTexLine(i32 x, i32 y0, i32 y1, i32 yf, i32 yc, f64 u, Texture* tex, f32 shade, f32 dis, f32 wallheight, f32 wallwidth, Wall* wall, u8 portalbottom) {
 	f32 texheight = wallheight / 4.0f;
 	f32 texwidth = wallwidth / 2.0f;
 	v2i walloffset;
@@ -433,7 +433,8 @@ void drawTexLine(i32 x, i32 y0, i32 y1, i32 yf, i32 yc, f64 u, Texture* tex, f32
 		u8 decal = 0;
 		walloffset.y = texy0;
 		for (Decal* d = wall->decalhead; d != NULL ; d = d->next) {
-			if (d->offset.x < walloffset.x && (d->offset.x + (d->scaledsize.x)) > walloffset.x &&
+			if (portalbottom == d->onportalbottom &&
+				d->offset.x < walloffset.x && (d->offset.x + (d->scaledsize.x)) > walloffset.x &&
 				d->offset.y < walloffset.y && (d->offset.y + (d->scaledsize.y)) > walloffset.y) {
 				i32 dy = (walloffset.y - d->offset.y) / d->scale;
 				i32 dx = (walloffset.x - d->offset.x) / d->scale;

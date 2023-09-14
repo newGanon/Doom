@@ -6,6 +6,7 @@
 
 typedef struct Decal {
 	Texture* tex;
+	v2i scaledsize;
 	v2i offset;
 	struct Decal* next;
 	struct Decal* prev;
@@ -40,3 +41,4 @@ u8 trymove_entity(Entity* e, u8 gravityactive);
 Sector* get_sector(i32 index);
 Wall* get_wall(i32 index);
 i32 get_sectornum();
+u8 check_hitscan_collsion(Player* p);

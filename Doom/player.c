@@ -55,21 +55,31 @@ void calc_playervelocity(Player* p) {
 void check_shoot(Player* p) {
 	if (!p->shoot) return;
 	p->shoot = 0;
+	i32 weapon = 1;
 
-	Entity* bullet = malloc(sizeof(Entity));
-	if (bullet) {
-		bullet->tick.function = &tick_bullet;
-		bullet->pos = (v2){ p->pos.x, p->pos.y };
-		bullet->speed = 80.0f;
-		bullet->z = p->z;
-		bullet->scale = (v2){ 1.0f, 1.0f };
-		bullet->spriteAmt = 1;
-		bullet->spriteNum[0] = 1;
-		bullet->type = Projectile;
-		bullet->velocity = (v3){ p->anglecos, p->anglesin, 0 };
-		bullet->sector = p->sector;
-		bullet->target = NULL;
-		add_ticker(&bullet->tick);
-		addEntity(bullet);
-	}	
+	switch (weapon) {
+		case 0: {
+			Entity* bullet = malloc(sizeof(Entity));
+			if (bullet) {
+				bullet->tick.function = &tick_bullet;
+				bullet->pos = (v2){ p->pos.x, p->pos.y };
+				bullet->speed = 80.0f;
+				bullet->z = p->z;
+				bullet->scale = (v2){ 1.0f, 1.0f };
+				bullet->spriteAmt = 1;
+				bullet->spriteNum[0] = 1;
+				bullet->type = Projectile;
+				bullet->velocity = (v3){ p->anglecos, p->anglesin, 0 };
+				bullet->sector = p->sector;
+				bullet->target = NULL;
+				add_ticker(&bullet->tick);
+				addEntity(bullet);
+			}
+		}
+		case 1: {
+			check_hitscan_collsion(p);
+			break;
+		}
+		default: break;
+	}
 }

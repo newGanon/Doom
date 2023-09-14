@@ -7,6 +7,7 @@
 #include "tick.h"
 #include "map.h"
 #include "player.h"
+#include "tex.h";
 #include <ctype.h>
 
 struct {
@@ -15,7 +16,7 @@ struct {
 	SDL_Surface* surfaces[100];
 	SDL_Renderer* renderer;
 	u32 pixels[SCREEN_WIDTH * SCREEN_HEIGHT];
-	Texture textures[100];
+	Texture textures[1000];
 
 	EntityHandler entityhandler;
 
@@ -32,7 +33,6 @@ void update();
 void render();
 void close();
 void sdl_init();
-void loadTextures(Texture* textures);
 
 
 int main(int argc, char* args[]) {
@@ -66,7 +66,7 @@ int main(int argc, char* args[]) {
 		}
 		deltaTime = a - b;
 		if (deltaTime > SCREEN_TICKS_PER_FRAME) {
-			printf("%i\n", 1000/(a - b));
+			//printf("%i\n", 1000/(a - b));
 			b = a;
 			update();
 			render();
@@ -127,7 +127,8 @@ void init() {
 
 	drawInit(state.pixels);
 
-	loadTextures(&state.textures);
+	init_tex(&state.textures);
+	loadTextures(&state.surfaces);
 
 	loadLevel(&state.map);
 
@@ -168,7 +169,7 @@ void init() {
 	}
 
 
-	Entity* e2 = malloc(sizeof(Entity));
+	/*Entity* e2 = malloc(sizeof(Entity));
 	if (e2) {
 		e2->animationtick = 0;
 		e2->inAir = 1;
@@ -185,7 +186,7 @@ void init() {
 		e2->target = &state.player;
 		add_ticker(&e2->tick);
 		addEntity(e2);
-	}
+	}*/
 
 	state.player.pos = (v2){ 20.0f, 20.0f};
 	state.player.sector = 1;
@@ -197,17 +198,18 @@ void init() {
 	state.player.anglecos = cos(state.player.angle);
 	state.player.anglesin = sin(state.player.angle);
 
-	Decal* decal = malloc(sizeof(Decal));
+	/*Decal* decal = malloc(sizeof(Decal));
 	if (decal) {
 		decal->tex = &state.textures[1];
 		decal->offset = (v2i){ 500, 500 };
 		decal->next = NULL;
 		decal->prev = NULL;
 		decal->scale = 0.5f;
+		decal->scaledsize = (v2i){ decal->tex->width * decal->scale, decal->tex->height * decal->scale};
 
 		state.map.walls[0].decalhead = decal;
-	}
-
+	}*/
+	/*
 	Decal* decal2 = malloc(sizeof(Decal));
 	if (decal2) {
 		decal2->tex = &state.textures[1];
@@ -215,9 +217,11 @@ void init() {
 		decal2->next = NULL;
 		decal2->prev = NULL;
 		decal2->scale = 2.0f;
+		decal2->scaledsize = (v2i){ decal2->tex->width * decal2->scale, decal2->tex->height * decal2->scale };
 
 		state.map.walls[0].decalhead->next = decal2;
-	}
+		decal2->prev = state.map.walls[0].decalhead;
+	}*/
 }
 
 void close() {
@@ -233,21 +237,6 @@ void close() {
 
 	SDL_Quit();
 	exit(1);
-}
-
-void loadTextures(Texture* textures) {
-	SDL_Surface* bmpTex;
-	char textureFileNames[3][50] = {"test3.bmp", "spritetest2.bmp", "ammo.bmp"};
-	i32 textureAmt = sizeof(textureFileNames) / sizeof(textureFileNames[0]);
-
-	for (i32 i = 0; i < textureAmt; i++) {
-		bmpTex = SDL_LoadBMP(textureFileNames[i]);
-		ASSERT(bmpTex,
-			"Error loading texture %s\n",
-			SDL_GetError());
-		state.textures[i] = (Texture){ (u32*)bmpTex->pixels, bmpTex->w, bmpTex->h };
-		state.surfaces[i] = bmpTex;
-	}
 }
 
 void sdl_init() {

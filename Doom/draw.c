@@ -417,22 +417,27 @@ void drawWall3D(Player player, Texture* tex, WallRenderingInfo* now, u32 rd)
 
 void drawTexLine(i32 x, i32 y0, i32 y1, i32 yf, i32 yc, f64 u, Texture* tex, f32 shade, f32 dis, f32 wallheight, f32 wallwidth, Wall* wall) {
 	f32 texheight = wallheight / 4.0f;
-	f32 texwidth =wallwidth / 2.0f;
+	f32 texwidth = wallwidth / 2.0f;
 	v2i walloffset;
 
 	walloffset.x = (u * texwidth) * tex[0].height;
 
 	i32 tx = walloffset.x % tex[0].width;
+
+	f32 texy0 = ((1.0 - ((y0 - yf) / (f64)(yc - yf)))) * tex->height * texheight;
+	f32 texy1 = ((1.0 - ((y1 - yf) / (f64)(yc - yf)))) * tex->height * texheight;
+	f32 stepy = ((texy1 - texy0) / (y1 - y0)) ;
+
+	//todo optimise decal drawing
 	for (i32 y = y0; y <= y1; y++) {
 		u8 decal = 0;
-		f64 v = (1.0 - ((y - yf) / (f64)(yc - yf)));
-		walloffset.y = (v * texheight) * tex[0].height;
+		walloffset.y = texy0;
 		for (Decal* d = wall->decalhead; d != NULL ; d = d->next) {
-			if (d->offset.x < walloffset.x && (d->offset.x + (d->tex->width * d->scale))  > walloffset.x &&
-				d->offset.y < walloffset.y && (d->offset.y + (d->tex->height * d->scale)) > walloffset.y) {
+			if (d->offset.x < walloffset.x && (d->offset.x + (d->scaledsize.x)) > walloffset.x &&
+				d->offset.y < walloffset.y && (d->offset.y + (d->scaledsize.y)) > walloffset.y) {
 				i32 dy = (walloffset.y - d->offset.y) / d->scale;
 				i32 dx = (walloffset.x - d->offset.x) / d->scale;
-				u32 color = changeRGBBrightness(d->tex->pixels[(i32)(dy * d->tex->width) + dx], shade);
+				u32 color = changeRGBBrightness(d->tex->pixels[dy * d->tex->width + dx], shade);
 				if (!is_transparent(color)) {
 					drawPixel(x, y, color);
 					decal = 1;
@@ -444,19 +449,10 @@ void drawTexLine(i32 x, i32 y0, i32 y1, i32 yf, i32 yc, f64 u, Texture* tex, f32
 			i32 ty = walloffset.y % tex[0].height;
 			u32 color = changeRGBBrightness(tex[0].pixels[ty * tex[0].width + tx], shade);
 			drawPixel(x, y, color);
-			zBuffer[y * SCREEN_WIDTH + x] = dis;
 		}
-	}
-
-	/*i32 tx = u * tex[0].width;
-	for (i32 y = y0; y <= y1; y++) {
-		f64 v = (1.0 - ((y - yf) / (f64)(yc - yf)));
-		v = (v * texheight) - (i32)(v * texheight);
-		i32 ty = v * tex[0].height;
-		u32 color = changeRGBBrightness(tex[0].pixels[ty * tex[0].width + tx], shade);
-		drawPixel(x, y, color);
 		zBuffer[y * SCREEN_WIDTH + x] = dis;
-	}*/
+		texy0 += stepy;
+	}
 }
 
 void clearPlanes() {

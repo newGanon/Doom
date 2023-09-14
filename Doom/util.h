@@ -70,3 +70,9 @@ typedef struct v3u_s8 { i32 x, y, z; } v3u8;
 #define FRAMETICKS ((f32)deltaTime / 1000.0f);
 
 i32 deltaTime;
+
+typedef struct Texture {
+	u32* pixels;
+	u32 width;
+	u32 height;
+}Texture;

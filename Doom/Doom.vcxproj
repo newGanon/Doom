@@ -143,6 +143,7 @@
     <ClCompile Include="map.c" />
     <ClCompile Include="math.c" />
     <ClCompile Include="player.c" />
+    <ClCompile Include="tex.c" />
     <ClCompile Include="tick.c" />
   </ItemGroup>
   <ItemGroup>
@@ -151,6 +152,7 @@
     <ClInclude Include="map.h" />
     <ClInclude Include="math.h" />
     <ClInclude Include="player.h" />
+    <ClInclude Include="tex.h" />
     <ClInclude Include="ticker.h" />
     <ClInclude Include="tick.h" />
     <ClInclude Include="util.h" />

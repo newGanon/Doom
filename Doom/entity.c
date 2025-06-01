@@ -126,6 +126,7 @@ void tick_bullet(Entity* bullet) {
 
 	u8 hitwall = trymove_entity(bullet, 0);
 	if (hitwall) {
+
 		remove_ticker(&bullet->tick);
 		removeEntity(bullet);
 	}

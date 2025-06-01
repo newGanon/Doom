@@ -47,18 +47,18 @@ void calc_playervelocity(Player* p) {
 
 	f32 acceleration = moved ? 0.4 : 0.3;
 
-	//p->velocity.x = p->velocity.x * (1 - acceleration) + dpos.x * acceleration * movespeed;
-	//p->velocity.y = p->velocity.y * (1 - acceleration) + dpos.y * acceleration * movespeed;
+	p->velocity.x = p->velocity.x * (1 - acceleration) + dpos.x * acceleration * movespeed;
+	p->velocity.y = p->velocity.y * (1 - acceleration) + dpos.y * acceleration * movespeed;
 
-	p->velocity.x = dpos.x;
-	p->velocity.y = dpos.y;
+	//p->velocity.x = dpos.x;
+	//p->velocity.y = dpos.y;
 }
 
 
 void check_shoot(Player* p) {
 	if (!p->shoot) return;
 	p->shoot = 0;
-	i32 weapon = 1;
+	i32 weapon = 0;
 
 	switch (weapon) {
 		case 0: {
@@ -78,6 +78,7 @@ void check_shoot(Player* p) {
 				add_ticker(&bullet->tick);
 				addEntity(bullet);
 			}
+			break;
 		}
 		case 1: {
 			check_hitscan_collsion(p);

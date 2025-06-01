@@ -250,7 +250,7 @@ void drawWall3D(Player player, Texture* tex, WallRenderingInfo* now, u32 rd)
 				a2 = atan2(p2.y, p2.x) - PI / 2;
 			}
 		}
-		if (a1 < a2 || a2 < -(HFOV / 2) - 0.003f || a1 > +(HFOV / 2) + 0.003f) continue;
+		if (a1 < a2 || a2 < -(HFOV / 2) - 0.001f || a1 > +(HFOV / 2) + 0.001f) continue;
 
 		//convert the angle of the wall into screen coordinates (player FOV is 90 degrees or 1/2 PI)
 		i32 tx1 = screen_angle_to_x(a1);
@@ -426,12 +426,11 @@ void drawTexLine(i32 x, i32 y0, i32 y1, i32 yf, i32 yc, f64 u, Texture* tex, f32
 
 	f32 texy0 = ((1.0 - ((y0 - yf) / (f64)(yc - yf)))) * tex->height * texheight;
 	f32 texy1 = ((1.0 - ((y1 - yf) / (f64)(yc - yf)))) * tex->height * texheight;
-	f32 stepy = ((texy1 - texy0) / (y1 - y0)) ;
+	f32 stepy = ((texy1 - texy0) / (y1 - y0));
 
-	//todo optimise decal drawing
 	for (i32 y = y0; y <= y1; y++) {
 		u8 decal = 0;
-		walloffset.y = texy0;
+		walloffset.y = texy0;		
 		for (Decal* d = wall->decalhead; d != NULL ; d = d->next) {
 			if (portalbottom == d->onportalbottom &&
 				d->offset.x < walloffset.x && (d->offset.x + (d->scaledsize.x)) > walloffset.x &&

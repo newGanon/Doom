@@ -168,8 +168,8 @@ void init() {
 		addEntity(e1);
 	}
 
-
-	/*Entity* e2 = malloc(sizeof(Entity));
+	/*
+	Entity* e2 = malloc(sizeof(Entity));
 	if (e2) {
 		e2->animationtick = 0;
 		e2->inAir = 1;

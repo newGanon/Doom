@@ -1,13 +1,12 @@
 #include "tex.h";
 
-
 Texture* tex;
 
 void init_tex(Texture* tex1) {
 	tex = tex1;
 }
 
-void loadTextures(SDL_Surface** surfaces) {
+void load_textures(SDL_Surface** surfaces) {
 	SDL_Surface* bmpTex;
 	char textureFileNames[3][50] = { "test3.bmp", "spritetest2.bmp", "ammo.bmp" };
 	i32 textureAmt = sizeof(textureFileNames) / sizeof(textureFileNames[0]);

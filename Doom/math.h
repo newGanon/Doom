@@ -16,12 +16,12 @@ v2 camera_pos_to_world(v2 pos, Player player);
 i32 screen_angle_to_x(f32 angle);
 f32 screen_x_to_angle(i32 x);
 
-v2 v2Normalize(v2 a);
-v2 v2Rotate(v2 a, f32 rot);
-v2 v2Add(v2 a, v2 b);
-v2 v2Sub(v2 a, v2 b);
-v2 v2Mul(v2 a, f32 b);
-f32 v2Len(v2 a);
+v2 v2_normalize(v2 a);
+v2 v2_rotate(v2 a, f32 rot);
+v2 v2_add(v2 a, v2 b);
+v2 v2_sub(v2 a, v2 b);
+v2 v2_mul(v2 a, f32 b);
+f32 v2_len(v2 a);
 f32 clamp(f32 d, f32 min, f32 max);
 
-f32 easeInOutCubic(f32 x);
+f32 ease_in_out_cubic(f32 x);

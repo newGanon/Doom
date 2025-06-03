@@ -32,14 +32,14 @@ typedef struct {
 	u32 size;
 }EntityHandler;
 
-void addEntity(Entity* e);
-void initEntityHandler(EntityHandler* h, u32 initialSize);
-void free_entitiehandler();
-void removeEntity(Entity* e);
-void calcAllRelCamPos(Player* player);
-void sortEntities(Player* player);
+void add_entity(Entity* e);
+void init_entityhandler(EntityHandler* h, u32 initialSize);
+void free_entityhandler();
+void remove_entity(Entity* e);
+void calc_all_rel_cam_pos(Player* player);
+void sort_entities(Player* player);
 void tick_item(Entity* item);
 void tick_enemy(Entity* enemy);
 void tick_bullet(Entity* bullet);
-void check_entitycollisions(Player* p);
+void check_entity_collisions(Player* p);
 void free_and_remove_entity(Entity* e);

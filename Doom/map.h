@@ -33,9 +33,9 @@ typedef struct Map {
 } Map;
 
 
-void loadLevel(Map* map);
-u8 pointInsideSector(i32 sec, v2 p); 
-void sortWalls(Player* player);
+void load_level(Map* map);
+u8 point_inside_sector(i32 sec, v2 p); 
+void sort_walls(Player* player);
 void trymove_player(Player* p);
 u8 trymove_entity(Entity* e, u8 gravityactive);
 Sector* get_sector(i32 index);

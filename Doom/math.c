@@ -49,31 +49,31 @@ f32 screen_x_to_angle(i32 x) {
 	return (f32)((2 * HFOV * at) / PI);
 }
 
-v2 v2Normalize(v2 a) {
-	f32 l = v2Len(a);
+v2 v2_normalize(v2 a) {
+	f32 l = v2_len(a);
 	return l != 0 ? (v2) { a.x / l, a.y / l } : (v2) { 0, 0 };
 }
 
-v2 v2Rotate(v2 a, f32 rot) {
+v2 v2_rotate(v2 a, f32 rot) {
 	const v2 oVec = a;
 	a.x = oVec.x * (f32)cos(rot) - oVec.y * (f32)sin(rot);
 	a.y = oVec.x * (f32)sin(rot) + oVec.y * (f32)cos(rot);
 	return a;
 }
 
-v2 v2Add(v2 a, v2 b) {
+v2 v2_add(v2 a, v2 b) {
 	return (v2) { a.x + b.x, a.y + b.y };
 }
 
-v2 v2Sub(v2 a, v2 b) {
+v2 v2_sub(v2 a, v2 b) {
 	return (v2) { a.x - b.x, a.y - b.y };
 }
 
-f32 v2Len(v2 a) {
+f32 v2_len(v2 a) {
 	return (f32)sqrt(a.x * a.x + a.y * a.y);
 }
 
-v2 v2Mul(v2 a, f32 b) {
+v2 v2_mul(v2 a, f32 b) {
 	return (v2) { a.x* b, a.y* b };
 }
 
@@ -82,7 +82,7 @@ f32 clamp(f32 d, f32 min, f32 max) {
 	return t > max ? max : t;
 }
 
-f32 easeInOutCubic(f32 x) {
+f32 ease_in_out_cubic(f32 x) {
   //return x < 0.5 ? 4 * x * x * x : 1 - pow(-2 * x + 2, 3) / 2;
 	return x < 0.5 ? 2 * x * x : 1 - pow(-2 * x + 2, 2) / 2;
 }

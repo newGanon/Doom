@@ -76,7 +76,7 @@ void check_shoot(Player* p) {
 				bullet->sector = p->sector;
 				bullet->target = NULL;
 				add_ticker(&bullet->tick);
-				addEntity(bullet);
+				add_entity(bullet);
 			}
 			break;
 		}

@@ -66,7 +66,7 @@ int main(int argc, char* args[]) {
 		}
 		deltaTime = a - b;
 		if (deltaTime > SCREEN_TICKS_PER_FRAME) {
-			//printf("%i\n", 1000/(a - b));
+			printf("%i\n", 1000/(a - b));
 			b = a;
 			update();
 			render();
@@ -80,12 +80,12 @@ void render() {
 
 	memset(state.pixels, 0, sizeof(state.pixels));
 
-	draw3D(state.player, &state.textures, &state.entityhandler);
+	draw_3d(state.player, &state.textures, &state.entityhandler);
 
 	/* draw crosshair */
 	/* drawCircle(SCREEN_WIDTH / 2, SCREEN_HEIGHT / 2, 10, 10, RED); */
-	fillRectangle(SCREEN_WIDTH / 2 - 8, SCREEN_HEIGHT / 2 - 1, SCREEN_WIDTH / 2 + 8, SCREEN_HEIGHT / 2 + 1, GREEN, &state.pixels);
-	fillRectangle(SCREEN_WIDTH / 2 - 1, SCREEN_HEIGHT / 2 - 8, SCREEN_WIDTH / 2 + 1, SCREEN_HEIGHT / 2 + 8, GREEN, &state.pixels);
+	fill_rectangle(SCREEN_WIDTH / 2 - 8, SCREEN_HEIGHT / 2 - 1, SCREEN_WIDTH / 2 + 8, SCREEN_HEIGHT / 2 + 1, GREEN, &state.pixels);
+	fill_rectangle(SCREEN_WIDTH / 2 - 1, SCREEN_HEIGHT / 2 - 8, SCREEN_WIDTH / 2 + 1, SCREEN_HEIGHT / 2 + 8, GREEN, &state.pixels);
 
 	u8* px;
 	int pitch;
@@ -109,33 +109,21 @@ void render() {
 
 
 void update() {
-
-	sortWalls(&state.player);
-
+	sort_walls(&state.player);
 	player_tick(&state.player);
-
-	sortEntities(&state.player);
-
+	sort_entities(&state.player);
 	run_tickers();
-
-	check_entitycollisions(&state.player);
+	check_entity_collisions(&state.player);
 }
 
 void init() {
-
 	sdl_init();
-
-	drawInit(state.pixels);
-
+	draw_init(state.pixels);
 	init_tex(&state.textures);
-	loadTextures(&state.surfaces);
-
-	loadLevel(&state.map);
-
-	initEntityHandler(&state.entityhandler, 128);
-
+	load_textures(&state.surfaces);
+	load_level(&state.map);
+	init_entityhandler(&state.entityhandler, 128);
 	init_tickers();
-
 
 	Entity* e1 = malloc(sizeof(Entity));
 	if (e1) {
@@ -150,7 +138,7 @@ void init() {
 		e1->type = Item;
 		e1->z = 5.0f;
 		add_ticker(&e1->tick);
-		addEntity(e1);
+		add_entity(e1);
 	}
 	
 	Entity* e2 = malloc(sizeof(Entity));
@@ -169,7 +157,7 @@ void init() {
 		e2->z = 6.0f;
 		e2->target = &state.player;
 		add_ticker(&e2->tick);
-		addEntity(e2);
+		add_entity(e2);
 	}
 
 	state.player.pos = (v2){ 20.0f, 20.0f};
@@ -181,22 +169,17 @@ void init() {
 	state.player.angle = PI_2;
 	state.player.anglecos = cos(state.player.angle);
 	state.player.anglesin = sin(state.player.angle);
-
-	/*Decal* decal = malloc(sizeof(Decal));
-	if (decal) {
-		decal->tex = &state.textures[1];
-		decal->wallpos = (v2){ 3.0f, 5.0f };
-		decal->next = NULL;
-		decal->prev = NULL;
-		decal->size = (v2){ 4.0f, 4.0f };;
-		decal->onportalbottom = 0;
-
-		state.map.walls[0].decalhead = decal;
-	}*/
 }
 
 void close() {
-	//TODO free entityman and surfaces
+	free_entityhandler();
+
+	for (size_t i = 0; i < 100; i++){
+		SDL_Surface* surface = state.surfaces[i];
+		if (surface == NULL) break;
+		SDL_FreeSurface(surface);
+	}
+
 	SDL_DestroyWindow(state.window);
 	state.window = NULL;
 

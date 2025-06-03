@@ -4,14 +4,14 @@
 
 EntityHandler* h;
 
-void initEntityHandler(EntityHandler* h1, u32 initialSize) {
+void init_entityhandler(EntityHandler* h1, u32 initialSize) {
 	h = h1;
 	h->entities = malloc(initialSize * sizeof(Entity*));
 	h->used = 0;
 	h->size = initialSize;
 }
 
-void addEntity(Entity* entity) {
+void add_entity(Entity* entity) {
 	if (h->used == h->size) {
 		h->size *= 2;
 		Entity* tmp = (Entity*)realloc(h->entities, h->size * sizeof(Entity));
@@ -21,14 +21,14 @@ void addEntity(Entity* entity) {
 	h->entities[h->used++] = entity;
 }
 
-void free_entitiehandler() {
+void free_entityhandler() {
 	for (u32 i = 0; i < h->used; i++) { free(h->entities[i]); }
 	free(h->entities);
 	h->entities = NULL;
 	h->used = h->size = 0;
 }
 
-void removeEntity(Entity* e) {
+void remove_entity(Entity* e) {
 	for (u32 i = 0; i < h->used; i++) {
 		if (h->entities[i] == e) {
 			free(e);
@@ -39,10 +39,10 @@ void removeEntity(Entity* e) {
 	}
 }
 
-void sortEntities(Player* player) {
+void sort_entities(Player* player) {
 
 	if (h->used == 0) return;
-	calcAllRelCamPos(player);
+	calc_all_rel_cam_pos(player);
 
 	//relCamPos.y is the distance from the camera
 	for (u32 i = 0; i < h->used - 1; i++)
@@ -56,7 +56,7 @@ void sortEntities(Player* player) {
 	}
 }
 
-void calcAllRelCamPos(Player* player) {
+void calc_all_rel_cam_pos(Player* player) {
 	for (u32 i = 0; i < h->used; i++) {
 		v2 entityRelPos = world_pos_to_camera(h->entities[i]->pos, *player);
 		h->entities[i]->relCamPos.y = entityRelPos.y;
@@ -70,7 +70,7 @@ void tick_item(Entity* item) {
 	i32 totalanimationticks = 240;
 	i32 curtick = item->animationtick;
 	if (curtick > totalanimationticks / 2) curtick = totalanimationticks - curtick;
-	f32 easeValue = easeInOutCubic((f32)curtick / (totalanimationticks / 2));
+	f32 easeValue = ease_in_out_cubic((f32)curtick / (totalanimationticks / 2));
 	item->z = (i32)item->z + (easeValue * 0.99);
 	item->animationtick += speed;
 	if (item->animationtick > totalanimationticks) item->animationtick -= totalanimationticks;
@@ -128,14 +128,14 @@ void tick_bullet(Entity* bullet) {
 	if (hitwall) {
 
 		remove_ticker(&bullet->tick);
-		removeEntity(bullet);
+		remove_entity(bullet);
 	}
 	else {
 		bullet->velocity = oldvel;
 	}
 }
 
-void check_entitycollisions(Player* p) {
+void check_entity_collisions(Player* p) {
 	for (i32 i = 0; i < h->used; i++) {
 		Entity* e = h->entities[i];
 		switch (e->type) {
@@ -172,7 +172,7 @@ void check_entitycollisions(Player* p) {
 			f32 r = sqrt(e->relCamPos.x * e->relCamPos.x + e->relCamPos.y + e->relCamPos.y);
 			//collect item
 			if (r < 3.0f) {
-				//TODO: give player something
+				//TODO: give player item
 				free_and_remove_entity(e);
 			}
 			break;
@@ -185,5 +185,5 @@ void check_entitycollisions(Player* p) {
 //frees entity and removes it from ticklist and entityhandler
 void free_and_remove_entity(Entity* e) {
 	if (e->tick.function != (actionf)(-1)) { remove_ticker(&e->tick); }
-	removeEntity(e);
+	remove_entity(e);
 }

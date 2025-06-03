@@ -6,7 +6,7 @@ Map* map;
 
 void spawn_decal(v2 intersection, i32 ceil_height, Wall* curwal, f32 entity_height);
 
-void loadLevel(Map* map1) {
+void load_level(Map* map1) {
 	map = map1;
 	FILE* fp = NULL;
 	fopen_s(&fp, "level4.txt", "r");
@@ -47,7 +47,7 @@ void loadLevel(Map* map1) {
 }
 
 
-u8 pointInsideSector(i32 sec, v2 p) {
+u8 point_inside_sector(i32 sec, v2 p) {
 	Sector s = map->sectors[sec - 1];
 	for (i32 i = s.index; i < (s.index + s.numWalls); i++) {
 		Wall w = map->walls[i];
@@ -58,7 +58,8 @@ u8 pointInsideSector(i32 sec, v2 p) {
 	return 1;
 }
 
-void sortWalls(Player* p) {
+// walls are sorted in order to to draw them recursivly and allow for non konvex sectors
+void sort_walls(Player* p) {
 	//calc distances
 	for (i32 wallind = 0; wallind < map->wallnum; wallind++)
 	{
@@ -88,7 +89,6 @@ void sortWalls(Player* p) {
 }
 
 void trymove_player(Player* p) {
-
 	//vertical collision detection
 	const f32 gravity = -GRAVITY * FRAMETICKS;
 	Sector curSec = map->sectors[p->sector - 1];

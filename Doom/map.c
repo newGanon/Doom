@@ -214,8 +214,25 @@ u8 trymove_entity(Entity* e, u8 gravityactive) {
 			(get_line_intersection(pos, (v2) { pos.x + e->velocity.x, pos.y + e->velocity.y }, curwall->a, curwall->b, & intersection))) {
 			f32 stepl = curwall->portal > 0 ? map->sectors[curwall->portal - 1].zfloor : 10e10;
 			f32 steph = curwall->portal > 0 ? map->sectors[curwall->portal - 1].zceil : -10e10;
+			if (e->type == Projectile) {
+				// decal height is relative to the bottom of the wall they are on, in case of normal walls and the bottom of a portal this is just the sectorfloor height, 
+				// and in case of a wall above a portal the height of the neighbouring sector
+				
+				// collide with wall or lower part of portal
+				if (stepl > e->z - e->scale.y / 2.0f) {
+					spawn_decal(intersection, curSec.zfloor, curwall, e->z);
+					hit = 1;
+					break;
+				}
+				// collide with upper part of portal
+				else if (steph < (e->z + e->scale.y / 2.0f) && steph < curSec.zceil) {
+					spawn_decal(intersection, steph, curwall, e->z);
+					hit = 1;
+					break;
+				}
+			}
 			//collision with wall, top or lower part of portal
-			if (stepl > e->z - e->scale.y + STEPHEIGHT ||
+			else if (stepl > e->z - e->scale.y + STEPHEIGHT ||
 				steph < e->z + HEADMARGIN) {
 				//collide with wall, project velocity vector onto wall vector
 				v2 wallVec = { curwall->b.x - curwall->a.x, curwall->b.y - curwall->a.y };
@@ -223,19 +240,15 @@ u8 trymove_entity(Entity* e, u8 gravityactive) {
 					(e->velocity.x * wallVec.x + e->velocity.y * wallVec.y) / (wallVec.x * wallVec.x + wallVec.y * wallVec.y) * wallVec.x,
 					(e->velocity.x * wallVec.x + e->velocity.y * wallVec.y) / (wallVec.x * wallVec.x + wallVec.y * wallVec.y) * wallVec.y
 				};
-				
-				//spawn a decal if a projectile has hit a wall
-				if (e->type == Projectile) {
-					spawn_decal(intersection, curSec.zceil, curwall, e->z);
-				}
 
 				e->velocity.x = projVel.x;
 				e->velocity.y = projVel.y;
 				hit = 1;
 				break;
 			}
-			//if player fits throught portal change playersector
-			else if (curwall->portal > 0) {
+
+			//if entity fits throught portal change playersector
+			if (curwall->portal > 0) {
 				curSec = map->sectors[curwall->portal - 1];
 				e->sector = curSec.id;;
 				if (e->z < e->scale.y + curSec.zfloor) e->z = e->scale.y + curSec.zfloor;
@@ -263,7 +276,7 @@ i32 get_sectornum() {
 	return map->sectornum;
 }
 
-void spawn_decal(v2 intersection, i32 ceil_height, Wall* curwall, f32 entity_height) {
+void spawn_decal(v2 intersection, i32 floor_height, Wall* curwall, f32 entity_height) {
 	printf("X:%f, Y:%f \n", intersection.x, intersection.y);
 	v2 wallposvec = { intersection.x - curwall->a.x, intersection.y - curwall->a.y };
 	f32 len = sqrt(wallposvec.x * wallposvec.x + wallposvec.y * wallposvec.y);
@@ -271,22 +284,13 @@ void spawn_decal(v2 intersection, i32 ceil_height, Wall* curwall, f32 entity_hei
 	Decal* decal = malloc(sizeof(Decal));
 	if (decal) {
 		decal->tex = get_texture(1);
-		//TODO: when changing walltilesize this has to be changed too
-		f32 width = 2.0f;
-		f32 height = 4.0f;
-		if (steph < entity_height) {
-			decal->offset = (v2i){ ((i32)(len / width * 256) - 64), ((ceil_height - entity_height) * 256 / height - 64) };
-			decal->onportalbottom = 0;
-		}
-		else {
-			decal->offset = (v2i){ ((i32)(len / width * 256) - 64), ((map->sectors[curwall->portal - 1].zfloor - entity_height) * 256 / height - 64) };
-			decal->onportalbottom = 1;
-		}
 		decal->next = NULL;
 		decal->prev = NULL;
-		decal->scale = 0.5f;
-		decal->scaledsize = (v2i){ decal->tex->width * decal->scale, decal->tex->height * decal->scale };
+		decal->size = (v2){ 2.0f, 2.0f };
+		// offset position a little as the wallpos is the bottom left corner of the decal
+		decal->wallpos = (v2){ len - (decal->size.x / 2.0f), (entity_height - floor_height) - (decal->size.x / 2.0f) };
 
+		// add the decal to the decal linked list of the wall
 		if (curwall->decalhead == NULL) {
 			curwall->decalhead = decal;
 		}

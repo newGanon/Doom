@@ -5,12 +5,11 @@
 #include "draw.h"
 
 typedef struct Decal {
-	Texture* tex;
-	v2i scaledsize;
-	v2i offset;
 	struct Decal* next;
 	struct Decal* prev;
-	f32 scale;
+	Texture* tex;
+	v2 wallpos; // bottom left corner of decal
+	v2 size;  // width and height of the decal
 	u8 onportalbottom;
 } Decal;
 

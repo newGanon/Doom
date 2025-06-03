@@ -1,7 +1,6 @@
 #pragma once
 #include "util.h"
 
-
 typedef struct Player {
 	v2 pos;
 	f32 z;

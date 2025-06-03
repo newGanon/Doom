@@ -136,39 +136,23 @@ void init() {
 
 	init_tickers();
 
-	Entity* e = malloc(sizeof(Entity));
-	if (e) {
-		e->animationtick = 0;
-		e->pos = (v2){ 22.0f, 22.0f };
-		e->scale = (v2){ 3.0f, 3.0f };
-		e->sector = 1;
-		e->spriteAmt = 1;
-		e->spriteNum[0] = 2;
-		e->speed = 10;
-		e->tick.function = &tick_item;
-		e->type = Item;
-		e->z = 2.5f;
-		add_ticker(&e->tick);
-		addEntity(e);
-	}
 
 	Entity* e1 = malloc(sizeof(Entity));
 	if (e1) {
 		e1->animationtick = 0;
 		e1->pos = (v2){ 30.0f, 29.0f };
-		e1->scale = (v2){ 3.0f, 3.0f };
+		e1->scale = (v2){ 4.0f, 4.0f };
 		e1->sector = 1;
 		e1->spriteAmt = 1;
-		e1->spriteNum[0] = 2;
+		e1->spriteNum[0] = 1;
 		e1->speed = 10;
 		e1->tick.function = &tick_item;
 		e1->type = Item;
-		e1->z = 2.5f;
+		e1->z = 5.0f;
 		add_ticker(&e1->tick);
 		addEntity(e1);
 	}
-
-	/*
+	
 	Entity* e2 = malloc(sizeof(Entity));
 	if (e2) {
 		e2->animationtick = 0;
@@ -182,11 +166,11 @@ void init() {
 		e2->speed = 10;
 		e2->tick.function = &tick_enemy;
 		e2->type = Enemy;
-		e2->z = 5.0f;
+		e2->z = 6.0f;
 		e2->target = &state.player;
 		add_ticker(&e2->tick);
 		addEntity(e2);
-	}*/
+	}
 
 	state.player.pos = (v2){ 20.0f, 20.0f};
 	state.player.sector = 1;
@@ -201,26 +185,13 @@ void init() {
 	/*Decal* decal = malloc(sizeof(Decal));
 	if (decal) {
 		decal->tex = &state.textures[1];
-		decal->offset = (v2i){ 500, 500 };
+		decal->wallpos = (v2){ 3.0f, 5.0f };
 		decal->next = NULL;
 		decal->prev = NULL;
-		decal->scale = 0.5f;
-		decal->scaledsize = (v2i){ decal->tex->width * decal->scale, decal->tex->height * decal->scale};
+		decal->size = (v2){ 4.0f, 4.0f };;
+		decal->onportalbottom = 0;
 
 		state.map.walls[0].decalhead = decal;
-	}*/
-	/*
-	Decal* decal2 = malloc(sizeof(Decal));
-	if (decal2) {
-		decal2->tex = &state.textures[1];
-		decal2->offset = (v2i){ 200, 200 };
-		decal2->next = NULL;
-		decal2->prev = NULL;
-		decal2->scale = 2.0f;
-		decal2->scaledsize = (v2i){ decal2->tex->width * decal2->scale, decal2->tex->height * decal2->scale };
-
-		state.map.walls[0].decalhead->next = decal2;
-		decal2->prev = state.map.walls[0].decalhead;
 	}*/
 }
 

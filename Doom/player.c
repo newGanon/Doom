@@ -32,7 +32,7 @@ void calc_playervelocity(Player* p) {
 	//vertical velocity calc
 	if (keyboardstate[SDL_SCANCODE_SPACE] && !p->inAir) {
 		p->inAir = 1;
-		p->velocity.z = 25.0f;
+		p->velocity.z = 30.0f;
 	}
 
 	//horizontal velocity calc
@@ -68,7 +68,7 @@ void check_shoot(Player* p) {
 				bullet->pos = (v2){ p->pos.x, p->pos.y };
 				bullet->speed = 80.0f;
 				bullet->z = p->z;
-				bullet->scale = (v2){ 1.0f, 1.0f };
+				bullet->scale = (v2){ 2.0f, 2.0f };
 				bullet->spriteAmt = 1;
 				bullet->spriteNum[0] = 1;
 				bullet->type = Projectile;

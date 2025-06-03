@@ -4,6 +4,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <math.h>
+#include <stdbool.h>
 
 #define ASSERT(_e, ...) if (!(_e)) { fprintf(stderr, __VA_ARGS__); exit(1); }
 
@@ -38,7 +39,7 @@ typedef struct v3u_s8 { i32 x, y, z; } v3u8;
 #define HEADMARGIN 1   
 #define STEPHEIGHT 2    
 #define HFOV PI_2
-#define VFOV 0.5f   
+#define VFOV 1.0f   
 #define LIGHTDIMINISHINGDFACTOR 0.1f
 #define PLAYERTOATIONSPEED 0.001f
 

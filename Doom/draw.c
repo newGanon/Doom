@@ -74,13 +74,13 @@ void drawPixel(i32 x, i32 y, u32 color) {
 }
 
 void drawInit(u32* pixels1) {
-	//init global render variables 
+	// init global render variables 
 	pixels = pixels1;
 
-	//yslope if camera had z position 1, this value is later scaled by the actual height value
+	// yslope if camera had z position 1, this value is later scaled by the actual height value
 	for (i32 y = 0; y < SCREEN_HEIGHT; y++) {
-		f32 dy = y - SCREEN_HEIGHT / 2;
-		yslope[y] = (SCREEN_HEIGHT * 0.5f) / dy;
+		f32 dy = y - SCREEN_HEIGHT / 2.0f;
+		yslope[y] = (SCREEN_HEIGHT * VFOV) / dy;
 	}
 	yslope[SCREEN_HEIGHT / 2] = 1000;
 
@@ -88,13 +88,16 @@ void drawInit(u32* pixels1) {
 		screenxtoangle[x] = screen_x_to_angle(x);
 	}
 
-	//Set wall drawing varables that dont change
+	// Set wall drawing variables that don't change
 	zdl = v2Rotate(((v2) { 0.0f, 1.0f }), +(HFOV / 2.0f)),
 	zdr = v2Rotate(((v2) { 0.0f, 1.0f }), -(HFOV / 2.0f)),
 	znl = (v2){ zdl.x * ZNEAR, zdl.y * ZNEAR },
 	znr = (v2){ zdr.x * ZNEAR, zdr.y * ZNEAR },
 	zfl = (v2){ zdl.x * ZFAR, zdl.y * ZFAR },
 	zfr = (v2){ zdr.x * ZFAR, zdr.y * ZFAR };
+
+	// calculate a color LUT for fast shading of a specific color;
+
 }
 
 void draw3D(Player player, Texture* tex, EntityHandler* h) {
@@ -390,7 +393,7 @@ void drawWall3D(Player player, Texture* tex, WallRenderingInfo* now, u32 rd)
 				//if (pyf > yf) { drawVerticalLine(x, yf, pyf, changeRGBBrightness(YELLOW, wallshade), pixels); }
 				if (pyf > yf) { 
 					wallheight = nzfloor - sec.zfloor;
-					drawTexLine(x, yf, pyf, tyf, tpyf, u, tex, wallshade, dis, wallheight, wallwidth, &w, 1);
+					drawTexLine(x, yf, pyf, tyf, tpyf, u, tex, wallshade, dis, wallheight, wallwidth, &w, 0);
 				}
 				//draw window
 				//drawVerticalLine(x, pyf, pyc, color, pixels);
@@ -416,8 +419,48 @@ void drawWall3D(Player player, Texture* tex, WallRenderingInfo* now, u32 rd)
 }
 
 void drawTexLine(i32 x, i32 y0, i32 y1, i32 yf, i32 yc, f64 u, Texture* tex, f32 shade, f32 dis, f32 wallheight, f32 wallwidth, Wall* wall, u8 portalbottom) {
-	f32 texheight = wallheight / 4.0f;
-	f32 texwidth = wallwidth / 2.0f;
+	// draw decals
+	f32 wall_pos_x = u * wallwidth;
+	bool decal[SCREEN_HEIGHT] = { false };
+	for (Decal* d = wall->decalhead; d != NULL; d = d->next) {
+		// decal not in current stripe of wall, check next decal
+		if (!(d->wallpos.x < wall_pos_x && (d->wallpos.x + d->size.x) > wall_pos_x)) continue;
+		f32 decal_pos_x = wall_pos_x - d->wallpos.x;
+		f32 decal_tx = (decal_pos_x / d->size.x) * d->tex->width;
+
+		f32 decal_top_y = (d->wallpos.y + d->size.y) / wallheight;
+		f32 decal_bot_y = d->wallpos.y / wallheight;
+		i32 decal_top_ty = decal_top_y * (yc - yf) + yf;
+		i32 decal_bot_ty = decal_bot_y * (yc - yf) + yf;
+
+		f32 decal_step = (d->tex->height) / (f32)(decal_top_ty - decal_bot_ty);
+		decal_top_ty = clamp(decal_top_ty, y0, y1);
+		f32 decal_ty = 0;
+		if (decal_bot_ty < y0) {
+			decal_ty = (y0 - decal_bot_ty) * decal_step;
+		}
+
+		decal_bot_ty = clamp(decal_bot_ty, y0, y1);
+
+		for (i32 y = decal_bot_ty; y < decal_top_ty; y++) {
+			// only draw pixel of decal if pixel has not already been drawn by other decal
+			if (!decal[y]) {
+				u32 color = d->tex->pixels[((i32)((d->tex->height - 1) - decal_ty)) * d->tex->height + (i32)decal_tx];
+				if (!is_transparent(color)) {
+					color = changeRGBBrightness(color, shade);
+					decal[y] = true;
+					drawPixel(x, y, color);
+					zBuffer[y * SCREEN_WIDTH + x] = dis;
+				}
+			}
+			decal_ty += decal_step;
+		}
+	}
+
+	// draw walls
+	f32 texture_scale = 4.0f;
+	f32 texheight = wallheight / texture_scale;
+	f32 texwidth = wallwidth / texture_scale;
 	v2i walloffset;
 
 	walloffset.x = (u * texwidth) * tex[0].height;
@@ -429,30 +472,17 @@ void drawTexLine(i32 x, i32 y0, i32 y1, i32 yf, i32 yc, f64 u, Texture* tex, f32
 	f32 stepy = ((texy1 - texy0) / (y1 - y0));
 
 	for (i32 y = y0; y <= y1; y++) {
-		u8 decal = 0;
-		walloffset.y = texy0;		
-		for (Decal* d = wall->decalhead; d != NULL ; d = d->next) {
-			if (portalbottom == d->onportalbottom &&
-				d->offset.x < walloffset.x && (d->offset.x + (d->scaledsize.x)) > walloffset.x &&
-				d->offset.y < walloffset.y && (d->offset.y + (d->scaledsize.y)) > walloffset.y) {
-				i32 dy = (walloffset.y - d->offset.y) / d->scale;
-				i32 dx = (walloffset.x - d->offset.x) / d->scale;
-				u32 color = changeRGBBrightness(d->tex->pixels[dy * d->tex->width + dx], shade);
-				if (!is_transparent(color)) {
-					drawPixel(x, y, color);
-					decal = 1;
-					break;
-				}
-			}
-		}
-		if (!decal) {
+		// only draw wall when there is no decal
+		if (!decal[y]) {
+			walloffset.y = texy0;
 			i32 ty = walloffset.y % tex[0].height;
 			u32 color = changeRGBBrightness(tex[0].pixels[ty * tex[0].width + tx], shade);
 			drawPixel(x, y, color);
+			zBuffer[y * SCREEN_WIDTH + x] = dis;
 		}
-		zBuffer[y * SCREEN_WIDTH + x] = dis;
 		texy0 += stepy;
 	}
+
 }
 
 void clearPlanes() {
@@ -578,12 +608,12 @@ void makeSpans(i32 x, i32 t1, i32 b1, i32 t2, i32 b2, visplane_t* v, Player play
 }
 
 void mapPlane(i32 y, i32 x1, i32 x2, visplane_t* v, Player player, Texture* tex) {
-	f32 texesize = 2.0f;
+	f32 tex_scale = 4.0f;
 
 	i32 texheight = 256;
 	i32 texwidth = 256;
 
-	v2 texsizefactor = { texwidth / texesize, texheight / texesize };
+	v2 texsizefactor = { texwidth / tex_scale, texheight / tex_scale };
 
 	f32 a = screenxtoangle[x1];
 
@@ -599,6 +629,7 @@ void mapPlane(i32 y, i32 x1, i32 x2, visplane_t* v, Player player, Texture* tex)
 	f32 yt = cos(a) * dis / cos(a);
 	// absolute coordinates
 	v2 p = camera_pos_to_world((v2) { xt, yt }, player);
+
 	p.x *= texsizefactor.x;
 	p.y *= texsizefactor.y;
 
@@ -615,7 +646,7 @@ void mapPlane(i32 y, i32 x1, i32 x2, visplane_t* v, Player player, Texture* tex)
 	{
 		v2i t = { (i32)(p.x) & (texwidth - 1), (i32)(p.y) & (texwidth - 1) };
 
-		u32 color = changeRGBBrightness(tex[0].pixels[(255 - t.y) * tex[0].width + t.x], pixelshade);
+		u32 color = changeRGBBrightness(tex[0].pixels[(texheight - 1 - t.y) * tex[0].width + t.x], pixelshade);
 		drawPixel(x, y, color);
 		zBuffer[y * SCREEN_WIDTH + x] = dis;
 		p.x += xstep;
@@ -684,7 +715,7 @@ void drawSprites(Player player, Texture* tex, EntityHandler* h) {
 
 		if (e.relCamPos.y <= 0) continue;
 
-		f32 spritevMove = -SCREEN_HEIGHT / 2 * (e.z - player.z);
+		f32 spritevMove = -SCREEN_HEIGHT  * (e.z - player.z);
 		f32 spritea = atan2(e.relCamPos.y, e.relCamPos.x) - PI / 2;
 		i32 spriteScreenX = screen_angle_to_x(spritea);
 		i32 vMoveScreen = spritevMove / e.relCamPos.y;
@@ -715,7 +746,6 @@ void drawSprites(Player player, Texture* tex, EntityHandler* h) {
 		f32 xstep = (texx1 - texx0) / (x1 - x0);
 
 		v2 texpos;
-
 		f32 pixelshade = calcFlatShade(e.relCamPos.y);
 		texpos.y = texy0;
 		for (i32 y = y0; y < y1; y++) {

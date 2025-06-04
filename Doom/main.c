@@ -18,13 +18,11 @@ struct {
 	u32 pixels[SCREEN_WIDTH * SCREEN_HEIGHT];
 	Texture textures[1000];
 
+	bool quit;
 	EntityHandler entityhandler;
-
 	Map map;
-
-	u8 quit;
-
 	Player player;
+	bool KEYS[SDL_NUM_SCANCODES];
 } state;
 
 
@@ -47,26 +45,41 @@ int main(int argc, char* args[]) {
 		while (SDL_PollEvent(&e) != 0) {
 			/*TODO: handle events*/
 			switch (e.type) {
-			case SDL_QUIT: {
-				close();
-				break; }
-			case SDL_MOUSEMOTION: {
-				state.player.angle -= e.motion.xrel * PLAYERTOATIONSPEED;
-				state.player.anglecos = cos(state.player.angle);
-				state.player.anglesin = sin(state.player.angle); }
-								break;
-			case SDL_MOUSEBUTTONDOWN: {
-				if (e.button.button == SDL_BUTTON_LEFT) {
-					if (!state.player.shoot) {
-						state.player.shoot = 1;
-					}
+				case SDL_QUIT: {
+					close();
+					break; 
 				}
-				break; }
+				case SDL_MOUSEMOTION: {
+					state.player.angle -= e.motion.xrel * PLAYERTOATIONSPEED;
+					state.player.anglecos = cos(state.player.angle);
+					state.player.anglesin = sin(state.player.angle);
+					break; 
+				}			
+				case SDL_MOUSEBUTTONDOWN: {
+					if (e.button.button == SDL_BUTTON_LEFT) {
+						if (!state.player.shoot) {
+							state.player.shoot = 1;
+						}
+					}
+					break; 
+				}
+				case SDL_KEYDOWN: {
+					state.KEYS[e.key.keysym.scancode] = true;
+					break;
+				}
+				case SDL_KEYUP: {
+					state.KEYS[e.key.keysym.scancode] = false;
+					break;
+				}
 			}
 		}
 		deltaTime = a - b;
 		if (deltaTime > SCREEN_TICKS_PER_FRAME) {
 			printf("%i\n", 1000/(a - b));
+			if (state.KEYS[SDL_SCANCODE_E]) {
+				printf("TEST");
+				state.KEYS[SDL_SCANCODE_E] = false;
+			}
 			b = a;
 			update();
 			render();
@@ -125,6 +138,8 @@ void init() {
 	init_entityhandler(&state.entityhandler, 128);
 	init_tickers();
 
+	for (size_t i = 0; i < SDL_NUM_SCANCODES; i++) state.KEYS[i] = false;
+
 	Entity* e1 = malloc(sizeof(Entity));
 	if (e1) {
 		e1->animationtick = 0;
@@ -158,6 +173,17 @@ void init() {
 		e2->target = &state.player;
 		add_ticker(&e2->tick);
 		add_entity(e2);
+	}
+
+	Decal* decal = malloc(sizeof(Decal));
+	if (decal) {
+		decal->tex = &state.textures[1];
+		decal->wallpos = (v2){ 3.0f, 4.0f };
+		decal->next = NULL;
+		decal->prev = NULL;
+		decal->size = (v2){ 4.0f, 4.0f };;
+
+		state.map.walls[0].decalhead = decal;
 	}
 
 	state.player.pos = (v2){ 20.0f, 20.0f};

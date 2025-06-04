@@ -10,7 +10,6 @@ typedef struct Decal {
 	Texture* tex;
 	v2 wallpos; // bottom left corner of decal
 	v2 size;  // width and height of the decal
-	u8 onportalbottom;
 } Decal;
 
 typedef struct Sector {

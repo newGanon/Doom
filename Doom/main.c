@@ -154,7 +154,7 @@ void init() {
 		e2->speed = 10;
 		e2->tick.function = &tick_enemy;
 		e2->type = Enemy;
-		e2->z = 6.0f;
+		e2->z = 2.0f;
 		e2->target = &state.player;
 		add_ticker(&e2->tick);
 		add_entity(e2);

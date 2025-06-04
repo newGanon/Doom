@@ -41,7 +41,9 @@ u32 change_rgb_brightness(u32 color, f32 factor);
 f32 calc_wall_shade(v2 start, v2 end, f32 dis);
 f32 calc_flat_shade(f32 dis);
 
-u8 is_transparent(u32 color);
+v2 calc_tex_start_and_step(f32 true_low, f32 true_high, f32 low, f32 high, i32 tex_size, f32 scale);
+
+u8 inline is_transparent(u32 color);
 
 visplane_t visplanes[MAXVISPLANES];
 visplane_t* lastvisplane;
@@ -416,27 +418,25 @@ void draw_tex_line(i32 x, i32 y0, i32 y1, i32 yf, i32 yc, f64 u, Texture* tex, f
 	for (Decal* d = wall->decalhead; d != NULL; d = d->next) {
 		// decal not in current stripe of wall, check next decal
 		if (!(d->wallpos.x < wall_pos_x && (d->wallpos.x + d->size.x) > wall_pos_x)) continue;
-		f32 decal_pos_x = wall_pos_x - d->wallpos.x;
-		f32 decal_tx = (decal_pos_x / d->size.x) * d->tex->width;
+		f32 pos_x = wall_pos_x - d->wallpos.x;
+		f32 tx = (pos_x / d->size.x) * d->tex->width;
 
-		f32 decal_top_y = (d->wallpos.y + d->size.y) / wallheight;
-		f32 decal_bot_y = d->wallpos.y / wallheight;
-		i32 decal_top_ty = decal_top_y * (yc - yf) + yf;
-		i32 decal_bot_ty = decal_bot_y * (yc - yf) + yf;
+		f32 top_y = (d->wallpos.y + d->size.y) / wallheight;
+		f32 bot_y = d->wallpos.y / wallheight;
+		i32 top_ty = top_y * (yc - yf) + yf;
+		i32 bot_ty = bot_y * (yc - yf) + yf;
 
-		f32 decal_step = (d->tex->height) / (f32)(decal_top_ty - decal_bot_ty);
-		decal_top_ty = clamp(decal_top_ty, y0, y1);
-		f32 decal_ty = 0;
-		// if decal is cut of by bottom of screen then move that many decal steps forward on the texture
-		if (decal_bot_ty < y0) {
-			decal_ty = (y0 - decal_bot_ty) * decal_step;
-		}
-		decal_bot_ty = clamp(decal_bot_ty, y0, y1);
+		i32 bot_ty_clamp = clamp(bot_ty, y0, y1);
+		i32 top_ty_clamp = clamp(top_ty, y0, y1);
 
-		for (i32 y = decal_bot_ty; y < decal_top_ty; y++) {
+		v2 tex_res = calc_tex_start_and_step(bot_ty, top_ty, clamp(bot_ty, y0, y1), clamp(top_ty, y0, y1), d->tex->height, 1.0f);
+		f32 ty = tex_res.x;
+		f32 ty_step = tex_res.y;
+
+		for (i32 y = bot_ty_clamp; y < top_ty_clamp; y++) {
 			// only draw pixel of decal if pixel has not already been drawn by other decal
 			if (!decal[y]) {
-				u32 color = d->tex->pixels[((i32)((d->tex->height - 1) - decal_ty)) * d->tex->width + (i32)decal_tx];
+				u32 color = d->tex->pixels[((i32)ty) * d->tex->width + (i32)tx];
 				if (!is_transparent(color)) {
 					color = change_rgb_brightness(color, shade);
 					decal[y] = true;
@@ -444,35 +444,31 @@ void draw_tex_line(i32 x, i32 y0, i32 y1, i32 yf, i32 yc, f64 u, Texture* tex, f
 					zBuffer[y * SCREEN_WIDTH + x] = dis;
 				}
 			}
-			decal_ty += decal_step;
+			ty += ty_step;
 		}
 	}
 
 	// draw walls
+	Texture* wall_tex = &tex[0];
 	f32 texture_scale = 4.0f;
 	f32 texheight = wallheight / texture_scale;
 	f32 texwidth = wallwidth / texture_scale;
-	v2i walloffset;
 
-	walloffset.x = (u * texwidth) * tex[0].height;
+	i32 tx = (i32)((u * texwidth) * wall_tex->width) % wall_tex->width;
 
-	i32 tx = walloffset.x % tex[0].width;
-
-	f32 texy0 = ((1.0 - ((y0 - yf) / (f64)(yc - yf)))) * tex->height * texheight;
-	f32 texy1 = ((1.0 - ((y1 - yf) / (f64)(yc - yf)))) * tex->height * texheight;
-	f32 stepy = ((texy1 - texy0) / (y1 - y0));
+	v2 tex_res = calc_tex_start_and_step(yf, yc, y0, y1, wall_tex->height, texheight);
+	f32 ty = tex_res.x;
+	f32 ty_step = tex_res.y;
 
 	for (i32 y = y0; y <= y1; y++) {
 		// only draw wall when there is no decal
 		if (!decal[y]) {
-			walloffset.y = texy0;
-			i32 ty = walloffset.y % tex[0].height;
-			u32 color = tex[0].pixels[ty * tex[0].width + tx];
+			u32 color = wall_tex->pixels[((i32)ty % wall_tex->height) * wall_tex->width + tx];
 			color = change_rgb_brightness(color, shade);
 			draw_pixel(x, y, color);
 			zBuffer[y * SCREEN_WIDTH + x] = dis;
 		}
-		texy0 += stepy;
+		ty += ty_step;
 	}
 
 }
@@ -712,47 +708,41 @@ void draw_sprites(Player player, Texture* tex, EntityHandler* h) {
 		i32 spriteScreenX = screen_angle_to_x(spritea);
 		i32 vMoveScreen = spritevMove / e.relCamPos.y;
 
-		//calculate camera spriteheight and textureheight
+		Texture sprite = tex[e.spriteNum[0]];
+
 		i32 spriteHeight = (SCREEN_HEIGHT / e.relCamPos.y) * e.scale.y;
-		if (spriteHeight == 0) continue;
-		i32 y0 = -spriteHeight / 2 + SCREEN_HEIGHT / 2 + vMoveScreen;
-		if (y0 < 0) y0 = 0;
-		i32 y1 = spriteHeight / 2 + SCREEN_HEIGHT / 2 + vMoveScreen;
-		if (y1 >= SCREEN_HEIGHT) y1 = SCREEN_HEIGHT;
+		i32 y0 = -spriteHeight / 2 + SCREEN_HEIGHT / 2 - vMoveScreen;
+		i32 y0_clamp = clamp(y0, 0, SCREEN_HEIGHT);
+		i32 y1 = spriteHeight / 2 + SCREEN_HEIGHT / 2 - vMoveScreen;
+		i32 y1_clamp = clamp(y1, 0, SCREEN_HEIGHT);
+
+		v2 tex_res_y =  calc_tex_start_and_step(y0, y1, y0_clamp, y1_clamp, sprite.height, 1.0f);
+		f32 ty = tex_res_y.x;
+		f32 stepy = tex_res_y.y;
 
 		i32 spriteWidth = (SCREEN_HEIGHT / e.relCamPos.y) * e.scale.x;
 		i32 x0 = -spriteWidth / 2 + spriteScreenX;
-		if (x0 < 0) x0 = 0;
+		i32 x0_clamp = clamp(x0, 0, SCREEN_WIDTH);
 		i32 x1 = spriteWidth / 2 + spriteScreenX;
-		if (x1 >= SCREEN_WIDTH) x1 = SCREEN_WIDTH;
+		i32 x1_clamp = clamp(x1, 0, SCREEN_WIDTH);
 
-		Texture sprite = tex[e.spriteNum[0]];
+		v2 tex_res_x = calc_tex_start_and_step(x0, x1, x0_clamp, x1_clamp, sprite.width, 1.0f);
+		f32 tx_start = tex_res_x.x;
+		f32 stepx = tex_res_x.y;
 
-		//calc tex pos and tex steps
-		f32 texy0 = ((y0 - vMoveScreen - SCREEN_HEIGHT / 2 + spriteHeight / 2) * sprite.height) / spriteHeight;
-		f32 texy1 = (((y1)-vMoveScreen - SCREEN_HEIGHT / 2 + spriteHeight / 2) * sprite.height) / spriteHeight;
-		f32 ystep = (texy1 - texy0) / (y1 - y0);
-
-		f32 texx0 = (i32)((x0 - (-spriteWidth / 2 + spriteScreenX)) * sprite.width / spriteWidth);
-		f32 texx1 = (i32)((x1 - (-spriteWidth / 2 + spriteScreenX)) * sprite.width / spriteWidth);
-		f32 xstep = (texx1 - texx0) / (x1 - x0);
-
-		v2 texpos;
+		f32 tx;
 		f32 pixelshade = calc_flat_shade(e.relCamPos.y);
-		texpos.y = texy0;
-		for (i32 y = y0; y < y1; y++) {
-			texpos.y += ystep;
-			texpos.x = texx0;
-			for (i32 x = x0; x < x1; x++) {
-				i32 index = ((SCREEN_HEIGHT - 1) - y) * SCREEN_WIDTH + x;
-				if (zBuffer[index] > e.relCamPos.y) {
-					u32 color = sprite.pixels[(i32)texpos.y * sprite.width + (i32)texpos.x];
+		for (i32 y = y0_clamp; y < y1_clamp; y++) {
+			ty += stepy;
+			tx = tx_start;
+			for (i32 x = x0_clamp; x < x1_clamp; x++) {
+				if (zBuffer[y * SCREEN_WIDTH + x] > e.relCamPos.y) {
+					u32 color = sprite.pixels[(i32)ty * sprite.width + (i32)tx];
 					color = change_rgb_brightness(color, pixelshade);
-
-					draw_pixel(x, SCREEN_HEIGHT - y, color);
-					if ((color & 0xFF000000) != 0) zBuffer[index] = e.relCamPos.y;
+					draw_pixel(x, y, color);
+					if ((color & 0xFF000000) != 0) zBuffer[y * SCREEN_WIDTH + x] = e.relCamPos.y;
 				}
-				texpos.x += xstep;
+				tx += stepx;
 			}
 		}
 	}
@@ -777,4 +767,15 @@ void draw_minimap(Player player) {
 
 u8 inline is_transparent(u32 color) {
 	return (color & 0xFF000000) == 0;
+}
+
+// true_low and true_high are the pixel coordinates of where the sprite is in full
+// low and high are the pixel coordinates where the sprite is on screen with clipping
+// tex_size is the size of the texture
+// scale is how often the texture should be applied to the range from true_low to true_high
+v2 calc_tex_start_and_step(f32 true_low, f32 true_high, f32 low, f32 high, i32 tex_size, f32 scale) {
+	f32 t0 = (1.0 - ((low  - true_low) / (f64)(true_high - true_low))) * tex_size * scale;
+	f32 t1 = (1.0 - ((high - true_low) / (f64)(true_high - true_low))) * tex_size * scale;
+	f32 step = (t1 - t0) / (high - low);
+	return(v2) {t0, step};
 }

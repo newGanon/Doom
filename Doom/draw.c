@@ -19,7 +19,7 @@ typedef struct visplane_t {
 } visplane_t;
 
 void draw_pixel(i32 x, i32 y, u32 color);
-void draw_tex_line(i32 x, i32 y0, i32 y1, i32 yf, i32 yc, f64 u, Texture* tex, f32 shade, f32 dis, f32 wallheight, f32 wallwidth, Wall* wall);
+void draw_tex_line(i32 x, i32 y0, i32 y1, i32 yf, i32 yc, f64 u, Texture* tex, f32 shade, f32 dis, f32 sec_floor_height, f32 wallheight, f32 wallwidth, Wall* wall, bool is_upper_portal);
 void draw_wall_3d(Player player, Texture* tex, WallRenderingInfo* now, u32 rd);
 void draw_planes_3d(Player player, Texture* tex);
 void make_spans(i32 x, i32 t1, i32 b1, i32 t2, i32 b2, visplane_t* v, Player player, Texture* tex);
@@ -217,7 +217,7 @@ f32 calc_flat_shade(f32 dis) {
 void draw_wall_3d(Player player, Texture* tex, WallRenderingInfo* now, u32 rd)
 {
 	if (rd > 32) return;
-	Sector sec = *get_sector(now->sectorno-1);
+	Sector sec = *get_sector(now->sectorno);
 	for (i32 i = sec.index; i < (sec.index + sec.numWalls); i++) {
 
 		Wall w = *get_wall(i);
@@ -286,8 +286,8 @@ void draw_wall_3d(Player player, Texture* tex, WallRenderingInfo* now, u32 rd)
 		f32 nzfloor = sec.zfloor;
 		f32 nzceil = sec.zceil;
 
-		if (w.portal != 0) {
-			Sector portal = *get_sector(w.portal-1);
+		if (w.portal >= 0) {
+			Sector portal = *get_sector(w.portal);
 			nzfloor = portal.zfloor;
 			nzceil = portal.zceil;
 		}
@@ -364,11 +364,11 @@ void draw_wall_3d(Player player, Texture* tex, WallRenderingInfo* now, u32 rd)
 			f32 wallwidth = sqrt(dx * dx + dy * dy);
 
 			//draw Wall
-			if (w.portal == 0) {
+			if (w.portal == -1) {
 				//drawVerticalLine(x, yf, yc, color, pixels); wall in one color
 				if (yc > tyf && yf < tyc) {
 					f32 wallheight = sec.zceil - sec.zfloor;
-					draw_tex_line(x, yf, yc, tyf, tyc, u, tex, wallshade, dis, wallheight, wallwidth, &w);
+					draw_tex_line(x, yf, yc, tyf, tyc, u, tex, wallshade, dis, sec.zfloor, wallheight, wallwidth, &w, false);
 				}
 				ceilingclip[x] = 0;
 				floorclip[x] = SCREEN_HEIGHT - 1;
@@ -386,14 +386,14 @@ void draw_wall_3d(Player player, Texture* tex, WallRenderingInfo* now, u32 rd)
 				//if (pyf > yf) { drawVerticalLine(x, yf, pyf, YELLOW, pixels); }
 				if (pyf > yf) { 
 					wallheight = nzfloor - sec.zfloor;
-					draw_tex_line(x, yf, pyf, tyf, tpyf, u, tex, wallshade, dis, wallheight, wallwidth, &w);
+					draw_tex_line(x, yf, pyf, tyf, tpyf, u, tex, wallshade, dis, sec.zfloor, wallheight, wallwidth, &w, false);
 				}
 				//draw window
 				//drawVerticalLine(x, pyf, pyc, color, pixels);
 				//if neighborceiling is lower than current sectorceiling then draw it
 				if (pyc < yc) { 
 					wallheight = sec.zceil - nzceil;
-					draw_tex_line(x, pyc, yc, tpyc, tyc, u, tex, wallshade, dis, wallheight, wallwidth, &w);
+					draw_tex_line(x, pyc, yc, tpyc, tyc, u, tex, wallshade, dis, sec.zfloor, wallheight, wallwidth, &w, true);
 				}
 
 				//update vertical clipping arrays
@@ -402,27 +402,37 @@ void draw_wall_3d(Player player, Texture* tex, WallRenderingInfo* now, u32 rd)
 			}
 		}
 
-		if (w.portal && !now->renderedSectors[w.portal - 1]) {
+		if (w.portal >= 0 && !now->renderedSectors[w.portal]) {
 			WallRenderingInfo* wr = &(WallRenderingInfo){ w.portal, x1, x2};
 			memcpy(wr->renderedSectors, now->renderedSectors, SECTOR_MAX * sizeof(u8));
-			wr->renderedSectors[now->sectorno - 1] = 1;
+			wr->renderedSectors[now->sectorno] = 1;
 			draw_wall_3d(player, tex, wr, ++rd);
 		}
 	}
 }
 
-void draw_tex_line(i32 x, i32 y0, i32 y1, i32 yf, i32 yc, f64 u, Texture* tex, f32 shade, f32 dis, f32 wallheight, f32 wallwidth, Wall* wall) {
+void draw_tex_line(i32 x, i32 y0, i32 y1, i32 yf, i32 yc, f64 u, Texture* tex, f32 shade, f32 dis, f32 sec_floor_height, f32 wallheight, f32 wallwidth, Wall* wall, bool is_upper_portals) {
 	// draw decals
 	f32 wall_pos_x = u * wallwidth;
+	
 	bool decal[SCREEN_HEIGHT] = { false };
 	for (Decal* d = wall->decalhead; d != NULL; d = d->next) {
+		f32 rel_decal_height = d->wallpos.y;
+
+		// if decal is on the upper part of portal, then subtract neightbouring sector seiling height, to get absolute position of decal on wall
+		if (is_upper_portals) {
+			f32 neigh_height = get_sector(wall->portal)->zceil;
+			rel_decal_height = d->wallpos.y - (neigh_height - sec_floor_height);
+		} 
+		// if decal is above wall
+		if (rel_decal_height > wallheight || rel_decal_height < -d->size.y) continue;
 		// decal not in current stripe of wall, check next decal
 		if (!(d->wallpos.x < wall_pos_x && (d->wallpos.x + d->size.x) > wall_pos_x)) continue;
 		f32 pos_x = wall_pos_x - d->wallpos.x;
 		f32 tx = (pos_x / d->size.x) * d->tex->width;
 
-		f32 top_y = (d->wallpos.y + d->size.y) / wallheight;
-		f32 bot_y = d->wallpos.y / wallheight;
+		f32 top_y = (rel_decal_height + d->size.y) / wallheight;
+		f32 bot_y = rel_decal_height / wallheight;
 		i32 top_ty = top_y * (yc - yf) + yf;
 		i32 bot_ty = bot_y * (yc - yf) + yf;
 

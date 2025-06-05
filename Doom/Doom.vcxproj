@@ -142,6 +142,7 @@
     <ClCompile Include="main.c" />
     <ClCompile Include="map.c" />
     <ClCompile Include="math.c" />
+    <ClCompile Include="plat.c" />
     <ClCompile Include="player.c" />
     <ClCompile Include="tex.c" />
     <ClCompile Include="tick.c" />
@@ -151,6 +152,7 @@
     <ClInclude Include="entity.h" />
     <ClInclude Include="map.h" />
     <ClInclude Include="math.h" />
+    <ClInclude Include="plat.h" />
     <ClInclude Include="player.h" />
     <ClInclude Include="tex.h" />
     <ClInclude Include="ticker.h" />

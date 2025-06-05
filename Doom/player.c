@@ -13,14 +13,13 @@ void player_tick(Player* p) {
 	//move player
 	calc_playervelocity(p);
 	trymove_player(p);
-
 	check_shoot(p);
 	
 	//reset player pos
 	if (keyboardstate[SDL_SCANCODE_R]) {
 		p->pos = (v2){ 15.0f, 15.0f};
 		p->z = EYEHEIGHT;
-		p->sector = 1; 
+		p->sector = 0; 
 	}
 }
 

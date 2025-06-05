@@ -145,7 +145,7 @@ void init() {
 		e1->animationtick = 0;
 		e1->pos = (v2){ 30.0f, 29.0f };
 		e1->scale = (v2){ 4.0f, 4.0f };
-		e1->sector = 1;
+		e1->sector = 0;
 		e1->spriteAmt = 1;
 		e1->spriteNum[0] = 1;
 		e1->speed = 10;
@@ -163,7 +163,7 @@ void init() {
 		e2->pos = (v2){ 25.0f, 35.0f };
 		e2->scale = (v2){ 4.0f, 4.0f };
 		e2->velocity = (v3){ 0, 0, 0 };
-		e2->sector = 1;
+		e2->sector = 0;
 		e2->spriteAmt = 1;
 		e2->spriteNum[0] = 1;
 		e2->speed = 10;
@@ -187,8 +187,8 @@ void init() {
 	}
 
 	state.player.pos = (v2){ 20.0f, 20.0f};
-	state.player.sector = 1;
-	state.player.z = EYEHEIGHT + state.map.sectors[state.player.sector - 1].zfloor;
+	state.player.sector = 0;
+	state.player.z = EYEHEIGHT + state.map.sectors[state.player.sector].zfloor;
 	state.player.inAir = 0;
 	state.player.speed = 20.0f;
 

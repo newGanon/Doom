@@ -7,6 +7,7 @@
 typedef struct Decal {
 	struct Decal* next;
 	struct Decal* prev;
+	i32 tag;
 	Texture* tex;
 	v2 wallpos; // bottom left corner of decal
 	v2 size;  // width and height of the decal
@@ -15,14 +16,15 @@ typedef struct Decal {
 typedef struct Sector {
 	i32 id, index, numWalls;
 	f32 zfloor, zceil;
-}Sector;
+	i32 tag;
+} Sector;
 
 typedef struct Wall {
 	v2 a, b;
 	i32 portal;
 	f32 distance;
 	Decal* decalhead;
-}Wall;
+} Wall;
 
 typedef struct Map {
 	Wall walls[WALL_MAX];

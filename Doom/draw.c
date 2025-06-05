@@ -41,7 +41,8 @@ u32 change_rgb_brightness(u32 color, f32 factor);
 f32 calc_wall_shade(v2 start, v2 end, f32 dis);
 f32 calc_flat_shade(f32 dis);
 
-v2 calc_tex_start_and_step(f32 true_low, f32 true_high, f32 low, f32 high, i32 tex_size, f32 scale);
+v3 calc_tex_start_and_step(f32 true_low, f32 true_high, f32 low, f32 high, i32 tex_size, f32 scale);
+v3 calc_tex_low_high_and_step(f32 true_low, f32 true_high, f32 low, f32 high, i32 tex_size, f32 scale);
 
 u8 inline is_transparent(u32 color);
 
@@ -439,9 +440,9 @@ void draw_tex_line(i32 x, i32 y0, i32 y1, i32 yf, i32 yc, f64 u, Texture* tex, f
 		i32 bot_ty_clamp = clamp(bot_ty, y0, y1);
 		i32 top_ty_clamp = clamp(top_ty, y0, y1);
 
-		v2 tex_res = calc_tex_start_and_step(bot_ty, top_ty, clamp(bot_ty, y0, y1), clamp(top_ty, y0, y1), d->tex->height, 1.0f);
+		v3 tex_res = calc_tex_start_and_step(bot_ty, top_ty, clamp(bot_ty, y0, y1), clamp(top_ty, y0, y1), d->tex->height, 1.0f);
 		f32 ty = tex_res.x;
-		f32 ty_step = tex_res.y;
+		f32 ty_step = tex_res.z;
 
 		for (i32 y = bot_ty_clamp; y < top_ty_clamp; y++) {
 			// only draw pixel of decal if pixel has not already been drawn by other decal
@@ -466,9 +467,15 @@ void draw_tex_line(i32 x, i32 y0, i32 y1, i32 yf, i32 yc, f64 u, Texture* tex, f
 
 	i32 tx = (i32)((u * texwidth) * wall_tex->width) % wall_tex->width;
 
-	v2 tex_res = calc_tex_start_and_step(yf, yc, y0, y1, wall_tex->height, texheight);
-	f32 ty = tex_res.x;
-	f32 ty_step = tex_res.y;
+	//v3 tex_res = calc_tex_start_and_step(yf, yc, y0, y1, wall_tex->height, texheight);
+	v3 tex_res = calc_tex_low_high_and_step(yf, yc, y0, y1, wall_tex->height, texheight);
+
+	f32 ty = tex_res.y;
+	f32 ty_step = tex_res.z;
+	// decals above portals and sectors where ceiling moves should get drawn from the top
+	if (is_upper_portals || !wall->tex_floor_anchored) {
+		ty = tex_res.x;
+	}
 
 	for (i32 y = y0; y <= y1; y++) {
 		// only draw wall when there is no decal
@@ -726,19 +733,20 @@ void draw_sprites(Player player, Texture* tex, EntityHandler* h) {
 		i32 y1 = spriteHeight / 2 + SCREEN_HEIGHT / 2 - vMoveScreen;
 		i32 y1_clamp = clamp(y1, 0, SCREEN_HEIGHT);
 
-		v2 tex_res_y =  calc_tex_start_and_step(y0, y1, y0_clamp, y1_clamp, sprite.height, 1.0f);
+		v3 tex_res_y =  calc_tex_start_and_step(y0, y1, y0_clamp, y1_clamp, sprite.height, 1.0f);
 		f32 ty = tex_res_y.x;
-		f32 stepy = tex_res_y.y;
+		f32 stepy = tex_res_y.z;
 
-		i32 spriteWidth = (SCREEN_HEIGHT / e.relCamPos.y) * e.scale.x;
+		// multiply by 9.0f/16.0f as this is the usual resolution for this game
+		i32 spriteWidth = (SCREEN_WIDTH / e.relCamPos.y) * e.scale.x * (9.0f / 16.0f);
 		i32 x0 = -spriteWidth / 2 + spriteScreenX;
 		i32 x0_clamp = clamp(x0, 0, SCREEN_WIDTH);
 		i32 x1 = spriteWidth / 2 + spriteScreenX;
 		i32 x1_clamp = clamp(x1, 0, SCREEN_WIDTH);
 
-		v2 tex_res_x = calc_tex_start_and_step(x0, x1, x0_clamp, x1_clamp, sprite.width, 1.0f);
+		v3 tex_res_x = calc_tex_start_and_step(x0, x1, x0_clamp, x1_clamp, sprite.width, 1.0f);
 		f32 tx_start = tex_res_x.x;
-		f32 stepx = tex_res_x.y;
+		f32 stepx = tex_res_x.z;
 
 		f32 tx;
 		f32 pixelshade = calc_flat_shade(e.relCamPos.y);
@@ -779,13 +787,23 @@ u8 inline is_transparent(u32 color) {
 	return (color & 0xFF000000) == 0;
 }
 
+
+v3 calc_tex_start_and_step(f32 true_low, f32 true_high, f32 low, f32 high, i32 tex_size, f32 scale) {
+	f32 t0 = (1.0 - ((low  - true_low) / (f64)(true_high - true_low))) * tex_size * scale;
+	f32 t1 = (1.0 - ((high - true_low) / (f64)(true_high - true_low))) * tex_size * scale;
+	f32 step = (t1 - t0) / (high - low);
+	return(v3) {t0, t1, step};
+}
+
 // true_low and true_high are the pixel coordinates of where the sprite is in full
 // low and high are the pixel coordinates where the sprite is on screen with clipping
 // tex_size is the size of the texture
 // scale is how often the texture should be applied to the range from true_low to true_high
-v2 calc_tex_start_and_step(f32 true_low, f32 true_high, f32 low, f32 high, i32 tex_size, f32 scale) {
-	f32 t0 = (1.0 - ((low  - true_low) / (f64)(true_high - true_low))) * tex_size * scale;
-	f32 t1 = (1.0 - ((high - true_low) / (f64)(true_high - true_low))) * tex_size * scale;
-	f32 step = (t1 - t0) / (high - low);
-	return(v2) {t0, step};
+v3 calc_tex_low_high_and_step(f32 true_low, f32 true_high, f32 low, f32 high, i32 tex_size, f32 scale) {
+	f32 step = -(tex_size / (f32)(true_high - true_low));
+	// add how many pixels are cut off the bottom
+	f32 start_low = abs(low - true_low) * step;
+	// add how many pixels are cut off the top + the pixels in the drawing area, as we always start drawing from the bottom
+	f32 start_high = fabs((true_high - low)) * -step;
+	return (v3) { start_low * scale, start_high * scale, step * scale};
 }

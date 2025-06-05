@@ -17,7 +17,7 @@ void player_tick(Player* p) {
 	
 	//reset player pos
 	if (keyboardstate[SDL_SCANCODE_R]) {
-		p->pos = (v2){ 15.0f, 15.0f};
+		p->pos = (v2){ 20.0f, 20.0f};
 		p->z = EYEHEIGHT;
 		p->sector = 0; 
 	}

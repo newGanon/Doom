@@ -36,6 +36,7 @@ typedef struct v3u_s8 { i32 x, y, z; } v3u8;
 #define SCREEN_HEIGHT 720
 //#define SCREEN_WIDTH 1920	
 //#define SCREEN_HEIGHT 1080
+
 #define EYEHEIGHT 6
 #define SNEAKHEIGHT 2.5f
 #define HEADMARGIN 1  
@@ -51,6 +52,8 @@ typedef struct v3u_s8 { i32 x, y, z; } v3u8;
 #define SECTOR_MAX 256
 #define WALL_MAX 2048
 #define MAXVISPLANES 4096
+
+#define MAXPLATFORMS 100
 
 #define SCREEN_FPS 240
 #define SCREEN_TICKS_PER_FRAME (1000 / SCREEN_FPS)

@@ -17,13 +17,15 @@ typedef struct Sector {
 	i32 id, index, numWalls;
 	f32 zfloor, zceil;
 	i32 tag;
+	void* specialdata; 	// pointer to ticker to reverse actions
 } Sector;
 
 typedef struct Wall {
+	Decal* decalhead;
 	v2 a, b;
 	i32 portal;
 	f32 distance;
-	Decal* decalhead;
+	bool tex_floor_anchored; // if texture should get drawn starting from floor or ceil, gets switched when ceil or floor moves 
 } Wall;
 
 typedef struct Map {
@@ -43,3 +45,6 @@ Sector* get_sector(i32 index);
 Wall* get_wall(i32 index);
 i32 get_sectornum();
 u8 check_hitscan_collsion(Player* p);
+
+bool move_sector_plane(Sector* sec, f32 speed, f32 dest, bool floor, bool up);
+void set_sector_wall_draw_anchor(Sector* sec, bool tex_floor_anchored);

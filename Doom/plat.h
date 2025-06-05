@@ -4,15 +4,24 @@
 #include "map.h"
 
 typedef enum {
-	ELEVATOR
-} PLAT_TYPE;
+	INFINITE_UP_DOWN
+} plat_type;
+
+typedef enum {
+	UP,
+	DOWN,
+	WAIT
+} plat_status;
 
 typedef struct Platform {
 	ticker tick;
-	Sector sec;
+	Sector* sec;
 	f32 speed;
 	f32 low;
 	f32 high;
-	PLAT_TYPE type;
-
+	plat_status status;
+	plat_type type;
+	bool floor;
 } Platform;
+
+void create_plat(i32 tag, plat_type type, bool floor);

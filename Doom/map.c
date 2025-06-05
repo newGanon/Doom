@@ -37,7 +37,7 @@ void load_level(Map* map1) {
 			Wall* wall = &map->walls[map->wallnum++];
 			sscanf_s(p, "%f %f %f %f %d", &wall->a.x, &wall->a.y, &wall->b.x, &wall->b.y, &wall->portal);
 			wall->portal -= 1;
-			//wall->decalhead = NULL;
+			wall->tex_floor_anchored = true;
 		}
 				 break;
 		case NONE:
@@ -307,7 +307,7 @@ void spawn_decal(v2 intersection, i32 floor_height, Wall* curwall, f32 entity_he
 }
 
 u8 check_hitscan_collsion(Player* p) {
-	Sector curSec = map->sectors[p->sector - 1];
+	Sector curSec = *get_sector(p->sector);
 	v2 intersection;
 	v2 pos = p->pos;
 	for (i32 i = curSec.index; i < curSec.index + curSec.numWalls; i++) {
@@ -318,7 +318,7 @@ u8 check_hitscan_collsion(Player* p) {
 			f32 steph = curwall->portal >= 0 ? map->sectors[curwall->portal].zceil : -10e10;
 			//collision with wall, top or lower part of portal
 			if (stepl > p->z || steph < p->z) {
-				spawn_decal(intersection, curSec.zceil, curwall, p->z);
+				spawn_decal(intersection, curSec.zfloor, curwall, p->z);
 				break;
 			}
 			//if hitscan projectile fits throught portal change sector
@@ -328,5 +328,76 @@ u8 check_hitscan_collsion(Player* p) {
 				pos = intersection;
 			}
 		}
+	}
+}
+
+
+
+
+
+
+bool move_sector_plane(Sector* sec, f32 speed, f32 dest, bool floor, bool up) {
+	i32 dir = up ? 1 : -1;
+	f32 new_height;
+	if (floor) {
+		new_height = (speed * dir) + sec->zfloor;
+		if (up) {
+			if (new_height > dest) {
+				sec->zfloor = dest;
+				return true;
+			} 
+			else {
+				sec->zfloor = new_height;
+				return false;
+			}
+		}
+		// down
+		else {
+			if (new_height < dest) {
+				sec->zfloor = dest;
+				return true;
+			}
+			else {
+				sec->zfloor = new_height;
+				return false;
+			}
+		}
+	}
+	// ceil
+	else {
+		new_height = (speed * dir) + sec->zceil;
+		if (up) {
+			if (new_height > dest) {
+				sec->zceil = dest;
+				return true;
+			}
+			else {
+				sec->zceil = new_height;
+				return false;
+			}
+		}
+		// down
+		else {
+			if (new_height < dest) {
+				sec->zceil = dest;
+				return true;
+			}
+			else {
+				sec->zceil = new_height;
+				return false;
+			}
+		}
+	}
+
+
+	return false;
+}
+
+
+
+void set_sector_wall_draw_anchor(Sector* sec, bool tex_floor_anchored) {
+	for (i32 i = sec->index; i <= sec->index + sec->numWalls; i++) {
+		Wall* wall = &map->walls[i];
+		wall->tex_floor_anchored = tex_floor_anchored;
 	}
 }

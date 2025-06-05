@@ -7,7 +7,8 @@
 #include "tick.h"
 #include "map.h"
 #include "player.h"
-#include "tex.h";
+#include "tex.h"
+#include "plat.h"
 #include <ctype.h>
 
 struct {
@@ -36,7 +37,7 @@ void sdl_init();
 int main(int argc, char* args[]) {
 
 	init();
-
+	
 	i32 a, b = 0;
 	SDL_Event e;
 
@@ -90,9 +91,8 @@ int main(int argc, char* args[]) {
 
 }
 void render() {
-
+	// clear pixel buffer
 	memset(state.pixels, 0, sizeof(state.pixels));
-
 	draw_3d(state.player, &state.textures, &state.entityhandler);
 
 	/* draw crosshair */
@@ -108,6 +108,7 @@ void render() {
 			memcpy(&px[y * pitch], &state.pixels[y * SCREEN_WIDTH], SCREEN_WIDTH * 4);
 		}
 	}
+
 	SDL_UnlockTexture(state.texture);
 
 	SDL_SetRenderTarget(state.renderer, NULL);
@@ -185,6 +186,14 @@ void init() {
 
 		state.map.walls[0].decalhead = decal;
 	}
+
+
+	state.map.sectors[6].tag = 1;
+	create_plat(1, INFINITE_UP_DOWN, true);
+
+	state.map.sectors[5].tag = 2;
+	create_plat(2, INFINITE_UP_DOWN, false);
+
 
 	state.player.pos = (v2){ 20.0f, 20.0f};
 	state.player.sector = 0;

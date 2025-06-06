@@ -19,7 +19,7 @@ typedef struct visplane_t {
 } visplane_t;
 
 void draw_pixel(i32 x, i32 y, u32 color);
-void draw_tex_line(i32 x, i32 y0, i32 y1, i32 yf, i32 yc, f64 u, Texture* tex, f32 shade, f32 dis, f32 sec_floor_height, f32 wallheight, f32 wallwidth, Wall* wall, bool is_upper_portal);
+void draw_tex_line(i32 x, i32 y0, i32 y1, i32 yf, i32 yc, i32 ayf, f64 u, Texture* tex, f32 shade, f32 dis, f32 sec_floor_height, f32 wallheight, f32 wallwidth, Wall* wall, bool is_upper_portal);
 void draw_wall_3d(Player player, Texture* tex, WallRenderingInfo* now, u32 rd);
 void draw_planes_3d(Player player, Texture* tex);
 void make_spans(i32 x, i32 t1, i32 b1, i32 t2, i32 b2, visplane_t* v, Player player, Texture* tex);
@@ -43,6 +43,7 @@ f32 calc_flat_shade(f32 dis);
 
 v3 calc_tex_start_and_step(f32 true_low, f32 true_high, f32 low, f32 high, i32 tex_size, f32 scale);
 v3 calc_tex_low_high_and_step(f32 true_low, f32 true_high, f32 low, f32 high, i32 tex_size, f32 scale);
+v2 calc_tex_start_and_step_abs(f32 true_abs_low, f32 true_low, f32 true_high, f32 low, f32 high, i32 tex_size, f32 scale);
 
 u8 inline is_transparent(u32 color);
 
@@ -283,7 +284,7 @@ void draw_wall_3d(Player player, Texture* tex, WallRenderingInfo* now, u32 rd)
 		floorplane = check_plane(floorplane, x1, x2);
 		ceilplane = check_plane(ceilplane, x1, x2);
 
-		//get floor and ceiling height of sector behind wall if wall is a portal
+		// get floor and ceiling height of sector behind wall if wall is a portal
 		f32 nzfloor = sec.zfloor;
 		f32 nzceil = sec.zceil;
 
@@ -296,18 +297,22 @@ void draw_wall_3d(Player player, Texture* tex, WallRenderingInfo* now, u32 rd)
 		f32 sy0 = (VFOV * SCREEN_HEIGHT) / p1.y;
 		f32 sy1 = (VFOV * SCREEN_HEIGHT) / p2.y;
 
-		//wall coordinates
+		// wall coordinates
 		i32 yf0 = (SCREEN_HEIGHT / 2) + (i32)((sec.zfloor - player.z) * sy0);
 		i32 yf1 = (SCREEN_HEIGHT / 2) + (i32)((sec.zfloor - player.z) * sy1);
 		i32 yc0 = (SCREEN_HEIGHT / 2) + (i32)((sec.zceil - player.z) * sy0);
 		i32 yc1 = (SCREEN_HEIGHT / 2) + (i32)((sec.zceil - player.z) * sy1);
-		//portal coordinates in the wall
+		// bottom wall coordinates if bottom of wall would be ar heigh 0, used for absolute texture drawing regardless of floor and ceil height
+		i32 yaf0 = (SCREEN_HEIGHT / 2) + (i32)((0.0f - player.z) * sy0);
+		i32 yaf1 = (SCREEN_HEIGHT / 2) + (i32)((0.0f - player.z) * sy1);
+
+		// portal coordinates in the wall
 		i32 pf0 = (SCREEN_HEIGHT / 2) + (i32)((nzfloor - player.z) * sy0);
 		i32 pf1 = (SCREEN_HEIGHT / 2) + (i32)((nzfloor - player.z) * sy1);
 		i32 pc0 = (SCREEN_HEIGHT / 2) + (i32)((nzceil - player.z) * sy0);
 		i32 pc1 = (SCREEN_HEIGHT / 2) + (i32)((nzceil - player.z) * sy1);
 
-		//wall texture mapping varaibles
+		// wall texture mapping varaibles
 		v2 difp1 = v2_sub(p1, tp1);
 		v2 difp2 = v2_sub(p2, tp2);
 		f32 twlen = v2_len(v2_sub(tp1, tp2));
@@ -320,6 +325,7 @@ void draw_wall_3d(Player player, Texture* tex, WallRenderingInfo* now, u32 rd)
 			//get top and bottom coordinates of the wall
 			i32 tyf = (i32)(xp * (yf1 - yf0)) + yf0;
 			i32 tyc = (i32)(xp * (yc1 - yc0)) + yc0;
+			i32 tayf = (i32)(xp * (yaf1 - yaf0)) + yaf0; // bottom of the wall, if wall had height 0, used for absolute texture drawing of walls
 			i32 yf = clamp(tyf, floorclip[x], ceilingclip[x]);
 			i32 yc = clamp(tyc, floorclip[x], ceilingclip[x]);
 			
@@ -369,7 +375,7 @@ void draw_wall_3d(Player player, Texture* tex, WallRenderingInfo* now, u32 rd)
 				//drawVerticalLine(x, yf, yc, color, pixels); wall in one color
 				if (yc > tyf && yf < tyc) {
 					f32 wallheight = sec.zceil - sec.zfloor;
-					draw_tex_line(x, yf, yc, tyf, tyc, u, tex, wallshade, dis, sec.zfloor, wallheight, wallwidth, &w, false);
+					draw_tex_line(x, yf, yc, tyf, tyc, tayf, u, tex, wallshade, dis, sec.zfloor, wallheight, wallwidth, &w, false);
 				}
 				ceilingclip[x] = 0;
 				floorclip[x] = SCREEN_HEIGHT - 1;
@@ -387,14 +393,14 @@ void draw_wall_3d(Player player, Texture* tex, WallRenderingInfo* now, u32 rd)
 				//if (pyf > yf) { drawVerticalLine(x, yf, pyf, YELLOW, pixels); }
 				if (pyf > yf) { 
 					wallheight = nzfloor - sec.zfloor;
-					draw_tex_line(x, yf, pyf, tyf, tpyf, u, tex, wallshade, dis, sec.zfloor, wallheight, wallwidth, &w, false);
+					draw_tex_line(x, yf, pyf, tyf, tpyf, tayf, u, tex, wallshade, dis, sec.zfloor, wallheight, wallwidth, &w, false);
 				}
 				//draw window
 				//drawVerticalLine(x, pyf, pyc, color, pixels);
 				//if neighborceiling is lower than current sectorceiling then draw it
 				if (pyc < yc) { 
 					wallheight = sec.zceil - nzceil;
-					draw_tex_line(x, pyc, yc, tpyc, tyc, u, tex, wallshade, dis, sec.zfloor, wallheight, wallwidth, &w, true);
+					draw_tex_line(x, pyc, yc, tpyc, tyc, tayf, u, tex, wallshade, dis, sec.zfloor, wallheight, wallwidth, &w, true);
 				}
 
 				//update vertical clipping arrays
@@ -411,8 +417,21 @@ void draw_wall_3d(Player player, Texture* tex, WallRenderingInfo* now, u32 rd)
 		}
 	}
 }
-
-void draw_tex_line(i32 x, i32 y0, i32 y1, i32 yf, i32 yc, f64 u, Texture* tex, f32 shade, f32 dis, f32 sec_floor_height, f32 wallheight, f32 wallwidth, Wall* wall, bool is_upper_portals) {
+// x: screen pixel position of the current wallstrip
+// y0: clipped screen pixel position of bottom part of wall with lower screen edge
+// y1: clipped screen pixel position of top part of wall with upper screen edge
+// yf: true screen pixel position of bottom part of wall
+// yc: true screen pixel position of top part of wall
+// ayf: absolute pixel position of bottom of the wall, if bottom of the wall would be on height 0, used for absolute texture mapping for non portal walls
+// u: horizontal position on the texture
+// tex: the texture the wall should have
+// shade: how dark the wall should be
+// dis: distane wall wallstrip to the camera
+// sec_floor_height: floor height of the sector
+// wallwidth: how long is the wall
+// wall: pointer to the wall
+// is_upper_portals: bool that describes if the wallsegement is an upper part of a portal
+void draw_tex_line(i32 x, i32 y0, i32 y1, i32 yf, i32 yc, i32 ayf, f64 u, Texture* tex, f32 shade, f32 dis, f32 sec_floor_height, f32 wallheight, f32 wallwidth, Wall* wall, bool is_upper_portals) {
 	// draw decals
 	f32 wall_pos_x = u * wallwidth;
 	
@@ -467,14 +486,21 @@ void draw_tex_line(i32 x, i32 y0, i32 y1, i32 yf, i32 yc, f64 u, Texture* tex, f
 
 	i32 tx = (i32)((u * texwidth) * wall_tex->width) % wall_tex->width;
 
-	//v3 tex_res = calc_tex_start_and_step(yf, yc, y0, y1, wall_tex->height, texheight);
-	v3 tex_res = calc_tex_low_high_and_step(yf, yc, y0, y1, wall_tex->height, texheight);
+	f32 ty;
+	f32 ty_step;
 
-	f32 ty = tex_res.y;
-	f32 ty_step = tex_res.z;
-	// decals above portals and sectors where ceiling moves should get drawn from the top
-	if (is_upper_portals || !wall->tex_floor_anchored) {
+	if (wall->portal >= 0) {
+		v3 tex_res = calc_tex_low_high_and_step(yf, yc, y0, y1, wall_tex->height, texheight);
+		// lower parts of portals should get drawn from the top
+		ty = tex_res.y;
+		ty_step = tex_res.z;
+		// upper parts of portals should get drawn from the bottom
+		if (is_upper_portals) ty = tex_res.x;
+	}
+	else {
+		v2 tex_res = calc_tex_start_and_step_abs(ayf, yf, yc, y0, y1, wall_tex->height, ((wallheight + (sec_floor_height)) / texture_scale));
 		ty = tex_res.x;
+		ty_step = tex_res.y;
 	}
 
 	for (i32 y = y0; y <= y1; y++) {
@@ -802,8 +828,16 @@ v3 calc_tex_start_and_step(f32 true_low, f32 true_high, f32 low, f32 high, i32 t
 v3 calc_tex_low_high_and_step(f32 true_low, f32 true_high, f32 low, f32 high, i32 tex_size, f32 scale) {
 	f32 step = -(tex_size / (f32)(true_high - true_low));
 	// add how many pixels are cut off the bottom
-	f32 start_low = abs(low - true_low) * step;
+	f32 start_low = (low - true_low) * step;
 	// add how many pixels are cut off the top + the pixels in the drawing area, as we always start drawing from the bottom
-	f32 start_high = fabs((true_high - low)) * -step;
+	f32 start_high = (true_high - low) * -step;
 	return (v3) { start_low * scale, start_high * scale, step * scale};
+}
+
+
+v2 calc_tex_start_and_step_abs(f32 true_abs_low, f32 true_low, f32 true_high, f32 low, f32 high, i32 tex_size, f32 scale){
+	f32 step = -(tex_size / (f32)(true_high - true_abs_low));
+	// add how many pixels are cut off the bottom
+	f32 start_low = (low - true_abs_low) * step;
+	return (v2) { start_low* scale, step* scale };
 }

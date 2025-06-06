@@ -4,7 +4,7 @@
 
 Map* map;
 
-void spawn_decal(v2 wallpos, f32 floor_height, f32 ceil_height, Wall* curwall, f32 decal_height, wall_section_type type);
+bool spawn_decal(v2 wallpos, f32 floor_height, f32 ceil_height, Wall* curwall, f32 height);
 
 void load_level(Map* map1) {
 	map = map1;
@@ -92,7 +92,17 @@ void sort_walls(Player* p) {
 void trymove_player(Player* p) {
 	//vertical collision detection
 	const f32 gravity = -GRAVITY * FRAMETICKS;
-	Sector* curSec = get_sector(p->sector);;
+	Sector* curSec = get_sector(p->sector);
+
+	// player above ground
+	if (curSec->zfloor < p->z - EYEHEIGHT && !p->inAir) {
+		//p->inAir = true;
+		p->z = EYEHEIGHT + curSec->zfloor;
+	}
+	// player below ground
+	else if (curSec->zfloor > p->z - EYEHEIGHT) {
+		p->z = EYEHEIGHT + curSec->zfloor;
+	}
 
 	if (p->inAir) {
 		p->velocity.z += gravity;
@@ -217,22 +227,7 @@ u8 trymove_entity(Entity* e, u8 gravityactive) {
 			f32 steph = curwall->portal >= 0 ? map->sectors[curwall->portal].zceil : -10e10;
 			if (e->type == Projectile) {
 				v2 pos = (v2){ intersection.x - curwall->a.x, intersection.y - curwall->a.y };
-				//collision with wall
-				wall_section_type type = NONE;
-				if (curwall->portal == -1) {
-					type = WALL;
-				}
-				// collision lower part of portal
-				else if (stepl > e->z - e->scale.y / 2.0f) {
-					type = PORTAL_LOWER;
-				} 
-				// collision with upper part of portal
-				else if (steph < (e->z + e->scale.y / 2.0f) && steph < curSec.zceil) {
-					type = PORTAL_UPPER;
-				}
-
-				if (type != NONE) {
-					spawn_decal(pos, curSec.zfloor, curSec.zceil, curwall, e->z, type);
+				if (spawn_decal(pos, curSec.zfloor, curSec.zceil, curwall, e->z)) {
 					hit = 1;
 					break;
 				}
@@ -253,10 +248,11 @@ u8 trymove_entity(Entity* e, u8 gravityactive) {
 				break;
 			}
 
-			//if entity fits throught portal change playersector
+			//if entity fits throught portal change entitysector
 			if (curwall->portal >= 0) {
 				curSec = map->sectors[curwall->portal];
-				e->sector = curSec.id;;
+				e->sector = curSec.id;
+				if (e->type == Projectile) continue;
 				if (e->z < e->scale.y + curSec.zfloor) e->z = e->scale.y + curSec.zfloor;
 				else if (e->z > e->scale.y + curSec.zfloor) e->inAir = 1;
 			}
@@ -282,11 +278,26 @@ i32 get_sectornum() {
 	return map->sectornum;
 }
 
-void spawn_decal(v2 wallpos, f32 floor_height, f32 ceil_height, Wall* curwall, f32 height, wall_section_type type) {
-	if ((type == PORTAL_LOWER || type == PORTAL_UPPER) && curwall->portal == -1) return;
+bool spawn_decal(v2 wallpos, f32 floor_height, f32 ceil_height, Wall* curwall, f32 height) {
 	f32 len = sqrt(wallpos.x * wallpos.x + wallpos.y * wallpos.y);
 	f32 stepl = curwall->portal >= 0 ? map->sectors[curwall->portal].zfloor : 10e10;
 	f32 steph = curwall->portal >= 0 ? map->sectors[curwall->portal].zceil : -10e10;
+
+	wall_section_type type = NONE;
+	if (curwall->portal == -1) {
+		type = WALL;
+	}
+	// collision lower part of portal
+	else if (stepl > height) {
+		type = PORTAL_LOWER;
+	}
+	// collision with upper part of portal
+	else if (steph < height) {
+		type = PORTAL_UPPER;
+	}
+	if (type == NONE) return false;
+
+
 	Decal* decal = malloc(sizeof(Decal));
 	if (decal) {
 		decal->tex = get_texture(1);
@@ -325,7 +336,9 @@ void spawn_decal(v2 wallpos, f32 floor_height, f32 ceil_height, Wall* curwall, f
 			curdecal->next = decal;
 			decal->prev = curdecal;
 		}
+		return true;
 	}
+	return false;
 }
 
 u8 check_hitscan_collsion(Player* p) {
@@ -339,8 +352,8 @@ u8 check_hitscan_collsion(Player* p) {
 			f32 stepl = curwall->portal >= 0 ? map->sectors[curwall->portal].zfloor : 10e10;
 			f32 steph = curwall->portal >= 0 ? map->sectors[curwall->portal].zceil : -10e10;
 			//collision with wall, top or lower part of portal
-			if (stepl > p->z || steph < p->z) {
-				//spawn_decal(intersection, curSec.zfloor, curSec.zceil, curwall, p->z);
+			v2 pos = (v2){ intersection.x - curwall->a.x, intersection.y - curwall->a.y };
+			if (spawn_decal(pos, curSec.zfloor, curSec.zceil, curwall, p->z)) {
 				break;
 			}
 			//if hitscan projectile fits throught portal change sector
@@ -352,9 +365,6 @@ u8 check_hitscan_collsion(Player* p) {
 		}
 	}
 }
-
-
-
 
 
 

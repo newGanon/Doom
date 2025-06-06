@@ -4,7 +4,7 @@
 
 Map* map;
 
-void spawn_decal(v2 intersection, i32 ceil_height, Wall* curwal, f32 entity_height);
+void spawn_decal(v2 wallpos, f32 floor_height, f32 ceil_height, Wall* curwall, f32 decal_height, wall_section_type type);
 
 void load_level(Map* map1) {
 	map = map1;
@@ -37,7 +37,6 @@ void load_level(Map* map1) {
 			Wall* wall = &map->walls[map->wallnum++];
 			sscanf_s(p, "%f %f %f %f %d", &wall->a.x, &wall->a.y, &wall->b.x, &wall->b.y, &wall->portal);
 			wall->portal -= 1;
-			wall->tex_floor_anchored = true;
 		}
 				 break;
 		case NONE:
@@ -217,19 +216,23 @@ u8 trymove_entity(Entity* e, u8 gravityactive) {
 			f32 stepl = curwall->portal >= 0 ? map->sectors[curwall->portal].zfloor : 10e10;
 			f32 steph = curwall->portal >= 0 ? map->sectors[curwall->portal].zceil : -10e10;
 			if (e->type == Projectile) {
-				// decal height is relative to the bottom of the wall they are on, in case of normal walls and the bottom of a portal this is just the sectorfloor height, 
-				// and in case of a wall above a portal the height of the neighbouring sector
-				
-				// collide with wall or lower part of portal
-				if (stepl > e->z - e->scale.y / 2.0f) {
-					spawn_decal(intersection, curSec.zfloor, curwall, e->z);
-					hit = 1;
-					break;
+				v2 pos = (v2){ intersection.x - curwall->a.x, intersection.y - curwall->a.y };
+				//collision with wall
+				wall_section_type type = NONE;
+				if (curwall->portal == -1) {
+					type = WALL;
 				}
-				// collide with upper part of portal
+				// collision lower part of portal
+				else if (stepl > e->z - e->scale.y / 2.0f) {
+					type = PORTAL_LOWER;
+				} 
+				// collision with upper part of portal
 				else if (steph < (e->z + e->scale.y / 2.0f) && steph < curSec.zceil) {
-					//spawn_decal(intersection, steph, curwall, e->z);
-					spawn_decal(intersection, curSec.zfloor, curwall, e->z);
+					type = PORTAL_UPPER;
+				}
+
+				if (type != NONE) {
+					spawn_decal(pos, curSec.zfloor, curSec.zceil, curwall, e->z, type);
 					hit = 1;
 					break;
 				}
@@ -279,10 +282,10 @@ i32 get_sectornum() {
 	return map->sectornum;
 }
 
-void spawn_decal(v2 intersection, i32 floor_height, Wall* curwall, f32 entity_height) {
-	printf("X:%f, Y:%f \n", intersection.x, intersection.y);
-	v2 wallposvec = { intersection.x - curwall->a.x, intersection.y - curwall->a.y };
-	f32 len = sqrt(wallposvec.x * wallposvec.x + wallposvec.y * wallposvec.y);
+void spawn_decal(v2 wallpos, f32 floor_height, f32 ceil_height, Wall* curwall, f32 height, wall_section_type type) {
+	if ((type == PORTAL_LOWER || type == PORTAL_UPPER) && curwall->portal == -1) return;
+	f32 len = sqrt(wallpos.x * wallpos.x + wallpos.y * wallpos.y);
+	f32 stepl = curwall->portal >= 0 ? map->sectors[curwall->portal].zfloor : 10e10;
 	f32 steph = curwall->portal >= 0 ? map->sectors[curwall->portal].zceil : -10e10;
 	Decal* decal = malloc(sizeof(Decal));
 	if (decal) {
@@ -290,8 +293,27 @@ void spawn_decal(v2 intersection, i32 floor_height, Wall* curwall, f32 entity_he
 		decal->next = NULL;
 		decal->prev = NULL;
 		decal->size = (v2){ 2.0f, 2.0f };
+		decal->wall_type = type;
+		f32 decal_height = 0.0f;
+		switch (type) {
+			// decal has absoute height
+			case WALL: {
+				decal_height = height;
+				break;
+			}
+			// decal has height relative to floor of portal sector
+			case PORTAL_LOWER: {
+				decal_height = height - stepl;
+				break;
+			}
+			// decal has height relative to ceil of portal sector
+			case PORTAL_UPPER: {
+				decal_height = height - steph;
+				break;
+			}
+		}
 		// offset position a little as the wallpos is the bottom left corner of the decal
-		decal->wallpos = (v2){ len - (decal->size.x / 2.0f), (entity_height - floor_height) - (decal->size.x / 2.0f) };
+		decal->wallpos = (v2){ len - (decal->size.x / 2.0f), decal_height - (decal->size.y / 2.0f)};
 
 		// add the decal to the decal linked list of the wall
 		if (curwall->decalhead == NULL) {
@@ -318,7 +340,7 @@ u8 check_hitscan_collsion(Player* p) {
 			f32 steph = curwall->portal >= 0 ? map->sectors[curwall->portal].zceil : -10e10;
 			//collision with wall, top or lower part of portal
 			if (stepl > p->z || steph < p->z) {
-				spawn_decal(intersection, curSec.zfloor, curwall, p->z);
+				//spawn_decal(intersection, curSec.zfloor, curSec.zceil, curwall, p->z);
 				break;
 			}
 			//if hitscan projectile fits throught portal change sector
@@ -391,13 +413,4 @@ bool move_sector_plane(Sector* sec, f32 speed, f32 dest, bool floor, bool up) {
 
 
 	return false;
-}
-
-
-
-void set_sector_wall_draw_anchor(Sector* sec, bool tex_floor_anchored) {
-	for (i32 i = sec->index; i <= sec->index + sec->numWalls; i++) {
-		Wall* wall = &map->walls[i];
-		wall->tex_floor_anchored = tex_floor_anchored;
-	}
 }

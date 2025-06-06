@@ -4,10 +4,18 @@
 #include "entity.h"
 #include "draw.h"
 
+typedef enum wall_section_type {
+	WALL,
+	PORTAL_LOWER,
+	PORTAL_UPPER,
+	NONE
+} wall_section_type;
+
 typedef struct Decal {
 	struct Decal* next;
 	struct Decal* prev;
 	i32 tag;
+	wall_section_type wall_type;
 	Texture* tex;
 	v2 wallpos; // bottom left corner of decal
 	v2 size;  // width and height of the decal
@@ -25,7 +33,6 @@ typedef struct Wall {
 	v2 a, b;
 	i32 portal;
 	f32 distance;
-	bool tex_floor_anchored; // if texture should get drawn starting from floor or ceil, gets switched when ceil or floor moves 
 } Wall;
 
 typedef struct Map {
@@ -47,4 +54,4 @@ i32 get_sectornum();
 u8 check_hitscan_collsion(Player* p);
 
 bool move_sector_plane(Sector* sec, f32 speed, f32 dest, bool floor, bool up);
-void set_sector_wall_draw_anchor(Sector* sec, bool tex_floor_anchored);
+

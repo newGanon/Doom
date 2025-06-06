@@ -66,7 +66,6 @@ void create_plat(i32 tag, plat_type type, bool floor) {
 		plat->sec = sec;
 		plat->sec->specialdata = plat;
 		plat->floor = floor;
-		set_sector_wall_draw_anchor(sec, floor);
 		plat->tick.function = (actionf) plat_move;
 		add_ticker(&plat->tick);
 

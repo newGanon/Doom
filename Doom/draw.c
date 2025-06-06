@@ -19,7 +19,7 @@ typedef struct visplane_t {
 } visplane_t;
 
 void draw_pixel(i32 x, i32 y, u32 color);
-void draw_tex_line(i32 x, i32 y0, i32 y1, i32 yf, i32 yc, i32 ayf, f64 u, Texture* tex, f32 shade, f32 dis, f32 sec_floor_height, f32 wallheight, f32 wallwidth, Wall* wall, bool is_upper_portal);
+void draw_tex_line(i32 x, i32 y0, i32 y1, i32 yf, i32 yc, i32 ayf, f64 u, Texture* tex, f32 shade, f32 dis, f32 sec_floor_height, f32 wallheight, f32 wallwidth, Wall* wall, wall_section_type type);
 void draw_wall_3d(Player player, Texture* tex, WallRenderingInfo* now, u32 rd);
 void draw_planes_3d(Player player, Texture* tex);
 void make_spans(i32 x, i32 t1, i32 b1, i32 t2, i32 b2, visplane_t* v, Player player, Texture* tex);
@@ -41,8 +41,11 @@ u32 change_rgb_brightness(u32 color, f32 factor);
 f32 calc_wall_shade(v2 start, v2 end, f32 dis);
 f32 calc_flat_shade(f32 dis);
 
+// used for everything that is not a wall
 v3 calc_tex_start_and_step(f32 true_low, f32 true_high, f32 low, f32 high, i32 tex_size, f32 scale);
+// used for portal walls
 v3 calc_tex_low_high_and_step(f32 true_low, f32 true_high, f32 low, f32 high, i32 tex_size, f32 scale);
+// used for walls
 v2 calc_tex_start_and_step_abs(f32 true_abs_low, f32 true_low, f32 true_high, f32 low, f32 high, i32 tex_size, f32 scale);
 
 u8 inline is_transparent(u32 color);
@@ -375,7 +378,7 @@ void draw_wall_3d(Player player, Texture* tex, WallRenderingInfo* now, u32 rd)
 				//drawVerticalLine(x, yf, yc, color, pixels); wall in one color
 				if (yc > tyf && yf < tyc) {
 					f32 wallheight = sec.zceil - sec.zfloor;
-					draw_tex_line(x, yf, yc, tyf, tyc, tayf, u, tex, wallshade, dis, sec.zfloor, wallheight, wallwidth, &w, false);
+					draw_tex_line(x, yf, yc, tyf, tyc, tayf, u, tex, wallshade, dis, sec.zfloor, wallheight, wallwidth, &w, WALL);
 				}
 				ceilingclip[x] = 0;
 				floorclip[x] = SCREEN_HEIGHT - 1;
@@ -393,14 +396,14 @@ void draw_wall_3d(Player player, Texture* tex, WallRenderingInfo* now, u32 rd)
 				//if (pyf > yf) { drawVerticalLine(x, yf, pyf, YELLOW, pixels); }
 				if (pyf > yf) { 
 					wallheight = nzfloor - sec.zfloor;
-					draw_tex_line(x, yf, pyf, tyf, tpyf, tayf, u, tex, wallshade, dis, sec.zfloor, wallheight, wallwidth, &w, false);
+					draw_tex_line(x, yf, pyf, tyf, tpyf, tayf, u, tex, wallshade, dis, sec.zfloor, wallheight, wallwidth, &w, PORTAL_LOWER);
 				}
 				//draw window
 				//drawVerticalLine(x, pyf, pyc, color, pixels);
 				//if neighborceiling is lower than current sectorceiling then draw it
 				if (pyc < yc) { 
 					wallheight = sec.zceil - nzceil;
-					draw_tex_line(x, pyc, yc, tpyc, tyc, tayf, u, tex, wallshade, dis, sec.zfloor, wallheight, wallwidth, &w, true);
+					draw_tex_line(x, pyc, yc, tpyc, tyc, tayf, u, tex, wallshade, dis, sec.zfloor, wallheight, wallwidth, &w, PORTAL_UPPER);
 				}
 
 				//update vertical clipping arrays
@@ -431,19 +434,34 @@ void draw_wall_3d(Player player, Texture* tex, WallRenderingInfo* now, u32 rd)
 // wallwidth: how long is the wall
 // wall: pointer to the wall
 // is_upper_portals: bool that describes if the wallsegement is an upper part of a portal
-void draw_tex_line(i32 x, i32 y0, i32 y1, i32 yf, i32 yc, i32 ayf, f64 u, Texture* tex, f32 shade, f32 dis, f32 sec_floor_height, f32 wallheight, f32 wallwidth, Wall* wall, bool is_upper_portals) {
+void draw_tex_line(i32 x, i32 y0, i32 y1, i32 yf, i32 yc, i32 ayf, f64 u, Texture* tex, f32 shade, f32 dis, f32 sec_floor_height, f32 wallheight, f32 wallwidth, Wall* wall, wall_section_type type) {
 	// draw decals
 	f32 wall_pos_x = u * wallwidth;
 	
 	bool decal[SCREEN_HEIGHT] = { false };
 	for (Decal* d = wall->decalhead; d != NULL; d = d->next) {
-		f32 rel_decal_height = d->wallpos.y;
-
-		// if decal is on the upper part of portal, then subtract neightbouring sector seiling height, to get absolute position of decal on wall
-		if (is_upper_portals) {
-			f32 neigh_height = get_sector(wall->portal)->zceil;
-			rel_decal_height = d->wallpos.y - (neigh_height - sec_floor_height);
-		} 
+		if (d->wall_type != type) continue;
+		f32 rel_decal_height = 0.0f;
+		// if decal is on the upper part of portal, then subtract neightbouring sector ceiling height, to get absolute position of decal on wall
+		switch (d->wall_type) {
+			// decal has absoute height
+			case WALL: {
+				rel_decal_height = d->wallpos.y - sec_floor_height;
+				break;
+			}
+			// decal has height relative to floor of portal sector
+			case PORTAL_LOWER: {
+				Sector* sec = get_sector(wall->portal);
+				rel_decal_height = (d->wallpos.y + sec->zfloor) - sec_floor_height;
+				break;
+			}
+			// decal has height relative to ceil of portal sector
+			case PORTAL_UPPER: {
+				Sector* sec = get_sector(wall->portal);
+				rel_decal_height = d->wallpos.y;
+				break;
+			}
+		}
 		// if decal is above wall
 		if (rel_decal_height > wallheight || rel_decal_height < -d->size.y) continue;
 		// decal not in current stripe of wall, check next decal
@@ -495,7 +513,7 @@ void draw_tex_line(i32 x, i32 y0, i32 y1, i32 yf, i32 yc, i32 ayf, f64 u, Textur
 		ty = tex_res.y;
 		ty_step = tex_res.z;
 		// upper parts of portals should get drawn from the bottom
-		if (is_upper_portals) ty = tex_res.x;
+		if (type == PORTAL_UPPER) ty = tex_res.x;
 	}
 	else {
 		v2 tex_res = calc_tex_start_and_step_abs(ayf, yf, yc, y0, y1, wall_tex->height, ((wallheight + (sec_floor_height)) / texture_scale));

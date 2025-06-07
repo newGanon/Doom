@@ -9,7 +9,7 @@ bool spawn_decal(v2 wallpos, f32 floor_height, f32 ceil_height, Wall* curwall, f
 void load_level(Map* map1) {
 	map = map1;
 	FILE* fp = NULL;
-	fopen_s(&fp, "level4.txt", "r");
+	fopen_s(&fp, "Levels/level4.txt", "r");
 	ASSERT(fp, "error opening leveldata file");
 	enum { SECTOR, WALL, NONE } sm = NONE;
 	u8 done = 0;
@@ -28,7 +28,7 @@ void load_level(Map* map1) {
 		}
 		switch (sm) {
 		case SECTOR: {
-			Sector* sector = &map->sectors[map->sectornum++];
+			Sector* sector = &map->sectors[map->sectoramt++];
 			sscanf_s(p, "%d %d %d %f %f", &sector->id, &sector->index, &sector->numWalls, &sector->zfloor, &sector->zceil);
 			sector->id -= 1;
 		}
@@ -72,7 +72,7 @@ void sort_walls(Player* p) {
 
 	}
 	//sort wall with distance from player
-	for (i32 secind = 0; secind < map->sectornum; secind++)
+	for (i32 secind = 0; secind < map->sectoramt; secind++)
 	{
 		Sector sec = map->sectors[secind];
 		for (i32 step = sec.index; step < sec.index + sec.numWalls; step++)
@@ -91,32 +91,44 @@ void sort_walls(Player* p) {
 
 void trymove_player(Player* p) {
 	//vertical collision detection
-	const f32 gravity = -GRAVITY * FRAMETICKS;
-	Sector* curSec = get_sector(p->sector);
+	const f32 gravity = -GRAVITY * SECONDS_PER_FRAME;
+	Sector* cur_sec = get_sector(p->sector);
+	f32 eyeheight = p->sneak ? SNEAKHEIGHT : EYEHEIGHT;
 
 	// player above ground
-	if (curSec->zfloor < p->z - EYEHEIGHT && !p->inAir) {
+	if (cur_sec->zfloor < p->z - eyeheight && !p->in_air) {
 		//p->inAir = true;
-		p->z = EYEHEIGHT + curSec->zfloor;
+		p->z = eyeheight + cur_sec->zfloor;
 	}
 	// player below ground
-	else if (curSec->zfloor > p->z - EYEHEIGHT) {
-		p->z = EYEHEIGHT + curSec->zfloor;
+	else if (cur_sec->zfloor > p->z - eyeheight) {
+		p->z = eyeheight + cur_sec->zfloor;
+	}
+	// move down if player in ceiling
+	if (cur_sec->zceil < p->z + HEADMARGIN) {
+		p->z = cur_sec->zceil - HEADMARGIN;
 	}
 
-	if (p->inAir) {
+	// if not enough space in sector -> crushed
+	if ((cur_sec->zceil - cur_sec->zfloor) < eyeheight + HEADMARGIN) {
+		p->dead = true;
+		return;
+	}
+
+
+	if (p->in_air) {
 		p->velocity.z += gravity;
-		f32 dvel = p->velocity.z * FRAMETICKS;
+		f32 dvel = p->velocity.z * SECONDS_PER_FRAME;
 		//floor collision
-		if (p->velocity.z < 0 && (p->z + dvel) < (curSec->zfloor + EYEHEIGHT)) {
+		if (p->velocity.z < 0 && (p->z + dvel) < (cur_sec->zfloor + eyeheight)) {
 			p->velocity.z = 0;
-			p->inAir = 0;
-			p->z = (curSec->zfloor + EYEHEIGHT);
+			p->in_air = false;
+			p->z = (cur_sec->zfloor + eyeheight);
 		}
 		//ceiling collision
-		else if (p->velocity.z > 0 && (p->z + dvel) > (curSec->zceil - HEADMARGIN)) {
+		else if (p->velocity.z > 0 && (p->z + dvel) > (cur_sec->zceil - HEADMARGIN)) {
 			p->velocity.z = 0;
-			p->z = curSec->zceil - HEADMARGIN;
+			p->z = cur_sec->zceil - HEADMARGIN;
 		}
 		//if no collision was detected just add the velocity
 		else {
@@ -127,28 +139,30 @@ void trymove_player(Player* p) {
 	//check for horizontal collision and if player entered new sector
 	//TODO: fix hack that loops 2 times
 	i32 wallind = -1;
-	Sector* oldSec = curSec;
-	u8 oldinAir = p->inAir;
+	Sector* sec_old = cur_sec;
+	bool in_air_old = p->in_air;
 	f32 oldz = p->z;
-	u8 hitPortal = 0;
-	Sector* newSec = oldSec;
+	bool hit_portal = false;
+	Sector* sec_new = sec_old;
 	for (u8 t = 0; t < 2; t++) {
-		for (i32 i = curSec->index; i < curSec->index + curSec->numWalls; i++) {
+		for (i32 i = cur_sec->index; i < cur_sec->index + cur_sec->numWalls; i++) {
 			Wall curwall = map->walls[i];
 			if (BOXINTERSECT2D(p->pos.x, p->pos.y, p->pos.x + p->velocity.x, p->pos.y + p->velocity.y, curwall.a.x, curwall.a.y, curwall.b.x, curwall.b.y) &&
 				POINTSIDE2D(p->pos.x + p->velocity.x, p->pos.y + p->velocity.y, curwall.a.x, curwall.a.y, curwall.b.x, curwall.b.y) > 0)) {
-					f32 stepl = curwall.portal >= 0 ? map->sectors[curwall.portal].zfloor : 10e10;
-					f32 steph = curwall.portal >= 0 ? map->sectors[curwall.portal].zceil : -10e10;
+					f32 stepl = curwall.portal >= 0 ? get_sector(curwall.portal)->zfloor : 10e10;
+					f32 steph = curwall.portal >= 0 ? get_sector(curwall.portal)->zceil : -10e10;
 					//collision with wall, top or lower part of portal
-					if (stepl > p->z - EYEHEIGHT + STEPHEIGHT ||
-						steph < p->z + HEADMARGIN) {
+					if (stepl > p->z - eyeheight + STEPHEIGHT ||
+						steph < p->z + HEADMARGIN ||
+						(steph - stepl) < (eyeheight + HEADMARGIN) ||
+						(p->sneak && !p->in_air && (cur_sec->zfloor - stepl) > 0.0f)) {
 						//if player hit a corner set velocity to 0
 						if (wallind != -1) {
 							p->velocity.x = 0;
 							p->velocity.y = 0;
-							curSec = oldSec;
-							p->sector = oldSec->id;
-							p->inAir = oldinAir;
+							cur_sec = sec_old;
+							p->sector = sec_old->id;
+							p->in_air = in_air_old;
 							p->z = oldz;
 							break;
 						}
@@ -165,23 +179,23 @@ void trymove_player(Player* p) {
 					}
 					//if player fits throught portal change playersector
 					else if (curwall.portal >= 0) {
-						if (hitPortal == 1) {
-							hitPortal = 0;
+						if (hit_portal) {
+							hit_portal = false;
 							t = 2;
 							break;
 						}
-						hitPortal = 1;
-						newSec = get_sector(curwall.portal);
+						hit_portal = true;
+						sec_new = get_sector(curwall.portal);
 					}
 			}
 		}
-		if (hitPortal) {
+		if (hit_portal) {
 			t = 0;
-			hitPortal = 0;
-			curSec = newSec;
-			p->sector = curSec->id;
-			if (p->z < EYEHEIGHT + curSec->zfloor) p->z = EYEHEIGHT + curSec->zfloor;
-			else if (p->z > EYEHEIGHT + curSec->zfloor) p->inAir = 1;
+			hit_portal = false;
+			cur_sec = sec_new;
+			p->sector = cur_sec->id;
+			if (p->z < eyeheight + cur_sec->zfloor) p->z = eyeheight + cur_sec->zfloor;
+			else if (p->z > eyeheight + cur_sec->zfloor) p->in_air = true;
 		}
 	}
 
@@ -194,11 +208,11 @@ u8 trymove_entity(Entity* e, u8 gravityactive) {
 
 	if (gravityactive) {
 		//vertical collision detection
-		const f32 gravity = -GRAVITY * FRAMETICKS;
+		const f32 gravity = -GRAVITY;
 
 		if (e->inAir) {
 			e->velocity.z += gravity;
-			f32 dvel = e->velocity.z * FRAMETICKS;
+			f32 dvel = e->velocity.z;
 			//floor collision
 			if (e->velocity.z < 0 && (e->z + dvel) < (curSec.zfloor + e->scale.y)) {
 				e->velocity.z = 0;
@@ -265,7 +279,7 @@ u8 trymove_entity(Entity* e, u8 gravityactive) {
 	return hit;
 }
 Sector* get_sector(i32 index) {
-	if (index > map->sectornum) return NULL;
+	if (index > map->sectoramt) return NULL;
 	else return &map->sectors[index];
 }
 
@@ -274,8 +288,8 @@ Wall* get_wall(i32 index) {
 	else return &map->walls[index];
 }
 
-i32 get_sectornum() {
-	return map->sectornum;
+i32 get_sectoramt() {
+	return map->sectoramt;
 }
 
 bool spawn_decal(v2 wallpos, f32 floor_height, f32 ceil_height, Wall* curwall, f32 height) {
@@ -341,35 +355,10 @@ bool spawn_decal(v2 wallpos, f32 floor_height, f32 ceil_height, Wall* curwall, f
 	return false;
 }
 
-u8 check_hitscan_collsion(Player* p) {
-	Sector curSec = *get_sector(p->sector);
-	v2 intersection;
-	v2 pos = p->pos;
-	for (i32 i = curSec.index; i < curSec.index + curSec.numWalls; i++) {
-		Wall* curwall = &map->walls[i];
-		if ((POINTSIDE2D(pos.x, pos.y, curwall->a.x, curwall->a.y, curwall->b.x, curwall->b.y) < 0) &&
-			(get_line_intersection(pos, (v2) { pos.x + p->anglecos * 1000.0f, pos.y + p->anglesin * 1000.0f}, curwall->a, curwall->b, &intersection))) {
-			f32 stepl = curwall->portal >= 0 ? map->sectors[curwall->portal].zfloor : 10e10;
-			f32 steph = curwall->portal >= 0 ? map->sectors[curwall->portal].zceil : -10e10;
-			//collision with wall, top or lower part of portal
-			v2 pos = (v2){ intersection.x - curwall->a.x, intersection.y - curwall->a.y };
-			if (spawn_decal(pos, curSec.zfloor, curSec.zceil, curwall, p->z)) {
-				break;
-			}
-			//if hitscan projectile fits throught portal change sector
-			else if (curwall->portal >= 0) {
-				curSec = map->sectors[curwall->portal];
-				i = curSec.index;
-				pos = intersection;
-			}
-		}
-	}
-}
-
-
 
 bool move_sector_plane(Sector* sec, f32 speed, f32 dest, bool floor, bool up) {
 	i32 dir = up ? 1 : -1;
+	speed = speed * SECONDS_PER_FRAME;
 	f32 new_height;
 	if (floor) {
 		new_height = (speed * dir) + sec->zfloor;
@@ -423,4 +412,65 @@ bool move_sector_plane(Sector* sec, f32 speed, f32 dest, bool floor, bool up) {
 
 
 	return false;
+}
+
+
+f32 get_relative_decal_wall_height(Decal* d, Wall* wall, f32 cur_sec_floorz) {
+	f32 rel_decal_height = 0.0f;
+	// if decal is on the upper part of portal, then subtract neightbouring sector ceiling height, to get absolute position of decal on wall
+	switch (d->wall_type) {
+		// decal has absoute height
+		case WALL: {
+			rel_decal_height = d->wallpos.y - cur_sec_floorz;
+			break;
+		}
+				 // decal has height relative to floor of portal sector
+		case PORTAL_LOWER: {
+			Sector* sec = get_sector(wall->portal);
+			rel_decal_height = (d->wallpos.y + sec->zfloor) - cur_sec_floorz;
+			break;
+		}
+						 // decal has height relative to ceil of portal sector
+		case PORTAL_UPPER: {
+			Sector* sec = get_sector(wall->portal);
+			rel_decal_height = d->wallpos.y + sec->zceil;
+			break;
+		}
+	}
+	return rel_decal_height;
+}
+
+
+RaycastResult raycast(Sector* cursec, v2 pos, v2 target_pos, f32 z) {
+	if(cursec->zceil < z || cursec->zfloor > z) return (RaycastResult) { .hit = false };
+	v2 intersection;
+	for (i32 i = cursec->index; i < cursec->index + cursec->numWalls; i++) {
+		Wall* curwall = &map->walls[i];
+		i32 test = (POINTSIDE2D(pos.x, pos.y, curwall->a.x, curwall->a.y, curwall->b.x, curwall->b.y));
+		if ((POINTSIDE2D(pos.x, pos.y, curwall->a.x, curwall->a.y, curwall->b.x, curwall->b.y) < 0) && 
+			(get_line_intersection(pos, target_pos, curwall->a, curwall->b, &intersection))) {
+			// normal wall hit
+			if (curwall->portal == -1) {
+				v2 hit_pos = (v2){ intersection.x - curwall->a.x, intersection.y - curwall->a.y };
+				return (RaycastResult) {.hit = true, .wall_pos = hit_pos, .wall = curwall, .wall_sec = cursec};
+			}
+			// portal hit
+			else {
+				f32 stepl = get_sector(curwall->portal)->zfloor;
+				f32 steph = get_sector(curwall->portal)->zceil;
+				// top or bottom of portal hit
+				if (stepl > z || steph < z) {
+					v2 hit_pos = (v2){ intersection.x - curwall->a.x, intersection.y - curwall->a.y };
+					return (RaycastResult) { .hit = true, .wall_pos = hit_pos, .wall = curwall, .wall_sec = cursec };
+				}
+				// flight through portal, change sector
+				else {
+					cursec = get_sector(curwall->portal);
+					i = cursec->index;
+					pos = intersection;
+				}
+			}
+		}
+	}
+	return (RaycastResult) { .hit = false };
 }

@@ -39,8 +39,16 @@ typedef struct Map {
 	Wall walls[WALL_MAX];
 	i32 wallnum;
 	Sector sectors[SECTOR_MAX];
-	i32 sectornum;
+	i32 sectoramt;
 } Map;
+
+
+typedef struct RaycastResult {
+	bool hit;
+	v2 wall_pos;
+	Wall* wall;
+	Sector* wall_sec;
+}RaycastResult;
 
 
 void load_level(Map* map);
@@ -50,8 +58,11 @@ void trymove_player(Player* p);
 u8 trymove_entity(Entity* e, u8 gravityactive);
 Sector* get_sector(i32 index);
 Wall* get_wall(i32 index);
-i32 get_sectornum();
-u8 check_hitscan_collsion(Player* p);
+i32 get_sectoramt();
+f32 get_relative_decal_wall_height(Decal* d, Wall* wall, f32 cur_sec_floorz);
+bool spawn_decal(v2 wallpos, f32 floor_height, f32 ceil_height, Wall* curwall, f32 height);
+
+RaycastResult raycast(Sector* cursec, v2 pos, v2 target_pos, f32 z);
 
 bool move_sector_plane(Sector* sec, f32 speed, f32 dest, bool floor, bool up);
 

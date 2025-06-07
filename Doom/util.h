@@ -37,10 +37,13 @@ typedef struct v3u_s8 { i32 x, y, z; } v3u8;
 //#define SCREEN_WIDTH 1920	
 //#define SCREEN_HEIGHT 1080
 
-#define EYEHEIGHT 6
-#define SNEAKHEIGHT 2.5f
-#define HEADMARGIN 1  
-#define STEPHEIGHT 2    
+#define EYEHEIGHT 6.0f
+#define SNEAKHEIGHT 4.5f
+#define HEADMARGIN 1.0f 
+#define STEPHEIGHT 2.0f
+#define PLAYERSPEED 20.0f
+#define PLAYERSNEAKSPEED 10.0f
+
 #define HFOV PI_2
 #define VFOV 1.0f   
 #define LIGHTDIMINISHINGDFACTOR 0.1f
@@ -56,7 +59,8 @@ typedef struct v3u_s8 { i32 x, y, z; } v3u8;
 #define MAXPLATFORMS 100
 
 #define SCREEN_FPS 240
-#define SCREEN_TICKS_PER_FRAME (1000 / SCREEN_FPS)
+#define SECONDS_PER_FRAME (1.0f / SCREEN_FPS)
+#define MS_PER_UPDATE (1000.0f / SCREEN_FPS)
 
 #define RED 0xFFFF0000
 #define GREEN 0xFF00FF00
@@ -72,10 +76,6 @@ typedef struct v3u_s8 { i32 x, y, z; } v3u8;
 #define LIGHTING 0
 
 #define GRAVITY 80.0f
-
-#define FRAMETICKS ((f32)deltaTime / 1000.0f);
-
-i32 deltaTime;
 
 typedef struct Texture {
 	u32* pixels;

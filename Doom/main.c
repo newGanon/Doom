@@ -24,6 +24,7 @@ struct {
 	Map map;
 	Player player;
 	bool KEYS[SDL_NUM_SCANCODES];
+	f32 deltaTimeAcc;
 } state;
 
 
@@ -33,16 +34,18 @@ void render();
 void close();
 void sdl_init();
 
+// TODO: implement proper player and enitiy collision detection where player hitbox is a circle
 
 int main(int argc, char* args[]) {
-
 	init();
 	
 	i32 a, b = 0;
 	SDL_Event e;
 
+	//fps calc
+	i32 last_render = SDL_GetTicks();
+
 	while (!state.quit) {
-		a = SDL_GetTicks();
 		while (SDL_PollEvent(&e) != 0) {
 			/*TODO: handle events*/
 			switch (e.type) {
@@ -59,7 +62,7 @@ int main(int argc, char* args[]) {
 				case SDL_MOUSEBUTTONDOWN: {
 					if (e.button.button == SDL_BUTTON_LEFT) {
 						if (!state.player.shoot) {
-							state.player.shoot = 1;
+							state.player.shoot = true;
 						}
 					}
 					break; 
@@ -74,16 +77,20 @@ int main(int argc, char* args[]) {
 				}
 			}
 		}
-		deltaTime = a - b;
-		if (deltaTime > SCREEN_TICKS_PER_FRAME) {
-			printf("%i\n", 1000/(a - b));
-			if (state.KEYS[SDL_SCANCODE_E]) {
-				printf("TEST");
-				state.KEYS[SDL_SCANCODE_E] = false;
+		a = SDL_GetTicks();
+		state.deltaTimeAcc += a - b;
+		b = a;
+		if (state.deltaTimeAcc >= MS_PER_UPDATE) {
+			while (state.deltaTimeAcc > MS_PER_UPDATE) {
+				update();
+				state.deltaTimeAcc -= MS_PER_UPDATE;
 			}
-			b = a;
-			update();
 			render();
+			//fps calc
+			i32 cur_time = b;
+			i32 render_diff = cur_time - last_render;
+			last_render = cur_time;
+			//printf("FPS: %f\n", (1000.0f/ render_diff));
 		}
 	}
 	close();
@@ -124,7 +131,7 @@ void render() {
 
 void update() {
 	sort_walls(&state.player);
-	player_tick(&state.player);
+	player_tick(&state.player, state.KEYS);
 	sort_entities(&state.player);
 	run_tickers();
 	check_entity_collisions(&state.player);
@@ -198,7 +205,7 @@ void init() {
 	state.player.pos = (v2){ 20.0f, 20.0f};
 	state.player.sector = 0;
 	state.player.z = EYEHEIGHT + state.map.sectors[state.player.sector].zfloor;
-	state.player.inAir = 0;
+	state.player.in_air = false;
 	state.player.speed = 20.0f;
 
 	state.player.angle = PI_2;

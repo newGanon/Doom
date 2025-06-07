@@ -251,7 +251,7 @@ void draw_wall_3d(Player player, Texture* tex, WallRenderingInfo* now, u32 rd)
 				a2 = atan2(p2.y, p2.x) - PI / 2;
 			}
 		}
-		if (a1 < a2 || a2 < -(HFOV / 2) - 0.001f || a1 > +(HFOV / 2) + 0.001f) continue;
+		if (a1 < a2 || a2 < -(HFOV / 2) - 0.01f || a1 > +(HFOV / 2) + 0.01f) continue;
 
 		//convert the angle of the wall into screen coordinates (player FOV is 90 degrees or 1/2 PI)
 		i32 tx1 = screen_angle_to_x(a1);
@@ -441,27 +441,12 @@ void draw_tex_line(i32 x, i32 y0, i32 y1, i32 yf, i32 yc, i32 ayf, f64 u, Textur
 	bool decal[SCREEN_HEIGHT] = { false };
 	for (Decal* d = wall->decalhead; d != NULL; d = d->next) {
 		if (d->wall_type != type) continue;
-		f32 rel_decal_height = 0.0f;
-		// if decal is on the upper part of portal, then subtract neightbouring sector ceiling height, to get absolute position of decal on wall
-		switch (d->wall_type) {
-			// decal has absoute height
-			case WALL: {
-				rel_decal_height = d->wallpos.y - sec_floor_height;
-				break;
-			}
-			// decal has height relative to floor of portal sector
-			case PORTAL_LOWER: {
-				Sector* sec = get_sector(wall->portal);
-				rel_decal_height = (d->wallpos.y + sec->zfloor) - sec_floor_height;
-				break;
-			}
-			// decal has height relative to ceil of portal sector
-			case PORTAL_UPPER: {
-				Sector* sec = get_sector(wall->portal);
-				rel_decal_height = d->wallpos.y;
-				break;
-			}
-		}
+		f32 rel_decal_height = get_relative_decal_wall_height(d, wall, sec_floor_height);
+		// if the decal is on the top portal, then sbtract the height of the neighbouring sector, as the thats where the bottom of the wall
+		if (d->wall_type == PORTAL_UPPER) {
+			Sector* sec = get_sector(wall->portal);
+			rel_decal_height -= sec->zceil;
+		} 
 		// if decal is above wall
 		if (rel_decal_height > wallheight || rel_decal_height < -d->size.y) continue;
 		// decal not in current stripe of wall, check next decal
@@ -813,7 +798,7 @@ void draw_sprites(Player player, Texture* tex, EntityHandler* h) {
 void draw_minimap(Player player) {
 	v2i mapoffset = (v2i){ 100 , SCREEN_HEIGHT - 200 };
 
-	i32 sectornum = get_sectornum();
+	i32 sectornum = get_sectoramt();
 	for (i32 j = 0; j < sectornum; j++)
 	{
 		Sector sec = *get_sector(j);

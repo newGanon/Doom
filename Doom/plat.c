@@ -4,7 +4,7 @@
 Platform* activeplats[MAXPLATFORMS];
 
 i32 find_sector_from_tag(i32 tag, i32 sec_start) {
-	i32 num_of_sectors = get_sectornum();
+	i32 num_of_sectors = get_sectoramt();
 	for (size_t i = sec_start; i < num_of_sectors; i++) {
 		Sector* sec = get_sector(i);
 		if (sec->tag == tag) return i;
@@ -13,12 +13,12 @@ i32 find_sector_from_tag(i32 tag, i32 sec_start) {
 
 void add_plat(Platform* plat) {
 	for (size_t i = 0; i < MAXPLATFORMS; i++) {
-		if (activeplats[i] = NULL) {
+		if (activeplats[i] == NULL) {
 			activeplats[i] = plat;
 			return;
 		}
-		fprintf(stderr, "PLATS FULL\n");
 	}
+	fprintf(stderr, "PLATS FULL\n");
 }
 
 void plat_move(Platform* plat) {
@@ -71,7 +71,7 @@ void create_plat(i32 tag, plat_type type, bool floor) {
 
 		switch (type) {
 			case INFINITE_UP_DOWN: {
-				plat->speed = 0.1f;
+				plat->speed = 10.0f;
 				plat->low = sec->zfloor;
 				plat->high = sec->zceil;
 				plat->status = UP;

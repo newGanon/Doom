@@ -4,45 +4,56 @@
 #include "map.h"
 #include "entity.h"
 
-void calc_playervelocity(Player* p);
+void calc_playervelocity(Player* p, bool* KEYS);
 void check_shoot(Player* p);
+void p_interact(Player* p);
 
-void player_tick(Player* p) {
-	const u8* keyboardstate = SDL_GetKeyboardState(NULL);
+void player_tick(Player* p, bool* KEYS) {
+	//const u8* keyboardstate = SDL_GetKeyboardState(NULL);
 
-	//move player
-	calc_playervelocity(p);
+	// check for player pressing interaction key
+	if (KEYS[SDL_SCANCODE_E]) {
+		p_interact(p);
+		KEYS[SDL_SCANCODE_E] = false;
+	}
+
+	p->sneak = KEYS[SDL_SCANCODE_LSHIFT] ? true : false;
+	p->speed = p->sneak ? PLAYERSNEAKSPEED : PLAYERSPEED;
+
+	calc_playervelocity(p, KEYS);
 	trymove_player(p);
 	check_shoot(p);
-	
-	//reset player pos
-	if (keyboardstate[SDL_SCANCODE_R]) {
-		p->pos = (v2){ 20.0f, 20.0f};
+
+	// reset player pos
+	if (KEYS[SDL_SCANCODE_R] || p->dead) {
+		p->pos = (v2){ 20.0f, 20.0f };
 		p->z = EYEHEIGHT;
-		p->sector = 0; 
+		p->sector = 0;
+		KEYS[SDL_SCANCODE_R] = false;
+		p->dead = false;
 	}
 }
 
 
-void calc_playervelocity(Player* p) {
-	const f32 movespeed = p->speed * FRAMETICKS;
-	const u8* keyboardstate = SDL_GetKeyboardState(NULL);
+void calc_playervelocity(Player* p, bool* KEYS) {
+	const f32 movespeed = p->speed * SECONDS_PER_FRAME;
+	//const u8* keyboardstate = SDL_GetKeyboardState(NULL);
 
 	//vertical velocity calc
-	if (keyboardstate[SDL_SCANCODE_SPACE] && !p->inAir) {
-		p->inAir = 1;
+	if (KEYS[SDL_SCANCODE_SPACE] && !p->in_air) {
+		p->in_air = true;
 		p->velocity.z = 30.0f;
 	}
 
 	//horizontal velocity calc
 	v2 dpos = { 0, 0 };
 
-	if (keyboardstate[SDL_SCANCODE_W]) { dpos.x += p->anglecos; dpos.y += p->anglesin; }
-	if (keyboardstate[SDL_SCANCODE_S]) { dpos.x -= p->anglecos; dpos.y -= p->anglesin; }
-	if (keyboardstate[SDL_SCANCODE_A]) { dpos.x -= p->anglesin; dpos.y += p->anglecos; }
-	if (keyboardstate[SDL_SCANCODE_D]) { dpos.x += p->anglesin; dpos.y -= p->anglecos;}
+	if (KEYS[SDL_SCANCODE_W]) { dpos.x += p->anglecos; dpos.y += p->anglesin; }
+	if (KEYS[SDL_SCANCODE_S]) { dpos.x -= p->anglecos; dpos.y -= p->anglesin; }
+	if (KEYS[SDL_SCANCODE_A]) { dpos.x -= p->anglesin; dpos.y += p->anglecos; }
+	if (KEYS[SDL_SCANCODE_D]) { dpos.x += p->anglesin; dpos.y -= p->anglecos;}
 
-	u8 moved = keyboardstate[SDL_SCANCODE_W] || keyboardstate[SDL_SCANCODE_S] || keyboardstate[SDL_SCANCODE_A] || keyboardstate[SDL_SCANCODE_D];
+	u8 moved = KEYS[SDL_SCANCODE_W] || KEYS[SDL_SCANCODE_S] || KEYS[SDL_SCANCODE_A] || KEYS[SDL_SCANCODE_D];
 
 	f32 acceleration = moved ? 0.4 : 0.3;
 
@@ -56,7 +67,7 @@ void calc_playervelocity(Player* p) {
 
 void check_shoot(Player* p) {
 	if (!p->shoot) return;
-	p->shoot = 0;
+	p->shoot = false;
 	i32 weapon = 0;
 
 	switch (weapon) {
@@ -80,9 +91,27 @@ void check_shoot(Player* p) {
 			break;
 		}
 		case 1: {
-			check_hitscan_collsion(p);
+			RaycastResult res = raycast(get_sector(p->sector), p->pos, (v2) { p->pos.x + p->anglecos * 1000.0f, p->pos.y + p->anglesin * 1000.0f }, p->z);
+			if (res.hit) {
+				spawn_decal(res.wall_pos, res.wall_sec->zfloor, res.wall_sec->zceil, res.wall, p->z);
+			}
 			break;
 		}
 		default: break;
+	}
+}
+
+void p_interact(Player* p) {
+	Sector* cursec = get_sector(p->sector);
+	RaycastResult res = raycast(cursec, p->pos, (v2) { p->pos. x + p->anglecos * 1000.0f, p->pos.y + p->anglesin * 1000.0f }, p->z);
+	if (res.hit) {
+		v2 wallpos = res.wall_pos;
+		for (Decal* d = res.wall->decalhead; d != NULL; d = d->next) {
+			get_relative_decal_wall_height(d, res.wall, cursec->zfloor);
+			v2 relative_wallpos = (v2){ sqrt(wallpos.x * wallpos.x + wallpos.y * wallpos.y), p->z };
+			if (relative_wallpos.x > d->wallpos.x && relative_wallpos.x < (d->wallpos.x + d->size.x) && relative_wallpos.y > d->wallpos.y && relative_wallpos.y < (d->wallpos.y + d->size.y)) {
+				printf("HITT\n");
+			}
+		}
 	}
 }

@@ -8,8 +8,8 @@ typedef struct Player {
 	f32 angle, anglecos, anglesin;
 	f32 speed;
 	u32 sector;
-	u8 shoot, inAir;
+	bool shoot, in_air, dead, sneak;
 }Player;
 
-void player_tick(Player* p);
+void player_tick(Player* p, bool* KEYS);
 void check_shoot(Player* p);

@@ -49,6 +49,15 @@ void plat_move(Platform* plat) {
 	}
 }
 
+void try_reverse_move(Sector* sec, plat_type type, bool floor) {
+	Platform* old_plat = (Platform*)sec->specialdata;
+	if (old_plat->type != type || !old_plat->reverseable) return;
+
+	if (old_plat->status == UP)  old_plat->status = DOWN; 
+	else if (old_plat->status == DOWN)  old_plat->status = UP; 
+}
+
+
 void create_plat(i32 tag, plat_type type, bool floor) {
 	Platform* plat;
 	i32 secnum = 0;
@@ -56,8 +65,11 @@ void create_plat(i32 tag, plat_type type, bool floor) {
 
 	while ((secnum = find_sector_from_tag(tag, secnum)) >= 0) {
 		sec = get_sector(secnum);
-		// return if sector tag has already been triggered
-		if (sec->specialdata) return;
+		// if sector already has an action try to reverse it
+		if (sec->specialdata) {
+			try_reverse_move(sec, type, floor);
+			return;
+		}
 
 		plat = malloc(sizeof(Platform));
 		if (!plat) return;
@@ -75,9 +87,11 @@ void create_plat(i32 tag, plat_type type, bool floor) {
 				plat->low = sec->zfloor;
 				plat->high = sec->zceil;
 				plat->status = UP;
+				plat->reverseable = true;
 				break;
 			}
 		}
 		add_plat(plat);
+		break;
 	}
 }

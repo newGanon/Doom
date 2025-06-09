@@ -18,7 +18,7 @@ typedef struct visplane_t {
 
 } visplane_t;
 
-void draw_pixel(i32 x, i32 y, u32 color);
+void inline draw_pixel(i32 x, i32 y, u32 color);
 void draw_tex_line(i32 x, i32 y0, i32 y1, i32 yf, i32 yc, i32 ayf, f64 u, Texture* tex, f32 shade, f32 dis, f32 sec_floor_height, f32 wallheight, f32 wallwidth, Wall* wall, wall_section_type type);
 void draw_wall_3d(Player player, Texture* tex, WallRenderingInfo* now, u32 rd);
 void draw_planes_3d(Player player, Texture* tex);
@@ -74,10 +74,11 @@ u16 floorclip[SCREEN_WIDTH * SECTOR_MAX];
 i32 spanstart[SCREEN_HEIGHT];
 
 
-void draw_pixel(i32 x, i32 y, u32 color) {
-	if (x >= 0 && x < SCREEN_WIDTH && y >= 0 && y < SCREEN_HEIGHT && !is_transparent(color)) {
-		pixels[y * SCREEN_WIDTH + x] = color;
-	}
+void inline draw_pixel(i32 x, i32 y, u32 color) {
+	//if (x >= 0 && x < SCREEN_WIDTH && y >= 0 && y < SCREEN_HEIGHT && !is_transparent(color)) {
+	//	pixels[y * SCREEN_WIDTH + x] = color;
+	//}
+	pixels[y * SCREEN_WIDTH + x] = color;
 }
 
 void draw_init(u32* pixels1) {
@@ -201,6 +202,8 @@ void draw_circle(i32 x0, i32 y0, i32 a, i32 b, u32 color) {
 	}
 }
 
+
+// TODO: implement faster lightmap lookuptables
 u32 inline change_rgb_brightness(u32 color, f32 factor) {
 	//return color;
 	i32 a = (color & 0xFF000000);
@@ -233,22 +236,22 @@ void draw_wall_3d(Player player, Texture* tex, WallRenderingInfo* now, u32 rd)
 		v2 tp1 = p1;
 		v2 tp2 = p2;
 
-		f32 a1 = atan2(p1.y, p1.x) - PI / 2;
-		f32 a2 = atan2(p2.y, p2.x) - PI / 2;
+		f32 a1 = atan2(p1.y, p1.x) - PI_2;
+		f32 a2 = atan2(p2.y, p2.x) - PI_2;
 
 		//calculate intersection between walls and view frustum and clip walls
-		if (p1.y < ZNEAR || p2.y < ZNEAR || a1 > +(HFOV / 2) || a2 < -(HFOV / 2)) {
+		if (p1.y <= ZNEAR || p2.y <= ZNEAR || a1 >= +(HFOV / 2) || a2 <= -(HFOV / 2)) {
 			v2 il;
 			i32 hitl = get_line_intersection(p1, p2, znl, zfl, &il);
 			v2 ir;
 			i32 hitr = get_line_intersection(p1, p2, znr, zfr, &ir);
 			if (hitl) {
 				p1 = il;
-				a1 = atan2(p1.y, p1.x) - PI / 2;
+				a1 = atan2(p1.y, p1.x) - PI_2;
 			}
 			if (hitr) {
 				p2 = ir;
-				a2 = atan2(p2.y, p2.x) - PI / 2;
+				a2 = atan2(p2.y, p2.x) - PI_2;
 			}
 		}
 		if (a1 < a2 || a2 < -(HFOV / 2) - 0.01f || a1 > +(HFOV / 2) + 0.01f) continue;
@@ -785,9 +788,11 @@ void draw_sprites(Player player, Texture* tex, EntityHandler* h) {
 			for (i32 x = x0_clamp; x < x1_clamp; x++) {
 				if (zBuffer[y * SCREEN_WIDTH + x] > e.relCamPos.y) {
 					u32 color = sprite.pixels[(i32)ty * sprite.width + (i32)tx];
-					color = change_rgb_brightness(color, pixelshade);
-					draw_pixel(x, y, color);
-					if ((color & 0xFF000000) != 0) zBuffer[y * SCREEN_WIDTH + x] = e.relCamPos.y;
+					if (!is_transparent(color)) {
+						color = change_rgb_brightness(color, pixelshade);
+						draw_pixel(x, y, color);
+						if ((color & 0xFF000000) != 0) zBuffer[y * SCREEN_WIDTH + x] = e.relCamPos.y;
+					}
 				}
 				tx += stepx;
 			}
@@ -817,6 +822,13 @@ u8 inline is_transparent(u32 color) {
 }
 
 
+
+// true_low and true_high are the pixel coordinates of where the sprite is in full
+// low and high are the pixel coordinates where the sprite is on screen with clipping
+// tex_size is the size of the texture
+// scale is how often the texture should be applied to the range from true_low to true_high
+
+// return texture y pos to start and stop and step for each update, textures are anchored at the bottom, so texture drawing starts at y pos 0 at the bottom of the object
 v3 calc_tex_start_and_step(f32 true_low, f32 true_high, f32 low, f32 high, i32 tex_size, f32 scale) {
 	f32 t0 = (1.0 - ((low  - true_low) / (f64)(true_high - true_low))) * tex_size * scale;
 	f32 t1 = (1.0 - ((high - true_low) / (f64)(true_high - true_low))) * tex_size * scale;
@@ -824,10 +836,7 @@ v3 calc_tex_start_and_step(f32 true_low, f32 true_high, f32 low, f32 high, i32 t
 	return(v3) {t0, t1, step};
 }
 
-// true_low and true_high are the pixel coordinates of where the sprite is in full
-// low and high are the pixel coordinates where the sprite is on screen with clipping
-// tex_size is the size of the texture
-// scale is how often the texture should be applied to the range from true_low to true_high
+// return texture y pos if texture is anchored at the bottom and texture y pos if texture is anchored at the top, with a step
 v3 calc_tex_low_high_and_step(f32 true_low, f32 true_high, f32 low, f32 high, i32 tex_size, f32 scale) {
 	f32 step = -(tex_size / (f32)(true_high - true_low));
 	// add how many pixels are cut off the bottom
@@ -837,7 +846,7 @@ v3 calc_tex_low_high_and_step(f32 true_low, f32 true_high, f32 low, f32 high, i3
 	return (v3) { start_low * scale, start_high * scale, step * scale};
 }
 
-
+// return texture y pos to start and step for each update, textures are anchored at the bottom
 v2 calc_tex_start_and_step_abs(f32 true_abs_low, f32 true_low, f32 true_high, f32 low, f32 high, i32 tex_size, f32 scale){
 	f32 step = -(tex_size / (f32)(true_high - true_abs_low));
 	// add how many pixels are cut off the bottom

@@ -4,8 +4,6 @@
 
 Map* map;
 
-bool spawn_decal(v2 wallpos, f32 floor_height, f32 ceil_height, Wall* curwall, f32 height);
-
 void load_level(Map* map1) {
 	map = map1;
 	FILE* fp = NULL;
@@ -240,8 +238,9 @@ u8 trymove_entity(Entity* e, u8 gravityactive) {
 			f32 stepl = curwall->portal >= 0 ? map->sectors[curwall->portal].zfloor : 10e10;
 			f32 steph = curwall->portal >= 0 ? map->sectors[curwall->portal].zceil : -10e10;
 			if (e->type == Projectile) {
-				v2 pos = (v2){ intersection.x - curwall->a.x, intersection.y - curwall->a.y };
-				if (spawn_decal(pos, curSec.zfloor, curSec.zceil, curwall, e->z)) {
+				v2 mappos = (v2){ intersection.x - curwall->a.x, intersection.y - curwall->a.y };
+				v2 wallpos = (v2){ sqrt(mappos.x * mappos.x + mappos.y * mappos.y), e->z };
+				if (spawn_decal(wallpos, curwall, (v2) {2.0f, 2.0f}, 1)) {
 					hit = 1;
 					break;
 				}
@@ -292,8 +291,7 @@ i32 get_sectoramt() {
 	return map->sectoramt;
 }
 
-bool spawn_decal(v2 wallpos, f32 floor_height, f32 ceil_height, Wall* curwall, f32 height) {
-	f32 len = sqrt(wallpos.x * wallpos.x + wallpos.y * wallpos.y);
+Decal* spawn_decal(v2 wallpos, Wall* curwall, v2 size, i32 tex_id) {
 	f32 stepl = curwall->portal >= 0 ? map->sectors[curwall->portal].zfloor : 10e10;
 	f32 steph = curwall->portal >= 0 ? map->sectors[curwall->portal].zceil : -10e10;
 
@@ -302,43 +300,43 @@ bool spawn_decal(v2 wallpos, f32 floor_height, f32 ceil_height, Wall* curwall, f
 		type = WALL;
 	}
 	// collision lower part of portal
-	else if (stepl > height) {
+	else if (stepl > wallpos.y) {
 		type = PORTAL_LOWER;
 	}
 	// collision with upper part of portal
-	else if (steph < height) {
+	else if (steph < wallpos.y) {
 		type = PORTAL_UPPER;
 	}
-	if (type == NONE) return false;
+	if (type == NONE) return NULL;
 
 
 	Decal* decal = malloc(sizeof(Decal));
 	if (decal) {
-		decal->tex = get_texture(1);
+		decal->tex = get_texture(tex_id);
 		decal->next = NULL;
 		decal->prev = NULL;
-		decal->size = (v2){ 2.0f, 2.0f };
+		decal->size = size;
 		decal->wall_type = type;
 		f32 decal_height = 0.0f;
 		switch (type) {
 			// decal has absoute height
 			case WALL: {
-				decal_height = height;
+				decal_height = wallpos.y;
 				break;
 			}
 			// decal has height relative to floor of portal sector
 			case PORTAL_LOWER: {
-				decal_height = height - stepl;
+				decal_height = wallpos.y - stepl;
 				break;
 			}
 			// decal has height relative to ceil of portal sector
 			case PORTAL_UPPER: {
-				decal_height = height - steph;
+				decal_height = wallpos.y - steph;
 				break;
 			}
 		}
 		// offset position a little as the wallpos is the bottom left corner of the decal
-		decal->wallpos = (v2){ len - (decal->size.x / 2.0f), decal_height - (decal->size.y / 2.0f)};
+		decal->wallpos = (v2){ wallpos.x - (decal->size.x / 2.0f), decal_height - (decal->size.y / 2.0f)};
 
 		// add the decal to the decal linked list of the wall
 		if (curwall->decalhead == NULL) {
@@ -350,9 +348,9 @@ bool spawn_decal(v2 wallpos, f32 floor_height, f32 ceil_height, Wall* curwall, f
 			curdecal->next = decal;
 			decal->prev = curdecal;
 		}
-		return true;
+		return decal;
 	}
-	return false;
+	return NULL;
 }
 
 

@@ -90,7 +90,7 @@ int main(int argc, char* args[]) {
 			i32 cur_time = b;
 			i32 render_diff = cur_time - last_render;
 			last_render = cur_time;
-			//printf("FPS: %f\n", (1000.0f/ render_diff));
+			printf("FPS: %f\n", (1000.0f/ render_diff));
 		}
 	}
 	close();
@@ -184,19 +184,13 @@ void init() {
 	}
 
 	Decal* decal = malloc(sizeof(Decal));
-	if (decal) {
-		decal->tex = &state.textures[1];
-		decal->wallpos = (v2){ 3.0f, 4.0f };
-		decal->next = NULL;
-		decal->prev = NULL;
-		decal->size = (v2){ 4.0f, 4.0f };;
+	Decal* d = spawn_decal((v2) { 5.0f, 6.0f }, & state.map.walls[5], (v2) { 5.0f, 5.0f }, 1);
+	d->tag = 1;
 
-		state.map.walls[0].decalhead = decal;
-	}
 
 
 	state.map.sectors[6].tag = 1;
-	create_plat(1, INFINITE_UP_DOWN, true);
+	//create_plat(1, INFINITE_UP_DOWN, true);
 
 	state.map.sectors[5].tag = 2;
 	create_plat(2, INFINITE_UP_DOWN, false);

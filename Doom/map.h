@@ -60,7 +60,8 @@ Sector* get_sector(i32 index);
 Wall* get_wall(i32 index);
 i32 get_sectoramt();
 f32 get_relative_decal_wall_height(Decal* d, Wall* wall, f32 cur_sec_floorz);
-bool spawn_decal(v2 wallpos, f32 floor_height, f32 ceil_height, Wall* curwall, f32 height);
+
+Decal* spawn_decal(v2 wallpos, Wall* curwall, v2 size, i32 tex_id);
 
 RaycastResult raycast(Sector* cursec, v2 pos, v2 target_pos, f32 z);
 

@@ -3,6 +3,7 @@
 #include "math.h"
 #include "map.h"
 #include "entity.h"
+#include "plat.h"
 
 void calc_playervelocity(Player* p, bool* KEYS);
 void check_shoot(Player* p);
@@ -93,7 +94,8 @@ void check_shoot(Player* p) {
 		case 1: {
 			RaycastResult res = raycast(get_sector(p->sector), p->pos, (v2) { p->pos.x + p->anglecos * 1000.0f, p->pos.y + p->anglesin * 1000.0f }, p->z);
 			if (res.hit) {
-				spawn_decal(res.wall_pos, res.wall_sec->zfloor, res.wall_sec->zceil, res.wall, p->z);
+				v2 wallpos = (v2){ sqrt(res.wall_pos.x * res.wall_pos.x + res.wall_pos.y * res.wall_pos.y), p->z };
+				spawn_decal(wallpos, res.wall, (v2) { 2.0f, 2.0f }, 1);
 			}
 			break;
 		}
@@ -110,7 +112,7 @@ void p_interact(Player* p) {
 			get_relative_decal_wall_height(d, res.wall, cursec->zfloor);
 			v2 relative_wallpos = (v2){ sqrt(wallpos.x * wallpos.x + wallpos.y * wallpos.y), p->z };
 			if (relative_wallpos.x > d->wallpos.x && relative_wallpos.x < (d->wallpos.x + d->size.x) && relative_wallpos.y > d->wallpos.y && relative_wallpos.y < (d->wallpos.y + d->size.y)) {
-				printf("HITT\n");
+				create_plat(d->tag, INFINITE_UP_DOWN, true);
 			}
 		}
 	}

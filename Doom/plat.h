@@ -22,6 +22,7 @@ typedef struct Platform {
 	plat_status status;
 	plat_type type;
 	bool floor;
+	bool reverseable;
 } Platform;
 
 void create_plat(i32 tag, plat_type type, bool floor);

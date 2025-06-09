@@ -22,11 +22,11 @@ typedef size_t   usize;
 
 typedef struct v2_s { f32 x, y; } v2;
 typedef struct v2i_s { i32 x, y; } v2i;
-typedef struct v2u_s8 { i32 x, y; } v2u8;
+typedef struct v2u8_s { u8 x, y; } v2u8;
 
 typedef struct v3_s { f32 x, y, z; } v3;
 typedef struct v3i_s { i32 x, y, z; } v3i;
-typedef struct v3u_s8 { i32 x, y, z; } v3u8;
+typedef struct v3u8_s { u8 x, y, z; } v3u8;
 
 #define PI   3.14159265359f
 #define PI_2 1.57079632679f
@@ -49,7 +49,8 @@ typedef struct v3u_s8 { i32 x, y, z; } v3u8;
 #define LIGHTDIMINISHINGDFACTOR 0.1f
 #define PLAYERTOATIONSPEED 0.001f
 
-#define ZNEAR 0.0001f
+//#define ZNEAR 0.0001f
+#define ZNEAR 0.0f
 #define ZFAR 32768.0f
 
 #define SECTOR_MAX 256
@@ -59,8 +60,10 @@ typedef struct v3u_s8 { i32 x, y, z; } v3u8;
 #define MAXPLATFORMS 100
 
 #define SCREEN_FPS 240
-#define SECONDS_PER_FRAME (1.0f / SCREEN_FPS)
-#define MS_PER_UPDATE (1000.0f / SCREEN_FPS)
+//#define SECONDS_PER_FRAME (1.0f / SCREEN_FPS)
+//#define MS_PER_UPDATE (1000.0f / SCREEN_FPS)
+#define MS_PER_UPDATE 10.0f
+#define SECONDS_PER_FRAME (MS_PER_UPDATE / 1000)
 
 #define RED 0xFFFF0000
 #define GREEN 0xFF00FF00

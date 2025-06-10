@@ -16,7 +16,7 @@ typedef struct Decal {
 	struct Decal* prev;
 	i32 tag;
 	wall_section_type wall_type;
-	Texture* tex;
+	u32 tex_num;
 	v2 wallpos; // bottom left corner of decal
 	v2 size;  // width and height of the decal
 } Decal;

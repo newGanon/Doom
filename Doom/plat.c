@@ -59,6 +59,8 @@ void try_reverse_move(Sector* sec, plat_type type, bool floor) {
 
 
 void create_plat(i32 tag, plat_type type, bool floor) {
+	// tag 0 and below have no effect
+	if (tag <= 0) return;
 	Platform* plat;
 	i32 secnum = 0;
 	Sector* sec;

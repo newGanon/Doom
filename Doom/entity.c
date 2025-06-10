@@ -66,7 +66,7 @@ void calc_all_rel_cam_pos(Player* player) {
 
 
 void tick_item(Entity* item) {
-	f32 speed = 250.0f * SECONDS_PER_FRAME;
+	f32 speed = 250.0f * SECONDS_PER_UPDATE;
 	i32 totalanimationticks = 240;
 	i32 curtick = item->animationtick;
 	if (curtick > totalanimationticks / 2) curtick = totalanimationticks - curtick;
@@ -80,7 +80,7 @@ void tick_enemy(Entity* enemy) {
 	Player* player = enemy->target;
 	v2 dpos = { 0, 0 };
 	f32 acceleration = 0.3;
-	f32 movespeed = enemy->speed * SECONDS_PER_FRAME;
+	f32 movespeed = enemy->speed * SECONDS_PER_UPDATE;
 	u8 chasing = 0;
 
 	if (abs(enemy->z - player->z) < 10.0f) {
@@ -117,7 +117,7 @@ void tick_enemy(Entity* enemy) {
 }
 
 void tick_bullet(Entity* bullet) {
-	f32 movespeed = bullet->speed * SECONDS_PER_FRAME;
+	f32 movespeed = bullet->speed * SECONDS_PER_UPDATE;
 	v3 oldvel = bullet->velocity;
 	
 	bullet->velocity.x *= movespeed;

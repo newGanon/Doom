@@ -17,7 +17,8 @@ struct {
 	SDL_Surface* surfaces[100];
 	SDL_Renderer* renderer;
 	u32 pixels[SCREEN_WIDTH * SCREEN_HEIGHT];
-	Texture textures[1000];
+	Palette lightmap;
+	LightmapindexTexture index_textures[1000];
 
 	bool quit;
 	EntityHandler entityhandler;
@@ -100,7 +101,7 @@ int main(int argc, char* args[]) {
 void render() {
 	// clear pixel buffer
 	memset(state.pixels, 0, sizeof(state.pixels));
-	draw_3d(state.player, &state.textures, &state.entityhandler);
+	draw_3d(state.player, &state.entityhandler);
 
 	/* draw crosshair */
 	/* drawCircle(SCREEN_WIDTH / 2, SCREEN_HEIGHT / 2, 10, 10, RED); */
@@ -139,9 +140,8 @@ void update() {
 
 void init() {
 	sdl_init();
-	draw_init(state.pixels);
-	init_tex(&state.textures);
-	load_textures(&state.surfaces);
+	draw_init(state.pixels, &state.lightmap, state.index_textures);
+	init_tex(&state.surfaces, &state.lightmap, state.index_textures);
 	load_level(&state.map);
 	init_entityhandler(&state.entityhandler, 128);
 	init_tickers();
@@ -186,8 +186,6 @@ void init() {
 	Decal* decal = malloc(sizeof(Decal));
 	Decal* d = spawn_decal((v2) { 5.0f, 6.0f }, & state.map.walls[5], (v2) { 5.0f, 5.0f }, 1);
 	d->tag = 1;
-
-
 
 	state.map.sectors[6].tag = 1;
 	//create_plat(1, INFINITE_UP_DOWN, true);

@@ -89,7 +89,7 @@ void sort_walls(Player* p) {
 
 void trymove_player(Player* p) {
 	//vertical collision detection
-	const f32 gravity = -GRAVITY * SECONDS_PER_FRAME;
+	const f32 gravity = -GRAVITY * SECONDS_PER_UPDATE;
 	Sector* cur_sec = get_sector(p->sector);
 	f32 eyeheight = p->sneak ? SNEAKHEIGHT : EYEHEIGHT;
 
@@ -116,7 +116,7 @@ void trymove_player(Player* p) {
 
 	if (p->in_air) {
 		p->velocity.z += gravity;
-		f32 dvel = p->velocity.z * SECONDS_PER_FRAME;
+		f32 dvel = p->velocity.z * SECONDS_PER_UPDATE;
 		//floor collision
 		if (p->velocity.z < 0 && (p->z + dvel) < (cur_sec->zfloor + eyeheight)) {
 			p->velocity.z = 0;
@@ -312,7 +312,7 @@ Decal* spawn_decal(v2 wallpos, Wall* curwall, v2 size, i32 tex_id) {
 
 	Decal* decal = malloc(sizeof(Decal));
 	if (decal) {
-		decal->tex = get_texture(tex_id);
+		decal->tex_num = 1;
 		decal->next = NULL;
 		decal->prev = NULL;
 		decal->size = size;
@@ -356,7 +356,7 @@ Decal* spawn_decal(v2 wallpos, Wall* curwall, v2 size, i32 tex_id) {
 
 bool move_sector_plane(Sector* sec, f32 speed, f32 dest, bool floor, bool up) {
 	i32 dir = up ? 1 : -1;
-	speed = speed * SECONDS_PER_FRAME;
+	speed = speed * SECONDS_PER_UPDATE;
 	f32 new_height;
 	if (floor) {
 		new_height = (speed * dir) + sec->zfloor;

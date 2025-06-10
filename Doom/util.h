@@ -63,7 +63,7 @@ typedef struct v3u8_s { u8 x, y, z; } v3u8;
 //#define SECONDS_PER_FRAME (1.0f / SCREEN_FPS)
 //#define MS_PER_UPDATE (1000.0f / SCREEN_FPS)
 #define MS_PER_UPDATE 10.0f
-#define SECONDS_PER_FRAME (MS_PER_UPDATE / 1000)
+#define SECONDS_PER_UPDATE (MS_PER_UPDATE / 1000)
 
 #define RED 0xFFFF0000
 #define GREEN 0xFF00FF00
@@ -80,8 +80,7 @@ typedef struct v3u8_s { u8 x, y, z; } v3u8;
 
 #define GRAVITY 80.0f
 
-typedef struct Texture {
-	u32* pixels;
-	u32 width;
-	u32 height;
-}Texture;
+#define A(c) (((c) >> 24) & 0xFF)
+#define R(c) (((c) >> 16) & 0xFF)
+#define G(c) (((c) >> 8) & 0xFF)
+#define B(c) ((c) & 0xFF)

@@ -37,7 +37,7 @@ void player_tick(Player* p, bool* KEYS) {
 
 
 void calc_playervelocity(Player* p, bool* KEYS) {
-	const f32 movespeed = p->speed * SECONDS_PER_FRAME;
+	const f32 movespeed = p->speed * SECONDS_PER_UPDATE;
 	//const u8* keyboardstate = SDL_GetKeyboardState(NULL);
 
 	//vertical velocity calc

@@ -2,6 +2,7 @@
 #include "math.h"
 #include "map.h"
 
+
 typedef struct WallRenderingInfo {
 	int sectorno, sx1, sx2;
 	u8 renderedSectors[SECTOR_MAX];
@@ -18,15 +19,16 @@ typedef struct visplane_t {
 
 } visplane_t;
 
+
 void inline draw_pixel(i32 x, i32 y, u32 color);
-void draw_tex_line(i32 x, i32 y0, i32 y1, i32 yf, i32 yc, i32 ayf, f64 u, Texture* tex, f32 shade, f32 dis, f32 sec_floor_height, f32 wallheight, f32 wallwidth, Wall* wall, wall_section_type type);
-void draw_wall_3d(Player player, Texture* tex, WallRenderingInfo* now, u32 rd);
-void draw_planes_3d(Player player, Texture* tex);
-void make_spans(i32 x, i32 t1, i32 b1, i32 t2, i32 b2, visplane_t* v, Player player, Texture* tex);
-void map_plane(i32 y, i32 x1, i32 x2, visplane_t* v, Player player, Texture* tex);
+void draw_tex_line(i32 x, i32 y0, i32 y1, i32 yf, i32 yc, i32 ayf, f64 u, u8 shade, f32 dis, f32 sec_floor_height, f32 wallheight, f32 wallwidth, Wall* wall, wall_section_type type);
+void draw_wall_3d(Player player, WallRenderingInfo* now, u32 rd);
+void draw_planes_3d(Player player);
+void make_spans(i32 x, i32 t1, i32 b1, i32 t2, i32 b2, visplane_t* v, Player player);
+void map_plane(i32 y, i32 x1, i32 x2, visplane_t* v, Player player);
 void draw_minimap(Player player);
 void clear_planes();
-void draw_sprites(Player player, Texture* tex, EntityHandler* h);
+void draw_sprites(Player player, EntityHandler* h);
 void draw_vertical_line(i32 x, i32 y0, i32 y1, u32 color);
 void draw_line(i32 x0, i32 y0, i32 x1, i32 y1, u32 color);
 void draw_square(i32 x0, i32 y0, u32 size, u32 color);
@@ -57,7 +59,10 @@ visplane_t* ceilplane;
 
 v2 zdl, zdr, znl, znr, zfl, zfr;
 
+// global variables
 u32* pixels;
+Palette* lightmap;
+LightmapindexTexture* index_textures;
 
 //lockuptable of how far you would need to travel in y direction to move 1 in horizontal direction for each y value
 f32 yslope[SCREEN_HEIGHT];
@@ -81,9 +86,15 @@ void inline draw_pixel(i32 x, i32 y, u32 color) {
 	pixels[y * SCREEN_WIDTH + x] = color;
 }
 
-void draw_init(u32* pixels1) {
+void inline draw_pixel_from_lightmap(i32 x, i32 y, u8 index, u8 shade) {
+	pixels[y * SCREEN_WIDTH + x] = lightmap->colors[index][shade];
+}
+
+void draw_init(u32* pixels1, Palette* lightmap1, LightmapindexTexture* index_textures1) {
 	// init global render variables 
 	pixels = pixels1;
+	lightmap = lightmap1;
+	index_textures = index_textures1;
 
 	// yslope if camera had z position 1, this value is later scaled by the actual height value
 	for (i32 y = 0; y < SCREEN_HEIGHT; y++) {
@@ -105,12 +116,12 @@ void draw_init(u32* pixels1) {
 	zfr = (v2){ zdr.x * ZFAR, zdr.y * ZFAR };
 }
 
-void draw_3d(Player player, Texture* tex, EntityHandler* h) {
+void draw_3d(Player player, EntityHandler* h) {
 
 	clear_planes();
-	draw_wall_3d(player, tex, &(WallRenderingInfo) { player.sector, 0, SCREEN_WIDTH - 1, { 0 }}, 0);
-	draw_planes_3d(player, tex);
-	draw_sprites(player, tex, h);
+	draw_wall_3d(player, &(WallRenderingInfo) { player.sector, 0, SCREEN_WIDTH - 1, { 0 }}, 0);
+	draw_planes_3d(player);
+	draw_sprites(player, h);
 	draw_minimap(player);
 }
 
@@ -203,6 +214,18 @@ void draw_circle(i32 x0, i32 y0, i32 a, i32 b, u32 color) {
 }
 
 
+// return index to lightmap between 0 and 31 
+u8 calc_shade_from_distance(f32 dis){
+	if (dis < 0.0f) dis = 0.0f;
+	if (dis > 100.0f) dis = 100.0f;
+
+	// Map to [0, 31]
+	u8 shade = (u8)(dis / 100.0f * 31.0f);
+
+	return shade;
+}
+
+
 // TODO: implement faster lightmap lookuptables
 u32 inline change_rgb_brightness(u32 color, f32 factor) {
 	//return color;
@@ -222,7 +245,7 @@ f32 calc_flat_shade(f32 dis) {
 	return (f32)1 + fabsf(dis) * LIGHTDIMINISHINGDFACTOR;
 }
 
-void draw_wall_3d(Player player, Texture* tex, WallRenderingInfo* now, u32 rd)
+void draw_wall_3d(Player player, WallRenderingInfo* now, u32 rd)
 {
 	if (rd > 32) return;
 	Sector sec = *get_sector(now->sectorno);
@@ -366,9 +389,7 @@ void draw_wall_3d(Player player, Texture* tex, WallRenderingInfo* now, u32 rd)
 			//wall distance for lightlevel calc
 			f32 dis = tp1.y * (1 - u) + tp2.y * (u);
 
-			//TODO PROPER LIGHTING
-			f32 wallshade = calc_wall_shade(w.a, w.b, dis);
-			//f32 wallshade = 1;
+			u8 wallshade_index = calc_shade_from_distance(dis);
 
 			f32 wallheight;
 
@@ -381,7 +402,7 @@ void draw_wall_3d(Player player, Texture* tex, WallRenderingInfo* now, u32 rd)
 				//drawVerticalLine(x, yf, yc, color, pixels); wall in one color
 				if (yc > tyf && yf < tyc) {
 					f32 wallheight = sec.zceil - sec.zfloor;
-					draw_tex_line(x, yf, yc, tyf, tyc, tayf, u, tex, wallshade, dis, sec.zfloor, wallheight, wallwidth, &w, WALL);
+					draw_tex_line(x, yf, yc, tyf, tyc, tayf, u, wallshade_index, dis, sec.zfloor, wallheight, wallwidth, &w, WALL);
 				}
 				ceilingclip[x] = 0;
 				floorclip[x] = SCREEN_HEIGHT - 1;
@@ -399,14 +420,14 @@ void draw_wall_3d(Player player, Texture* tex, WallRenderingInfo* now, u32 rd)
 				//if (pyf > yf) { drawVerticalLine(x, yf, pyf, YELLOW, pixels); }
 				if (pyf > yf) { 
 					wallheight = nzfloor - sec.zfloor;
-					draw_tex_line(x, yf, pyf, tyf, tpyf, tayf, u, tex, wallshade, dis, sec.zfloor, wallheight, wallwidth, &w, PORTAL_LOWER);
+					draw_tex_line(x, yf, pyf, tyf, tpyf, tayf, u, wallshade_index, dis, sec.zfloor, wallheight, wallwidth, &w, PORTAL_LOWER);
 				}
 				//draw window
 				//drawVerticalLine(x, pyf, pyc, color, pixels);
 				//if neighborceiling is lower than current sectorceiling then draw it
 				if (pyc < yc) { 
 					wallheight = sec.zceil - nzceil;
-					draw_tex_line(x, pyc, yc, tpyc, tyc, tayf, u, tex, wallshade, dis, sec.zfloor, wallheight, wallwidth, &w, PORTAL_UPPER);
+					draw_tex_line(x, pyc, yc, tpyc, tyc, tayf, u, wallshade_index, dis, sec.zfloor, wallheight, wallwidth, &w, PORTAL_UPPER);
 				}
 
 				//update vertical clipping arrays
@@ -419,7 +440,7 @@ void draw_wall_3d(Player player, Texture* tex, WallRenderingInfo* now, u32 rd)
 			WallRenderingInfo* wr = &(WallRenderingInfo){ w.portal, x1, x2};
 			memcpy(wr->renderedSectors, now->renderedSectors, SECTOR_MAX * sizeof(u8));
 			wr->renderedSectors[now->sectorno] = 1;
-			draw_wall_3d(player, tex, wr, ++rd);
+			draw_wall_3d(player, wr, ++rd);
 		}
 	}
 }
@@ -431,13 +452,13 @@ void draw_wall_3d(Player player, Texture* tex, WallRenderingInfo* now, u32 rd)
 // ayf: absolute pixel position of bottom of the wall, if bottom of the wall would be on height 0, used for absolute texture mapping for non portal walls
 // u: horizontal position on the texture
 // tex: the texture the wall should have
-// shade: how dark the wall should be
+// shade: how dark the wall should be, index to lightmap
 // dis: distane wall wallstrip to the camera
 // sec_floor_height: floor height of the sector
 // wallwidth: how long is the wall
 // wall: pointer to the wall
 // is_upper_portals: bool that describes if the wallsegement is an upper part of a portal
-void draw_tex_line(i32 x, i32 y0, i32 y1, i32 yf, i32 yc, i32 ayf, f64 u, Texture* tex, f32 shade, f32 dis, f32 sec_floor_height, f32 wallheight, f32 wallwidth, Wall* wall, wall_section_type type) {
+void draw_tex_line(i32 x, i32 y0, i32 y1, i32 yf, i32 yc, i32 ayf, f64 u, u8 shade_index, f32 dis, f32 sec_floor_height, f32 wallheight, f32 wallwidth, Wall* wall, wall_section_type type) {
 	// draw decals
 	f32 wall_pos_x = u * wallwidth;
 	
@@ -454,8 +475,10 @@ void draw_tex_line(i32 x, i32 y0, i32 y1, i32 yf, i32 yc, i32 ayf, f64 u, Textur
 		if (rel_decal_height > wallheight || rel_decal_height < -d->size.y) continue;
 		// decal not in current stripe of wall, check next decal
 		if (!(d->wallpos.x < wall_pos_x && (d->wallpos.x + d->size.x) > wall_pos_x)) continue;
+		LightmapindexTexture* decal_tex_ind = &index_textures[d->tex_num];
+
 		f32 pos_x = wall_pos_x - d->wallpos.x;
-		f32 tx = (pos_x / d->size.x) * d->tex->width;
+		f32 tx = (pos_x / d->size.x) * decal_tex_ind->width;
 
 		f32 top_y = (rel_decal_height + d->size.y) / wallheight;
 		f32 bot_y = rel_decal_height / wallheight;
@@ -465,18 +488,17 @@ void draw_tex_line(i32 x, i32 y0, i32 y1, i32 yf, i32 yc, i32 ayf, f64 u, Textur
 		i32 bot_ty_clamp = clamp(bot_ty, y0, y1);
 		i32 top_ty_clamp = clamp(top_ty, y0, y1);
 
-		v3 tex_res = calc_tex_start_and_step(bot_ty, top_ty, clamp(bot_ty, y0, y1), clamp(top_ty, y0, y1), d->tex->height, 1.0f);
+		v3 tex_res = calc_tex_start_and_step(bot_ty, top_ty, clamp(bot_ty, y0, y1), clamp(top_ty, y0, y1), decal_tex_ind->height, 1.0f);
 		f32 ty = tex_res.x;
 		f32 ty_step = tex_res.z;
 
 		for (i32 y = bot_ty_clamp; y < top_ty_clamp; y++) {
 			// only draw pixel of decal if pixel has not already been drawn by other decal
 			if (!decal[y]) {
-				u32 color = d->tex->pixels[((i32)ty) * d->tex->width + (i32)tx];
-				if (!is_transparent(color)) {
-					color = change_rgb_brightness(color, shade);
+				u8 index = decal_tex_ind->indices[((i32)ty) * decal_tex_ind->width + (i32)tx];
+				if (index) {
+					draw_pixel_from_lightmap(x, y, index, shade_index);
 					decal[y] = true;
-					draw_pixel(x, y, color);
 					zBuffer[y * SCREEN_WIDTH + x] = dis;
 				}
 			}
@@ -485,18 +507,19 @@ void draw_tex_line(i32 x, i32 y0, i32 y1, i32 yf, i32 yc, i32 ayf, f64 u, Textur
 	}
 
 	// draw walls
-	Texture* wall_tex = &tex[0];
+	u32 wall_tex_num = 0;
+	LightmapindexTexture* wall_texture_ind = &index_textures[wall_tex_num];
 	f32 texture_scale = 4.0f;
 	f32 texheight = wallheight / texture_scale;
 	f32 texwidth = wallwidth / texture_scale;
 
-	i32 tx = (i32)((u * texwidth) * wall_tex->width) % wall_tex->width;
+	i32 tx = (i32)((u * texwidth) * wall_texture_ind->width) % wall_texture_ind->width;
 
 	f32 ty;
 	f32 ty_step;
 
 	if (wall->portal >= 0) {
-		v3 tex_res = calc_tex_low_high_and_step(yf, yc, y0, y1, wall_tex->height, texheight);
+		v3 tex_res = calc_tex_low_high_and_step(yf, yc, y0, y1, wall_texture_ind->height, texheight);
 		// lower parts of portals should get drawn from the top
 		ty = tex_res.y;
 		ty_step = tex_res.z;
@@ -504,7 +527,7 @@ void draw_tex_line(i32 x, i32 y0, i32 y1, i32 yf, i32 yc, i32 ayf, f64 u, Textur
 		if (type == PORTAL_UPPER) ty = tex_res.x;
 	}
 	else {
-		v2 tex_res = calc_tex_start_and_step_abs(ayf, yf, yc, y0, y1, wall_tex->height, ((wallheight + (sec_floor_height)) / texture_scale));
+		v2 tex_res = calc_tex_start_and_step_abs(ayf, yf, yc, y0, y1, wall_texture_ind->height, ((wallheight + (sec_floor_height)) / texture_scale));
 		ty = tex_res.x;
 		ty_step = tex_res.y;
 	}
@@ -512,9 +535,9 @@ void draw_tex_line(i32 x, i32 y0, i32 y1, i32 yf, i32 yc, i32 ayf, f64 u, Textur
 	for (i32 y = y0; y <= y1; y++) {
 		// only draw wall when there is no decal
 		if (!decal[y]) {
-			u32 color = wall_tex->pixels[((i32)ty % wall_tex->height) * wall_tex->width + tx];
-			color = change_rgb_brightness(color, shade);
-			draw_pixel(x, y, color);
+			u8 index = wall_texture_ind->indices[((i32)ty % wall_texture_ind->height) * wall_texture_ind->width + (i32)tx];
+			draw_pixel_from_lightmap(x, y, index, shade_index);
+			decal[y] = true;
 			zBuffer[y * SCREEN_WIDTH + x] = dis;
 		}
 		ty += ty_step;
@@ -624,13 +647,13 @@ visplane_t* check_plane(visplane_t* v, i32 start, i32 stop) {
 	return v;
 }
 
-void make_spans(i32 x, i32 t1, i32 b1, i32 t2, i32 b2, visplane_t* v, Player player, Texture* tex) {
+void make_spans(i32 x, i32 t1, i32 b1, i32 t2, i32 b2, visplane_t* v, Player player) {
 	while (t1 > t2 && t1 >= b1) {
-		map_plane(t1, spanstart[t1], x+1, v, player, tex);
+		map_plane(t1, spanstart[t1], x+1, v, player);
 		t1--;
 	}
 	while (b1 < b2 && b1 <= t1) {
-		map_plane(b1, spanstart[b1], x+1, v, player, tex);
+		map_plane(b1, spanstart[b1], x+1, v, player);
 		b1++;
 	}
 
@@ -644,7 +667,7 @@ void make_spans(i32 x, i32 t1, i32 b1, i32 t2, i32 b2, visplane_t* v, Player pla
 	}
 }
 
-void map_plane(i32 y, i32 x1, i32 x2, visplane_t* v, Player player, Texture* tex) {
+void map_plane(i32 y, i32 x1, i32 x2, visplane_t* v, Player player) {
 	f32 tex_scale = 4.0f;
 
 	i32 texheight = 256;
@@ -675,23 +698,22 @@ void map_plane(i32 y, i32 x1, i32 x2, visplane_t* v, Player player, Texture* tex
 	f32 xstep = step * cos(player.angle - PI_2) * texsizefactor.x;
 	f32 ystep = step * sin(player.angle - PI_2) * texsizefactor.y;
 
-	//TODO PRPOPER LIGHTING
-	f32 pixelshade = calc_flat_shade(dis);
-	//f32 pixelshade = 1.0f;
+	u8 floor_row_shade_index = calc_shade_from_distance(dis);
 
 	for (i32 x = x1; x <= x2; x++)
 	{
+		u32 texture_num = 0;
+		LightmapindexTexture* decal_tex_ind = &index_textures[texture_num];
 		v2i t = { (i32)(p.x) & (texwidth - 1), (i32)(p.y) & (texwidth - 1) };
-		u32 color = tex[0].pixels[(texheight - 1 - t.y) * tex[0].width + t.x];
-		color = change_rgb_brightness(color, pixelshade);
-		draw_pixel(x, y, color);
+		u8 index = decal_tex_ind->indices[(texheight - 1 - t.y) * decal_tex_ind->width + t.x];
+		draw_pixel_from_lightmap(x, y, index, floor_row_shade_index);
 		zBuffer[y * SCREEN_WIDTH + x] = dis;
 		p.x += xstep;
 		p.y += ystep;
 	}
 }
 
-void draw_planes_3d(Player player, Texture* tex) {
+void draw_planes_3d(Player player) {
 	
 	for (visplane_t* v = visplanes; v < lastvisplane; v++) {
 		if (v->minx > v->maxx) continue;
@@ -701,7 +723,7 @@ void draw_planes_3d(Player player, Texture* tex) {
 
 		for (i32 x = v->minx ; x < v->maxx; x++)
 		{
-			make_spans(x, v->top[x], v->bottom[x], v->top[x+1], v->bottom[x+1], v, player, tex);
+			make_spans(x, v->top[x], v->bottom[x], v->top[x+1], v->bottom[x+1], v, player);
 		}
 	}
 
@@ -724,7 +746,6 @@ void draw_planes_3d(Player player, Texture* tex) {
 				// absolute coordinates
 				v2 p = camera_pos_to_world((v2) { xt, yt }, player);
 				// texutre coordinates
-				f32 pixelshade = calcFlatShade(dis);
 				v2i t = { (i32)((p.x - ((i32)p.x)) * texheight) & (texwidth - 1), (i32)((p.y - ((i32)p.y)) * texheight) & (texwidth - 1)};
 				//u32 color = tex[0].pixels[(256 - t.y) * tex[0].width + t.x];
 				drawPixel(x, y, colors[color%8], pixels);
@@ -736,7 +757,7 @@ void draw_planes_3d(Player player, Texture* tex) {
 }
 
 
-void draw_sprites(Player player, Texture* tex, EntityHandler* h) {
+void draw_sprites(Player player, EntityHandler* h) {
 
 	for (i32 i = 0; i < h->used; i++)
 	{
@@ -757,7 +778,8 @@ void draw_sprites(Player player, Texture* tex, EntityHandler* h) {
 		i32 spriteScreenX = screen_angle_to_x(spritea);
 		i32 vMoveScreen = spritevMove / e.relCamPos.y;
 
-		Texture sprite = tex[e.spriteNum[0]];
+		u32 texture_num = 1;
+		LightmapindexTexture* sprite_ind = &index_textures[texture_num];
 
 		i32 spriteHeight = (SCREEN_HEIGHT / e.relCamPos.y) * e.scale.y;
 		i32 y0 = -spriteHeight / 2 + SCREEN_HEIGHT / 2 - vMoveScreen;
@@ -765,7 +787,7 @@ void draw_sprites(Player player, Texture* tex, EntityHandler* h) {
 		i32 y1 = spriteHeight / 2 + SCREEN_HEIGHT / 2 - vMoveScreen;
 		i32 y1_clamp = clamp(y1, 0, SCREEN_HEIGHT);
 
-		v3 tex_res_y =  calc_tex_start_and_step(y0, y1, y0_clamp, y1_clamp, sprite.height, 1.0f);
+		v3 tex_res_y =  calc_tex_start_and_step(y0, y1, y0_clamp, y1_clamp, sprite_ind->height, 1.0f);
 		f32 ty = tex_res_y.x;
 		f32 stepy = tex_res_y.z;
 
@@ -776,22 +798,21 @@ void draw_sprites(Player player, Texture* tex, EntityHandler* h) {
 		i32 x1 = spriteWidth / 2 + spriteScreenX;
 		i32 x1_clamp = clamp(x1, 0, SCREEN_WIDTH);
 
-		v3 tex_res_x = calc_tex_start_and_step(x0, x1, x0_clamp, x1_clamp, sprite.width, 1.0f);
-		f32 tx_start = tex_res_x.x;
-		f32 stepx = tex_res_x.z;
+		v3 tex_res_x = calc_tex_start_and_step(x0, x1, x0_clamp, x1_clamp, sprite_ind->width, 1.0f);
+		f32 tx_start = 256 - tex_res_x.x;
+		f32 stepx = -tex_res_x.z;
 
 		f32 tx;
-		f32 pixelshade = calc_flat_shade(e.relCamPos.y);
+		u8 shade_index = calc_shade_from_distance(e.relCamPos.y);
 		for (i32 y = y0_clamp; y < y1_clamp; y++) {
 			ty += stepy;
 			tx = tx_start;
 			for (i32 x = x0_clamp; x < x1_clamp; x++) {
 				if (zBuffer[y * SCREEN_WIDTH + x] > e.relCamPos.y) {
-					u32 color = sprite.pixels[(i32)ty * sprite.width + (i32)tx];
-					if (!is_transparent(color)) {
-						color = change_rgb_brightness(color, pixelshade);
-						draw_pixel(x, y, color);
-						if ((color & 0xFF000000) != 0) zBuffer[y * SCREEN_WIDTH + x] = e.relCamPos.y;
+					u8 index = sprite_ind->indices[((i32)ty % sprite_ind->height) * sprite_ind->width + ((i32)tx % sprite_ind->width)];
+					if (index) {
+						draw_pixel_from_lightmap(x, y, index, shade_index);
+						zBuffer[y * SCREEN_WIDTH + x] = e.relCamPos.y;
 					}
 				}
 				tx += stepx;
@@ -801,7 +822,10 @@ void draw_sprites(Player player, Texture* tex, EntityHandler* h) {
 }
 
 void draw_minimap(Player player) {
-	v2i mapoffset = (v2i){ 100 , SCREEN_HEIGHT - 200 };
+	v2i mapoffset = (v2i){ SCREEN_WIDTH/20 , SCREEN_HEIGHT - SCREEN_HEIGHT/4 };
+	f32 x_scale = SCREEN_WIDTH / 1280.0f;
+	f32 y_scale = SCREEN_HEIGHT / 720.0f;
+	f32 scale = (x_scale + y_scale) / 2;
 
 	i32 sectornum = get_sectoramt();
 	for (i32 j = 0; j < sectornum; j++)
@@ -809,18 +833,12 @@ void draw_minimap(Player player) {
 		Sector sec = *get_sector(j);
 		for (i32 i = sec.index; i < (sec.index + sec.numWalls); i++) {
 			Wall w = *get_wall(i);
-			draw_line(w.a.x + mapoffset.x, w.a.y + mapoffset.y, w.b.x + mapoffset.x, w.b.y + mapoffset.y, WHITE);
+			draw_line((w.a.x * scale + mapoffset.x), (w.a.y * scale + mapoffset.y), (w.b.x * scale + mapoffset.x), (w.b.y * scale + mapoffset.y), WHITE);
 		}
 	}
-	draw_circle(player.pos.x + mapoffset.x, player.pos.y + mapoffset.y, 3, 3, WHITE);
-	draw_line(player.pos.x + mapoffset.x, player.pos.y + mapoffset.y, player.anglecos * 10 + player.pos.x + mapoffset.x, player.anglesin * 10 + player.pos.y + mapoffset.y, WHITE);
+	draw_circle(player.pos.x * scale +mapoffset.x, player.pos.y * scale + mapoffset.y, 3 * scale, 3 * scale, RED);
+	draw_line(player.pos.x * scale + mapoffset.x, player.pos.y * scale + mapoffset.y, (player.anglecos * 10 + player.pos.x) * scale + mapoffset.x, (player.anglesin * 10 + player.pos.y) * scale + mapoffset.y, RED);
 }
-
-
-u8 inline is_transparent(u32 color) {
-	return (color & 0xFF000000) == 0;
-}
-
 
 
 // true_low and true_high are the pixel coordinates of where the sprite is in full

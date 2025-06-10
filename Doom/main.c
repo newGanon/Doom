@@ -12,18 +12,20 @@
 #include <ctype.h>
 
 struct {
+	// sdl
 	SDL_Window* window;
 	SDL_Texture* texture;
 	SDL_Surface* surfaces[100];
 	SDL_Renderer* renderer;
+	// rendering
 	u32 pixels[SCREEN_WIDTH * SCREEN_HEIGHT];
 	Palette lightmap;
 	LightmapindexTexture index_textures[1000];
-
-	bool quit;
-	EntityHandler entityhandler;
+	// game logic and updates
 	Map map;
+	EntityHandler entityhandler;
 	Player player;
+	bool quit;
 	bool KEYS[SDL_NUM_SCANCODES];
 	f32 deltaTimeAcc;
 } state;
@@ -103,8 +105,8 @@ void render() {
 	memset(state.pixels, 0, sizeof(state.pixels));
 	draw_3d(state.player, &state.entityhandler);
 
-	/* draw crosshair */
-	/* drawCircle(SCREEN_WIDTH / 2, SCREEN_HEIGHT / 2, 10, 10, RED); */
+	// draw crosshair
+	// drawCircle(SCREEN_WIDTH / 2, SCREEN_HEIGHT / 2, 10, 10, RED); 
 	fill_rectangle(SCREEN_WIDTH / 2 - 8, SCREEN_HEIGHT / 2 - 1, SCREEN_WIDTH / 2 + 8, SCREEN_HEIGHT / 2 + 1, GREEN, &state.pixels);
 	fill_rectangle(SCREEN_WIDTH / 2 - 1, SCREEN_HEIGHT / 2 - 8, SCREEN_WIDTH / 2 + 1, SCREEN_HEIGHT / 2 + 8, GREEN, &state.pixels);
 

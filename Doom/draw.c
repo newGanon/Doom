@@ -21,6 +21,7 @@ typedef struct visplane_t {
 
 
 void inline draw_pixel(i32 x, i32 y, u32 color);
+void inline draw_pixel_from_lightmap(i32 x, i32 y, u8 index, u8 shade);
 void draw_tex_line(i32 x, i32 y0, i32 y1, i32 yf, i32 yc, i32 ayf, f64 u, u8 shade, f32 dis, f32 sec_floor_height, f32 wallheight, f32 wallwidth, Wall* wall, wall_section_type type);
 void draw_wall_3d(Player player, WallRenderingInfo* now, u32 rd);
 void draw_planes_3d(Player player);
@@ -39,18 +40,12 @@ void draw_circle(i32 x0, i32 y0, i32 a, i32 b, u32 color);
 visplane_t* find_plane(f32 height, i32 picnum);
 visplane_t* check_plane(visplane_t* v, i32 start, i32 stop);
 
-u32 change_rgb_brightness(u32 color, f32 factor);
-f32 calc_wall_shade(v2 start, v2 end, f32 dis);
-f32 calc_flat_shade(f32 dis);
-
 // used for everything that is not a wall
 v3 calc_tex_start_and_step(f32 true_low, f32 true_high, f32 low, f32 high, i32 tex_size, f32 scale);
 // used for portal walls
 v3 calc_tex_low_high_and_step(f32 true_low, f32 true_high, f32 low, f32 high, i32 tex_size, f32 scale);
 // used for walls
 v2 calc_tex_start_and_step_abs(f32 true_abs_low, f32 true_low, f32 true_high, f32 low, f32 high, i32 tex_size, f32 scale);
-
-u8 inline is_transparent(u32 color);
 
 visplane_t visplanes[MAXVISPLANES];
 visplane_t* lastvisplane;
@@ -223,26 +218,6 @@ u8 calc_shade_from_distance(f32 dis){
 	u8 shade = (u8)(dis / 100.0f * 31.0f);
 
 	return shade;
-}
-
-
-// TODO: implement faster lightmap lookuptables
-u32 inline change_rgb_brightness(u32 color, f32 factor) {
-	//return color;
-	i32 a = (color & 0xFF000000);
-	i32 r = (color & 0x00FF0000) >> 16;
-	i32 g = (color & 0x0000FF00) >> 8;
-	i32 b = color & 0x000000FF;
-	return a | (i32)(r / factor) << 16 | (i32)(g / factor) << 8 | (i32)(b / factor);
-}
-
-f32 calc_wall_shade(v2 start, v2 end, f32 dis) {
-	v2 difNorm = v2_normalize(v2_sub(end, start));
-	return (f32)1.0f + (10.0f * (fabsf(difNorm.x)) + fabsf(dis)) * LIGHTDIMINISHINGDFACTOR;
-}
-
-f32 calc_flat_shade(f32 dis) {
-	return (f32)1 + fabsf(dis) * LIGHTDIMINISHINGDFACTOR;
 }
 
 void draw_wall_3d(Player player, WallRenderingInfo* now, u32 rd)
@@ -848,6 +823,7 @@ void draw_minimap(Player player) {
 
 // return texture y pos to start and stop and step for each update, textures are anchored at the bottom, so texture drawing starts at y pos 0 at the bottom of the object
 v3 calc_tex_start_and_step(f32 true_low, f32 true_high, f32 low, f32 high, i32 tex_size, f32 scale) {
+	tex_size = tex_size - 1;
 	f32 t0 = (1.0 - ((low  - true_low) / (f64)(true_high - true_low))) * tex_size * scale;
 	f32 t1 = (1.0 - ((high - true_low) / (f64)(true_high - true_low))) * tex_size * scale;
 	f32 step = (t1 - t0) / (high - low);
@@ -864,7 +840,7 @@ v3 calc_tex_low_high_and_step(f32 true_low, f32 true_high, f32 low, f32 high, i3
 	return (v3) { start_low * scale, start_high * scale, step * scale};
 }
 
-// return texture y pos to start and step for each update, textures are anchored at the bottom
+// return texture y pos to start and step for each update, textures are anchored at the bottom, so texture drawing starts at y pos 0 at the bottom of the object
 v2 calc_tex_start_and_step_abs(f32 true_abs_low, f32 true_low, f32 true_high, f32 low, f32 high, i32 tex_size, f32 scale){
 	f32 step = -(tex_size / (f32)(true_high - true_abs_low));
 	// add how many pixels are cut off the bottom

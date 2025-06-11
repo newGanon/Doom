@@ -200,7 +200,7 @@ void init() {
 	state.player.sector = 0;
 	state.player.z = EYEHEIGHT + state.map.sectors[state.player.sector].zfloor;
 	state.player.in_air = false;
-	state.player.speed = 20.0f;
+	state.player.speed = PLAYERSPEED;
 
 	state.player.angle = PI_2;
 	state.player.anglecos = cos(state.player.angle);

@@ -108,6 +108,10 @@ void p_interact(Player* p) {
 	RaycastResult res = raycast(cursec, p->pos, (v2) { p->pos. x + p->anglecos * 1000.0f, p->pos.y + p->anglesin * 1000.0f }, p->z);
 	if (res.hit) {
 		v2 wallpos = res.wall_pos;
+		v2 world_pos = (v2){ wallpos.x + res.wall->a.x, wallpos.y + res.wall->a.y };
+		v2 player_to_wall = (v2){ world_pos.x - p->pos.x, world_pos.y - p->pos.y };
+		f32 distance = player_to_wall.x * player_to_wall.x + player_to_wall.y * player_to_wall.y;
+		if (distance > (15.0f * 15.0f)) return;
 		for (Decal* d = res.wall->decalhead; d != NULL; d = d->next) {
 			get_relative_decal_wall_height(d, res.wall, cursec->zfloor);
 			v2 relative_wallpos = (v2){ sqrt(wallpos.x * wallpos.x + wallpos.y * wallpos.y), p->z };

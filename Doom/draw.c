@@ -211,11 +211,11 @@ void draw_circle(i32 x0, i32 y0, i32 a, i32 b, u32 color) {
 
 // return index to lightmap between 0 and 31 
 u8 calc_shade_from_distance(f32 dis){
-	if (dis < 0.0f) dis = 0.0f;
-	if (dis > 100.0f) dis = 100.0f;
+	f32 max_render_distance = 100.0f;
+	dis = clamp(dis, 0.0f, max_render_distance);
 
 	// Map to [0, 31]
-	u8 shade = (u8)(dis / 100.0f * 31.0f);
+	u8 shade = (u8)(dis / max_render_distance * 31.0f);
 
 	return shade;
 }
@@ -482,7 +482,7 @@ void draw_tex_line(i32 x, i32 y0, i32 y1, i32 yf, i32 yc, i32 ayf, f64 u, u8 sha
 	}
 
 	// draw walls
-	u32 wall_tex_num = 0;
+	u32 wall_tex_num = 3;
 	LightmapindexTexture* wall_texture_ind = &index_textures[wall_tex_num];
 	f32 texture_scale = 4.0f;
 	f32 texheight = wallheight / texture_scale;
@@ -677,7 +677,7 @@ void map_plane(i32 y, i32 x1, i32 x2, visplane_t* v, Player player) {
 
 	for (i32 x = x1; x <= x2; x++)
 	{
-		u32 texture_num = 0;
+		u32 texture_num = 3;
 		LightmapindexTexture* decal_tex_ind = &index_textures[texture_num];
 		v2i t = { (i32)(p.x) & (texwidth - 1), (i32)(p.y) & (texwidth - 1) };
 		u8 index = decal_tex_ind->indices[(texheight - 1 - t.y) * decal_tex_ind->width + t.x];

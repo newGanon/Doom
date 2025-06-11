@@ -41,7 +41,7 @@ typedef struct v3u8_s { u8 x, y, z; } v3u8;
 #define SNEAKHEIGHT 4.5f
 #define HEADMARGIN 1.0f 
 #define STEPHEIGHT 2.0f
-#define PLAYERSPEED 20.0f
+#define PLAYERSPEED 50.0f
 #define PLAYERSNEAKSPEED 10.0f
 
 #define HFOV PI_2

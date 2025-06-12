@@ -166,7 +166,7 @@ void init() {
 	Entity* e2 = malloc(sizeof(Entity));
 	if (e2) {
 		e2->animationtick = 0;
-		e2->inAir = 1;
+		e2->airborne = 1;
 		e2->pos = (v2){ 25.0f, 35.0f };
 		e2->scale = (v2){ 4.0f, 4.0f };
 		e2->velocity = (v3){ 0, 0, 0 };
@@ -198,7 +198,7 @@ void init() {
 	state.player.pos = (v2){ 20.0f, 20.0f};
 	state.player.sector = 0;
 	state.player.z = EYEHEIGHT + state.map.sectors[state.player.sector].zfloor;
-	state.player.in_air = false;
+	state.player.airborne = false;
 	state.player.speed = PLAYERSPEED;
 
 	state.player.angle = PI_2;

@@ -41,8 +41,8 @@ void calc_playervelocity(Player* p, bool* KEYS) {
 	//const u8* keyboardstate = SDL_GetKeyboardState(NULL);
 
 	//vertical velocity calc
-	if (KEYS[SDL_SCANCODE_SPACE] && !p->in_air) {
-		p->in_air = true;
+	if (KEYS[SDL_SCANCODE_SPACE] && !p->airborne) {
+		p->airborne = true;
 		p->velocity.z = 30.0f;
 	}
 
@@ -131,7 +131,7 @@ void player_trymove(Player* p) {
 	f32 eyeheight = p->sneak ? SNEAKHEIGHT : EYEHEIGHT;
 
 	// player above ground
-	if (cur_sec->zfloor < p->z - eyeheight && !p->in_air) {
+	if (cur_sec->zfloor < p->z - eyeheight && !p->airborne) {
 		//p->inAir = true;
 		p->z = eyeheight + cur_sec->zfloor;
 	}
@@ -151,13 +151,13 @@ void player_trymove(Player* p) {
 	}
 
 
-	if (p->in_air) {
+	if (p->airborne) {
 		p->velocity.z += gravity;
 		f32 dvel = p->velocity.z * SECONDS_PER_UPDATE;
 		//floor collision
 		if (p->velocity.z < 0 && (p->z + dvel) < (cur_sec->zfloor + eyeheight)) {
 			p->velocity.z = 0;
-			p->in_air = false;
+			p->airborne = false;
 			p->z = (cur_sec->zfloor + eyeheight);
 		}
 		//ceiling collision
@@ -175,7 +175,7 @@ void player_trymove(Player* p) {
 	//TODO: fix hack that loops 2 times
 	i32 wallind = -1;
 	Sector* sec_old = cur_sec;
-	bool in_air_old = p->in_air;
+	bool in_air_old = p->airborne;
 	f32 oldz = p->z;
 	bool hit_portal = false;
 	Sector* sec_new = sec_old;
@@ -190,14 +190,14 @@ void player_trymove(Player* p) {
 					if (stepl > p->z - eyeheight + STEPHEIGHT ||
 						steph < p->z + HEADMARGIN ||
 						(steph - stepl) < (eyeheight + HEADMARGIN) ||
-						(p->sneak && !p->in_air && (cur_sec->zfloor - stepl) > 0.0f)) {
+						(p->sneak && !p->airborne && (cur_sec->zfloor - stepl) > 0.0f)) {
 						//if player hit a corner set velocity to 0
 						if (wallind != -1) {
 							p->velocity.x = 0;
 							p->velocity.y = 0;
 							cur_sec = sec_old;
 							p->sector = sec_old->id;
-							p->in_air = in_air_old;
+							p->airborne = in_air_old;
 							p->z = oldz;
 							break;
 						}
@@ -230,7 +230,7 @@ void player_trymove(Player* p) {
 			cur_sec = sec_new;
 			p->sector = cur_sec->id;
 			if (p->z < eyeheight + cur_sec->zfloor) p->z = eyeheight + cur_sec->zfloor;
-			else if (p->z > eyeheight + cur_sec->zfloor) p->in_air = true;
+			else if (p->z > eyeheight + cur_sec->zfloor) p->airborne = true;
 		}
 	}
 

@@ -50,15 +50,15 @@ typedef struct RaycastResult_s {
 }RaycastResult;
 
 
-void loadlevel(Map* map);
-bool point_inside_sector(i32 sec, v2 p); 
-void sort_walls(v2 cam_pos, f32 camsin, f32 camcos);
-Map* get_map();
-Sector* get_sector(i32 index);
-Wall* get_wall(i32 index);
-i32 get_sectoramt();
-f32 get_relative_decal_wall_height(Decal* d, Wall* wall, f32 cur_sec_floorz);
-Decal* spawn_decal(v2 wallpos, Wall* curwall, v2 size, i32 tex_id);
-RaycastResult raycast(Sector* cursec, v2 pos, v2 target_pos, f32 z);
-bool move_sector_plane(Sector* sec, f32 speed, f32 dest, bool floor, bool up);
+void map_init(Map* map);
+Map* map_get_map();
+Sector* map_get_sector(i32 index);
+Wall* map_get_wall(i32 index);
+i32 map_get_sectoramt();
+bool map_point_inside_sector(i32 sec, v2 p); 
+void map_sort_walls(v2 cam_pos, f32 camsin, f32 camcos);
+f32 map_decal_wall_height(Decal* d, Wall* wall, f32 cur_sec_floorz);
+Decal* map_spawn_decal(v2 wallpos, Wall* curwall, v2 size, i32 tex_id);
+RaycastResult map_raycast(Sector* cursec, v2 pos, v2 target_pos, f32 z);
+bool map_move_sector_plane(Sector* sec, f32 speed, f32 dest, bool floor, bool up);
 

@@ -10,7 +10,7 @@ typedef struct Player_s {
 	f32 angle, anglecos, anglesin;
 	f32 speed;
 	u32 sector;
-	bool shoot, in_air, dead, sneak;
+	bool shoot, airborne, dead, sneak;
 }Player;
 
 void player_tick(Player* p, EntityHandler* handler, bool* KEYS);

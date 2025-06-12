@@ -4,7 +4,7 @@
 
 static Map* map;
 
-void loadlevel(Map* map1) {
+void map_init(Map* map1) {
 	map = map1;
 	FILE* fp = NULL;
 	fopen_s(&fp, "Levels/level4.txt", "r");

@@ -23,16 +23,16 @@ typedef struct Entity_s{
 	v2 scale;
 	f32 health, damage, speed;
 	f32 animationtick;
-	u8 inAir;
 	u32 sector;
+	u8 airborne;
 	Player* target;
 	bool dirty;
 } Entity;
 
 
-void calc_all_rel_cam_pos(EntityHandler* handler, Player* player);
 void tick_item(Entity* item);
 void tick_enemy(Entity* enemy);
 void tick_bullet(Entity* bullet);
-void check_entity_collisions(EntityHandler* handler, Player* player);
+void entity_check_collisions(EntityHandler* handler, Player* player);
+void entity_calculate_relative_camera_position(EntityHandler* handler, Player* player);
 bool entity_trymove(Entity* e, bool gravityactive);

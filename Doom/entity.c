@@ -14,14 +14,24 @@ void calc_all_rel_cam_pos(EntityHandler* handler, Player* player) {
 }
 
 void tick_item(Entity* item) {
-	f32 speed = 150.0f * SECONDS_PER_UPDATE;
-	i32 totalanimationticks = 240;
+	const f32 speed = 150.0f * SECONDS_PER_UPDATE;
+	const i32 ticks_total = 240;
+	const i32 ticks_half = ticks_total / 2;
+	const f32 max_z_offset = 0.8f;
+
 	i32 curtick = item->animationtick;
-	if (curtick > totalanimationticks / 2) curtick = totalanimationticks - curtick;
-	f32 easeValue = ease_in_out_cubic((f32)curtick / (totalanimationticks / 2));
-	item->z = (i32)item->z + (easeValue * 0.99);
+
+	if (curtick > ticks_total / 2) {
+		curtick = ticks_total - curtick;
+	}
+	f32 progress = (f32)curtick / ticks_half;
+	f32 easeValue = ease_in_out_cubic(progress);
+	item->z = (i32)item->z + (easeValue * max_z_offset);
 	item->animationtick += speed;
-	if (item->animationtick > totalanimationticks) item->animationtick -= totalanimationticks;
+
+	if (item->animationtick > ticks_total) {
+		item->animationtick -= ticks_total;
+	} 
 }
 
 void tick_enemy(Entity* enemy) {
@@ -133,13 +143,13 @@ bool entity_trymove(Entity* e, bool gravityactive) {
 		//vertical collision detection
 		const f32 gravity = -GRAVITY;
 
-		if (e->inAir) {
+		if (e->airborne) {
 			e->velocity.z += gravity;
 			f32 dvel = e->velocity.z;
 			//floor collision
 			if (e->velocity.z < 0 && (e->z + dvel) < (curSec.zfloor + e->scale.y)) {
 				e->velocity.z = 0;
-				e->inAir = 0;
+				e->airborne = 0;
 				e->z = (curSec.zfloor + e->scale.y);
 			}
 			//ceiling collision
@@ -192,7 +202,7 @@ bool entity_trymove(Entity* e, bool gravityactive) {
 				e->sector = curSec.id;
 				if (e->type == Projectile) continue;
 				if (e->z < e->scale.y + curSec.zfloor) e->z = e->scale.y + curSec.zfloor;
-				else if (e->z > e->scale.y + curSec.zfloor) e->inAir = 1;
+				else if (e->z > e->scale.y + curSec.zfloor) e->airborne = 1;
 			}
 		}
 	}

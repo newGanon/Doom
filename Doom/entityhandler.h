@@ -1,6 +1,7 @@
 #pragma once
 #include "util.h"
-#include "entity.h"
+
+typedef struct Entity_s Entity;
 
 typedef struct EntityHandler_s {
 	Entity** entities;

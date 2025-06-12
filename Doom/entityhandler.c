@@ -1,5 +1,5 @@
 #include "entityhandler.h"
-
+#include "entity.h"
 
 
 void entityhandler_init(EntityHandler* handler, u32 initialsize) {

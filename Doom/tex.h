@@ -1,6 +1,7 @@
 #pragma once
 #include "util.h"
-#include <SDL.h>
+
+typedef struct SDL_Surface SDL_Surface;
 
 typedef struct Palette_t {
 	// colors has 256, each with 32 shades
@@ -14,7 +15,6 @@ typedef struct LightmapindexTexture_t {
 	u32 width;
 	u32 height;
 }LightmapindexTexture;
-
 
 void tex_init(SDL_Surface** surfaces, Palette* lightmap, LightmapindexTexture* index_textures);
 void tex_free(SDL_Surface** surfaces, LightmapindexTexture* index_textures);

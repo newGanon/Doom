@@ -1,6 +1,10 @@
 #include "draw.h"
 #include "math.h"
 #include "map.h"
+#include "player.h"
+#include "entityhandler.h"
+#include "entity.h"
+#include "tex.h"
 
 
 typedef struct WallRenderingInfo {
@@ -229,8 +233,8 @@ void draw_wall_3d(Player* player, WallRenderingInfo* now, u32 rd)
 
 		Wall w = *get_wall(i);
 		//world pos
-		v2 p1 = world_pos_to_camera(w.a, *player);
-		v2 p2 = world_pos_to_camera(w.b, *player);
+		v2 p1 = world_pos_to_camera(w.a, player->pos, player->anglesin, player->anglecos);
+		v2 p2 = world_pos_to_camera(w.b, player->pos, player->anglesin, player->anglecos);
 
 		v2 tp1 = p1;
 		v2 tp2 = p2;
@@ -665,7 +669,7 @@ void map_plane(i32 y, i32 x1, i32 x2, visplane_t* v, Player* player) {
 	f32 xt = -sin(a) * dis / cos(a);
 	f32 yt = cos(a) * dis / cos(a);
 	// absolute coordinates
-	v2 p = camera_pos_to_world((v2) { xt, yt }, *player);
+	v2 p = camera_pos_to_world((v2) { xt, yt }, player->pos, player->anglesin, player->anglecos);
 
 	p.x *= texsizefactor.x;
 	p.y *= texsizefactor.y;

@@ -1,8 +1,9 @@
 #pragma once
 #include "util.h"
-#include "ticker.h"
 #include "tick.h"
-#include "player.h"
+
+typedef struct EntityHandler_s EntityHandler;
+typedef struct Player_s Player;
 
 typedef enum EntityType_e {
 	Enemy,
@@ -28,10 +29,10 @@ typedef struct Entity_s{
 	bool dirty;
 } Entity;
 
-typedef struct EntityHandler_s EntityHandler;
 
 void calc_all_rel_cam_pos(EntityHandler* handler, Player* player);
 void tick_item(Entity* item);
 void tick_enemy(Entity* enemy);
 void tick_bullet(Entity* bullet);
 void check_entity_collisions(EntityHandler* handler, Player* player);
+bool entity_trymove(Entity* e, bool gravityactive);

@@ -1,4 +1,5 @@
 #include "tex.h"
+#include <SDL.h>
 
 static u32 tex_amt;
 

@@ -19,21 +19,21 @@ u8 get_line_intersection(v2 p0, v2 p1, v2 p2, v2 p3, v2* i) {
 }
 
 //absolute pos to player relative pos
-v2 world_pos_to_camera(v2 pos, Player player) {
-	const v2 u = { pos.x - player.pos.x, pos.y - player.pos.y};
+v2 world_pos_to_camera(v2 pos, v2 cam_pos, f32 camsin, f32 camcos) {
+	const v2 u = { pos.x - cam_pos.x, pos.y - cam_pos.y};
 	return (v2) {
-		u.x * player.anglesin - u.y * player.anglecos,
-		u.x * player.anglecos + u.y * player.anglesin
+		u.x * camsin - u.y * camcos,
+		u.x * camcos + u.y * camsin
 	};
 }
 
 //player relative pos to absolute one
-v2 camera_pos_to_world(v2 pos, Player player) {
+v2 camera_pos_to_world(v2 pos, v2 cam_pos, f32 camsin, f32 camcos) {
 	v2 r = {
-		pos.x * player.anglesin + pos.y * player.anglecos,
-		- pos.x * player.anglecos + pos.y * player.anglesin
+		  pos.x * camsin + pos.y * camcos,
+		- pos.x * camcos + pos.y * camsin
 	};
-	return (v2) { r.x + player.pos.x, r.y + player.pos.y };
+	return (v2) { r.x + cam_pos.x, r.y + cam_pos.y };
 }
 
 //convert angle from [-HFOV/2, HFOV/2] to [0, SCREEN_WIDTH -1] 

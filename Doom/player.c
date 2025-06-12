@@ -6,7 +6,7 @@
 #include "plat.h"
 
 void calc_playervelocity(Player* p, bool* KEYS);
-void check_shoot(Player* p, EntityHandler* handler);
+void player_check_shoot(Player* p, EntityHandler* handler);
 void p_interact(Player* p);
 
 void player_tick(Player* p, EntityHandler* handler, bool* KEYS) {
@@ -22,8 +22,8 @@ void player_tick(Player* p, EntityHandler* handler, bool* KEYS) {
 	p->speed = p->sneak ? PLAYERSNEAKSPEED : PLAYERSPEED;
 
 	calc_playervelocity(p, KEYS);
-	trymove_player(p);
-	check_shoot(p, handler);
+	player_trymove(p);
+	player_check_shoot(p, handler);
 
 	// reset player pos
 	if (KEYS[SDL_SCANCODE_R] || p->dead) {
@@ -66,7 +66,7 @@ void calc_playervelocity(Player* p, bool* KEYS) {
 }
 
 
-void check_shoot(Player* p, EntityHandler* handler) {
+void player_check_shoot(Player* p, EntityHandler* handler) {
 	if (!p->shoot) return;
 	p->shoot = false;
 	i32 weapon = 0;
@@ -119,4 +119,121 @@ void p_interact(Player* p) {
 			}
 		}
 	}
+}
+
+
+
+void player_trymove(Player* p) {
+	//vertical collision detection
+	const f32 gravity = -GRAVITY * SECONDS_PER_UPDATE;
+	Map* map = get_map();
+	Sector* cur_sec = get_sector(p->sector);
+	f32 eyeheight = p->sneak ? SNEAKHEIGHT : EYEHEIGHT;
+
+	// player above ground
+	if (cur_sec->zfloor < p->z - eyeheight && !p->in_air) {
+		//p->inAir = true;
+		p->z = eyeheight + cur_sec->zfloor;
+	}
+	// player below ground
+	else if (cur_sec->zfloor > p->z - eyeheight) {
+		p->z = eyeheight + cur_sec->zfloor;
+	}
+	// move down if player in ceiling
+	if (cur_sec->zceil < p->z + HEADMARGIN) {
+		p->z = cur_sec->zceil - HEADMARGIN;
+	}
+
+	// if not enough space in sector -> crushed
+	if ((cur_sec->zceil - cur_sec->zfloor) < eyeheight + HEADMARGIN) {
+		p->dead = true;
+		return;
+	}
+
+
+	if (p->in_air) {
+		p->velocity.z += gravity;
+		f32 dvel = p->velocity.z * SECONDS_PER_UPDATE;
+		//floor collision
+		if (p->velocity.z < 0 && (p->z + dvel) < (cur_sec->zfloor + eyeheight)) {
+			p->velocity.z = 0;
+			p->in_air = false;
+			p->z = (cur_sec->zfloor + eyeheight);
+		}
+		//ceiling collision
+		else if (p->velocity.z > 0 && (p->z + dvel) > (cur_sec->zceil - HEADMARGIN)) {
+			p->velocity.z = 0;
+			p->z = cur_sec->zceil - HEADMARGIN;
+		}
+		//if no collision was detected just add the velocity
+		else {
+			p->z += dvel;
+		}
+	}
+
+	//check for horizontal collision and if player entered new sector
+	//TODO: fix hack that loops 2 times
+	i32 wallind = -1;
+	Sector* sec_old = cur_sec;
+	bool in_air_old = p->in_air;
+	f32 oldz = p->z;
+	bool hit_portal = false;
+	Sector* sec_new = sec_old;
+	for (u8 t = 0; t < 2; t++) {
+		for (i32 i = cur_sec->index; i < cur_sec->index + cur_sec->numWalls; i++) {
+			Wall curwall = map->walls[i];
+			if (BOXINTERSECT2D(p->pos.x, p->pos.y, p->pos.x + p->velocity.x, p->pos.y + p->velocity.y, curwall.a.x, curwall.a.y, curwall.b.x, curwall.b.y) &&
+				POINTSIDE2D(p->pos.x + p->velocity.x, p->pos.y + p->velocity.y, curwall.a.x, curwall.a.y, curwall.b.x, curwall.b.y) > 0)) {
+					f32 stepl = curwall.portal >= 0 ? get_sector(curwall.portal)->zfloor : 10e10;
+					f32 steph = curwall.portal >= 0 ? get_sector(curwall.portal)->zceil : -10e10;
+					//collision with wall, top or lower part of portal
+					if (stepl > p->z - eyeheight + STEPHEIGHT ||
+						steph < p->z + HEADMARGIN ||
+						(steph - stepl) < (eyeheight + HEADMARGIN) ||
+						(p->sneak && !p->in_air && (cur_sec->zfloor - stepl) > 0.0f)) {
+						//if player hit a corner set velocity to 0
+						if (wallind != -1) {
+							p->velocity.x = 0;
+							p->velocity.y = 0;
+							cur_sec = sec_old;
+							p->sector = sec_old->id;
+							p->in_air = in_air_old;
+							p->z = oldz;
+							break;
+						}
+						//collide with wall, project velocity vector onto wall vector
+						v2 wallVec = { curwall.b.x - curwall.a.x, curwall.b.y - curwall.a.y };
+						v2 projVel = {
+							(p->velocity.x * wallVec.x + p->velocity.y * wallVec.y) / (wallVec.x * wallVec.x + wallVec.y * wallVec.y) * wallVec.x,
+							(p->velocity.x * wallVec.x + p->velocity.y * wallVec.y) / (wallVec.x * wallVec.x + wallVec.y * wallVec.y) * wallVec.y
+						};
+
+						p->velocity.x = projVel.x;
+						p->velocity.y = projVel.y;
+						wallind = i;
+					}
+					//if player fits throught portal change playersector
+					else if (curwall.portal >= 0) {
+						if (hit_portal) {
+							hit_portal = false;
+							t = 2;
+							break;
+						}
+						hit_portal = true;
+						sec_new = get_sector(curwall.portal);
+					}
+			}
+		}
+		if (hit_portal) {
+			t = 0;
+			hit_portal = false;
+			cur_sec = sec_new;
+			p->sector = cur_sec->id;
+			if (p->z < eyeheight + cur_sec->zfloor) p->z = eyeheight + cur_sec->zfloor;
+			else if (p->z > eyeheight + cur_sec->zfloor) p->in_air = true;
+		}
+	}
+
+	p->pos.x += p->velocity.x;
+	p->pos.y += p->velocity.y;
 }

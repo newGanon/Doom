@@ -1,7 +1,7 @@
-#include "ticker.h"
+#include "tick.h"
 #include "util.h"
-//head and tail of tickerlist
 
+//head and tail of tickerlist
 ticker tickercap;
 
 void tickers_init() {

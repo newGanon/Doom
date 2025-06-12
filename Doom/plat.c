@@ -1,4 +1,5 @@
 #include "plat.h"
+#include "map.h"
 
 
 Platform* activeplats[MAXPLATFORMS];

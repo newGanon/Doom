@@ -1,9 +1,5 @@
 #pragma once
 #include "util.h"
-#include "player.h"
-#include "entity.h"
-#include "entityhandler.h"
-#include "draw.h"
 
 typedef enum wall_section_type {
 	WALL,
@@ -12,7 +8,7 @@ typedef enum wall_section_type {
 	NONE
 } wall_section_type;
 
-typedef struct Decal {
+typedef struct Decal_s {
 	struct Decal* next;
 	struct Decal* prev;
 	i32 tag;
@@ -22,7 +18,7 @@ typedef struct Decal {
 	v2 size;  // width and height of the decal
 } Decal;
 
-typedef struct Sector {
+typedef struct Sector_s {
 	i32 id, index, numWalls;
 	f32 zfloor, zceil;
 	f32 zfloor_old; // first value of the zfloor
@@ -30,14 +26,14 @@ typedef struct Sector {
 	void* specialdata; // pointer to ticker to reverse actions
 } Sector;
 
-typedef struct Wall {
+typedef struct Wall_s {
 	Decal* decalhead;
 	v2 a, b;
 	i32 portal;
 	f32 distance;
 } Wall;
 
-typedef struct Map {
+typedef struct Map_s {
 	Wall walls[WALL_MAX];
 	i32 wallnum;
 	Sector sectors[SECTOR_MAX];
@@ -45,7 +41,7 @@ typedef struct Map {
 } Map;
 
 
-typedef struct RaycastResult {
+typedef struct RaycastResult_s {
 	bool hit;
 	v2 wall_pos;
 	f32 distance;
@@ -56,9 +52,8 @@ typedef struct RaycastResult {
 
 void loadlevel(Map* map);
 bool point_inside_sector(i32 sec, v2 p); 
-void sort_walls(Player* player);
-void trymove_player(Player* p);
-bool trymove_entity(Entity* e, bool gravityactive);
+void sort_walls(v2 cam_pos, f32 camsin, f32 camcos);
+Map* get_map();
 Sector* get_sector(i32 index);
 Wall* get_wall(i32 index);
 i32 get_sectoramt();

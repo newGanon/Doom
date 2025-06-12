@@ -157,7 +157,6 @@
     <ClInclude Include="plat.h" />
     <ClInclude Include="player.h" />
     <ClInclude Include="tex.h" />
-    <ClInclude Include="ticker.h" />
     <ClInclude Include="tick.h" />
     <ClInclude Include="util.h" />
   </ItemGroup>

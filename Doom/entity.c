@@ -1,11 +1,13 @@
 #include "entity.h"
 #include "math.h"
 #include "map.h"
+#include "entityhandler.h"
+#include "player.h"
 
 void calc_all_rel_cam_pos(EntityHandler* handler, Player* player) {
 	for (u32 i = 0; i < handler->used; i++) {
 		Entity* entity = handler->entities[i];
-		v2 entityRelPos = world_pos_to_camera(entity->pos, *player);
+		v2 entityRelPos = world_pos_to_camera(entity->pos, player->pos, player->anglesin, player->anglecos);
 		entity->relCamPos.y = entityRelPos.y;
 		entity->relCamPos.x = entityRelPos.x;
 	}
@@ -60,14 +62,14 @@ void tick_enemy(Entity* enemy) {
 	enemy->velocity.x = enemy->velocity.x * (1 - acceleration) + dpos.x * acceleration * movespeed;
 	enemy->velocity.y = enemy->velocity.y * (1 - acceleration) + dpos.y * acceleration * movespeed;
 
-	trymove_entity(enemy, 1);
+	entity_trymove(enemy, 1);
 }
 
 void tick_bullet(Entity* bullet) {
 	bullet->velocity.x = bullet->dir.x * bullet->speed * SECONDS_PER_UPDATE;
 	bullet->velocity.y = bullet->dir.y * bullet->speed * SECONDS_PER_UPDATE;
 
-	bool hitwall = trymove_entity(bullet, 0);
+	bool hitwall = entity_trymove(bullet, 0);
 	Sector* sec = get_sector(bullet->sector);
 	if (hitwall || sec->zfloor > bullet->z || sec->zceil < bullet->z) {
 		bullet->dirty = true;
@@ -120,4 +122,83 @@ void check_entity_collisions(EntityHandler* handler, Player* p) {
 		default: break;
 		}
 	}
+}
+
+
+bool entity_trymove(Entity* e, bool gravityactive) {
+	Map* map = get_map();
+	Sector curSec = *get_sector(e->sector);
+
+	if (gravityactive) {
+		//vertical collision detection
+		const f32 gravity = -GRAVITY;
+
+		if (e->inAir) {
+			e->velocity.z += gravity;
+			f32 dvel = e->velocity.z;
+			//floor collision
+			if (e->velocity.z < 0 && (e->z + dvel) < (curSec.zfloor + e->scale.y)) {
+				e->velocity.z = 0;
+				e->inAir = 0;
+				e->z = (curSec.zfloor + e->scale.y);
+			}
+			//ceiling collision
+			else if (e->velocity.z > 0 && (e->z + dvel) > (curSec.zceil - HEADMARGIN)) {
+				e->velocity.z = 0;
+				e->z = curSec.zceil - HEADMARGIN;
+			}
+			//if no collision was detected just add the velocity
+			else {
+				e->z += dvel;
+			}
+		}
+	}
+	bool hit = false;
+	for (i32 i = curSec.index; i < curSec.index + curSec.numWalls; i++) {
+		Wall* curwall = &map->walls[i];
+		v2 intersection;
+		v2 pos = e->pos;
+		if ((POINTSIDE2D(pos.x, pos.y, curwall->a.x, curwall->a.y, curwall->b.x, curwall->b.y) < 0) &&
+			(get_line_intersection(pos, (v2) { pos.x + e->velocity.x, pos.y + e->velocity.y }, curwall->a, curwall->b, & intersection))) {
+			f32 stepl = curwall->portal >= 0 ? map->sectors[curwall->portal].zfloor : 10e10;
+			f32 steph = curwall->portal >= 0 ? map->sectors[curwall->portal].zceil : -10e10;
+			if (e->type == Projectile) {
+				v2 mappos = (v2){ intersection.x - curwall->a.x, intersection.y - curwall->a.y };
+				v2 wallpos = (v2){ sqrt(mappos.x * mappos.x + mappos.y * mappos.y), e->z };
+				if (spawn_decal(wallpos, curwall, (v2) { 2.0f, 2.0f }, 1)) {
+					hit = true;
+					break;
+				}
+			}
+			//collision with wall, top or lower part of portal
+			else if (stepl > e->z - e->scale.y + STEPHEIGHT ||
+				steph < e->z + HEADMARGIN) {
+				//collide with wall, project velocity vector onto wall vector
+				v2 wallVec = { curwall->b.x - curwall->a.x, curwall->b.y - curwall->a.y };
+				v2 projVel = {
+					(e->velocity.x * wallVec.x + e->velocity.y * wallVec.y) / (wallVec.x * wallVec.x + wallVec.y * wallVec.y) * wallVec.x,
+					(e->velocity.x * wallVec.x + e->velocity.y * wallVec.y) / (wallVec.x * wallVec.x + wallVec.y * wallVec.y) * wallVec.y
+				};
+
+				e->velocity.x = projVel.x;
+				e->velocity.y = projVel.y;
+				hit = true;
+				break;
+			}
+
+			//if entity fits throught portal change entitysector
+			if (curwall->portal >= 0) {
+				curSec = map->sectors[curwall->portal];
+				e->sector = curSec.id;
+				if (e->type == Projectile) continue;
+				if (e->z < e->scale.y + curSec.zfloor) e->z = e->scale.y + curSec.zfloor;
+				else if (e->z > e->scale.y + curSec.zfloor) e->inAir = 1;
+			}
+		}
+	}
+
+	e->pos.x += e->velocity.x;
+	e->pos.y += e->velocity.y;
+
+	return hit;
 }

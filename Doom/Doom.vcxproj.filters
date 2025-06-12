@@ -59,9 +59,6 @@
     <ClInclude Include="entity.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="ticker.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
     <ClInclude Include="tick.h">
       <Filter>Header Files</Filter>
     </ClInclude>

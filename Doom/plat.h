@@ -1,7 +1,8 @@
 #pragma once
 #include "util.h"
-#include "ticker.h"
-#include "map.h"
+#include "tick.h"
+
+typedef struct Sector_s Sector;
 
 typedef enum {
 	INFINITE_UP_DOWN

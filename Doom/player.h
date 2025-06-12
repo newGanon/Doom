@@ -1,7 +1,9 @@
 #pragma once
 #include "util.h"
 
-typedef struct Player {
+typedef struct EntityHandler_s EntityHandler;
+
+typedef struct Player_s {
 	v2 pos;
 	f32 z;
 	v3 velocity;
@@ -11,5 +13,6 @@ typedef struct Player {
 	bool shoot, in_air, dead, sneak;
 }Player;
 
-void player_tick(Player* p, bool* KEYS);
-void check_shoot(Player* p);
+void player_tick(Player* p, EntityHandler* handler, bool* KEYS);
+void player_check_shoot(Player* p, EntityHandler* handler);
+void player_trymove(Player* p);

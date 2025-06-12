@@ -3,14 +3,12 @@
 #include "draw.h"
 #include "math.h"
 #include "entity.h"
-#include "ticker.h"
 #include "tick.h"
 #include "map.h"
 #include "player.h"
 #include "tex.h"
 #include "plat.h"
 #include "entityhandler.h"
-#include <ctype.h>
 
 struct {
 	// sdl
@@ -105,7 +103,7 @@ int main(int argc, char* args[]) {
 void render() {
 	// clear pixel buffer
 	memset(state.pixels, 0, sizeof(state.pixels));
-	draw_3d(state.player, &state.entityhandler);
+	draw_3d(&state.player, &state.entityhandler);
 	draw_2d();
 
 	u8* px;
@@ -130,7 +128,7 @@ void render() {
 
 
 void update() {
-	sort_walls(&state.player);
+	sort_walls(state.player.pos, state.player.anglesin, state.player.anglecos);
 	player_tick(&state.player, &state.entityhandler, state.KEYS);
 	calc_all_rel_cam_pos(&state.entityhandler, &state.player);
 	tickers_run();

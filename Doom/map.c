@@ -1,6 +1,7 @@
 #include "map.h"
 #include "math.h"
 #include "tex.h"
+#include <ctype.h>
 
 static Map* map;
 
@@ -54,7 +55,7 @@ void map_init(Map* map1) {
 }
 
 
-bool point_inside_sector(i32 sec, v2 p) {
+bool map_point_inside_sector(i32 sec, v2 p) {
 	Sector s = map->sectors[sec];
 	for (i32 i = s.index; i < (s.index + s.numWalls); i++) {
 		Wall w = map->walls[i];
@@ -66,7 +67,7 @@ bool point_inside_sector(i32 sec, v2 p) {
 }
 
 // walls are sorted in order to to draw them recursivly and allow for non konvex sectors
-void sort_walls(v2 cam_pos, f32 camsin, f32 camcos) {
+void map_sort_walls(v2 cam_pos, f32 camsin, f32 camcos) {
 	//calc distances
 	for (i32 wallind = 0; wallind < map->wallnum; wallind++)
 	{
@@ -95,27 +96,27 @@ void sort_walls(v2 cam_pos, f32 camsin, f32 camcos) {
 	}
 }
 
-Sector* get_sector(i32 index) {
+Sector* map_get_sector(i32 index) {
 	if (index > map->sectoramt) return NULL;
 	else return &map->sectors[index];
 }
 
-Wall* get_wall(i32 index) {
+Wall* map_get_wall(i32 index) {
 	if (index > map->wallnum) return NULL;
 	else return &map->walls[index];
 }
 
-i32 get_sectoramt() {
+i32 map_get_sectoramt() {
 	return map->sectoramt;
 }
 
-Map* get_map() {
+Map* map_get_map() {
 	return map;
 }
 
-Decal* spawn_decal(v2 wallpos, Wall* curwall, v2 size, i32 tex_id) {
-	f32 stepl = curwall->portal >= 0 ? map->sectors[curwall->portal].zfloor : 10e10;
-	f32 steph = curwall->portal >= 0 ? map->sectors[curwall->portal].zceil : -10e10;
+Decal* map_spawn_decal(v2 wallpos, Wall* curwall, v2 size, i32 tex_id) {
+	f32 stepl = curwall->portal >= 0 ? map->sectors[curwall->portal].zfloor : 10e10f;
+	f32 steph = curwall->portal >= 0 ? map->sectors[curwall->portal].zceil : -10e10f;
 
 	wall_section_type type = NONE;
 	if (curwall->portal == -1) {
@@ -176,7 +177,7 @@ Decal* spawn_decal(v2 wallpos, Wall* curwall, v2 size, i32 tex_id) {
 }
 
 
-bool move_sector_plane(Sector* sec, f32 speed, f32 dest, bool floor, bool up) {
+bool map_move_sector_plane(Sector* sec, f32 speed, f32 dest, bool floor, bool up) {
 	i32 dir = up ? 1 : -1;
 	speed = speed * SECONDS_PER_UPDATE;
 	f32 new_height;
@@ -235,7 +236,7 @@ bool move_sector_plane(Sector* sec, f32 speed, f32 dest, bool floor, bool up) {
 }
 
 
-f32 get_relative_decal_wall_height(Decal* d, Wall* wall, f32 cur_sec_floorz) {
+f32 map_decal_wall_height(Decal* d, Wall* wall, f32 cur_sec_floorz) {
 	f32 rel_decal_height = 0.0f;
 	// if decal is on the upper part of portal, then subtract neightbouring sector ceiling height, to get absolute position of decal on wall
 	switch (d->wall_type) {
@@ -246,13 +247,13 @@ f32 get_relative_decal_wall_height(Decal* d, Wall* wall, f32 cur_sec_floorz) {
 		}
 		// decal has height relative to floor of portal sector
 		case PORTAL_LOWER: {
-			Sector* sec = get_sector(wall->portal);
+			Sector* sec = map_get_sector(wall->portal);
 			rel_decal_height = (d->wallpos.y + sec->zfloor) - cur_sec_floorz;
 			break;
 		}
 		// decal has height relative to ceil of portal sector
 		case PORTAL_UPPER: {
-			Sector* sec = get_sector(wall->portal);
+			Sector* sec = map_get_sector(wall->portal);
 			rel_decal_height = d->wallpos.y + sec->zceil;
 			break;
 		}
@@ -261,26 +262,25 @@ f32 get_relative_decal_wall_height(Decal* d, Wall* wall, f32 cur_sec_floorz) {
 }
 
 
-RaycastResult raycast(Sector* cursec, v2 pos, v2 target_pos, f32 z) {
+RaycastResult map_raycast(Sector* cursec, v2 pos, v2 target_pos, f32 z) {
 	if(cursec->zceil < z || cursec->zfloor > z) return (RaycastResult) { .hit = false };
 	v2 intersection;
 	bool hit = false;
 	for (i32 i = cursec->index; i < cursec->index + cursec->numWalls; i++) {
 		Wall* curwall = &map->walls[i];
-		i32 test = (POINTSIDE2D(pos.x, pos.y, curwall->a.x, curwall->a.y, curwall->b.x, curwall->b.y));
 		if ((POINTSIDE2D(pos.x, pos.y, curwall->a.x, curwall->a.y, curwall->b.x, curwall->b.y) < 0) && 
 			(get_line_intersection(pos, target_pos, curwall->a, curwall->b, &intersection))) {
 			// normal wall hit
 			if (curwall->portal == -1) { hit = true; }
 			// portal hit
 			else {
-				f32 stepl = get_sector(curwall->portal)->zfloor;
-				f32 steph = get_sector(curwall->portal)->zceil;
+				f32 stepl = map_get_sector(curwall->portal)->zfloor;
+				f32 steph = map_get_sector(curwall->portal)->zceil;
 				// top or bottom of portal hit
 				if (stepl > z || steph < z) { hit = true; }
 				// fit through portal, change sector
 				else {
-					cursec = get_sector(curwall->portal);
+					cursec = map_get_sector(curwall->portal);
 					i = cursec->index;
 					pos = intersection;
 				}
@@ -289,7 +289,7 @@ RaycastResult raycast(Sector* cursec, v2 pos, v2 target_pos, f32 z) {
 			if (hit) {
 				v2 hit_pos = (v2){ intersection.x - curwall->a.x, intersection.y - curwall->a.y };
 				v2 pos_to_hit = (v2){ intersection.x - pos.x, intersection.y - pos.y };
-				f32 distance = sqrt(pos_to_hit.x * pos_to_hit.x + pos_to_hit.y * pos_to_hit.y);
+				f32 distance = sqrtf(pos_to_hit.x * pos_to_hit.x + pos_to_hit.y * pos_to_hit.y);
 				return (RaycastResult) { .hit = true, .wall_pos = hit_pos, .wall = curwall, .wall_sec = cursec, .distance = distance };
 			}
 		}

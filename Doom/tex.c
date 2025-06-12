@@ -24,20 +24,20 @@ void create_lightmap(Palette* pal) {
 	u8 levels[] = {0, 51, 102, 153, 204, 255};
 	u32(*colors)[32] = (u32(*)[32])pal->colors;
 	// first color is special color for transparent pixels
-	for (usize i = 0; i < 32; i++) colors[0][i] = 0;
+	for (u32 i = 0; i < 32; i++) colors[0][i] = 0;
 	// normal colors
-	for (usize x = 0; x < 6; x++) {
-		for (usize y = 0; y < 6; y++) {
-			for (usize z = 0; z < 6; z++) {
+	for (u32 x = 0; x < 6; x++) {
+		for (u32 y = 0; y < 6; y++) {
+			for (u32 z = 0; z < 6; z++) {
 				u8 r = levels[x];
 				u8 g = levels[y];
 				u8 b = levels[z];
 				f32 r_step = r / 31.0f;
 				f32 g_step = g / 31.0f;
 				f32 b_step = b / 31.0f;
-				usize color_number = z + (6 * y) + (6 * 6 * x) + 1;
+				u32 color_number = z + (6 * y) + (6 * 6 * x) + 1;
 				// 32 shades
-				for (usize s = 0; s < 32; s++) {
+				for (u32 s = 0; s < 32; s++) {
 					u32 c = (0xFF << 24) | ((r - (i32)(r_step * s)) << 16) | ((g - (i32)(g_step * s)) << 8) | ((b - (i32)(b_step * s)));
 					colors[color_number][s] = c;
 				}
@@ -45,11 +45,14 @@ void create_lightmap(Palette* pal) {
 		}
 	}
 	// 39 tones of gray
-	for (usize i = 1; i < 40; i++) {
+	for (u32 i = 1; i < 40; i++) {
 		u8 gray = (u8)((255 / 39.0f) * i);
 		f32 gray_step = gray / 32.0f;
-		for (usize s = 0; s < 32; s++) {
-			colors[6 * 6 * 6 + i][s] = (11111111 << 24) | ((gray - (i32)(gray_step * s)) << 16) | ((gray - (i32)(gray_step * s)) << 8) | ((gray - (i32)(gray_step * s)));
+		for (u32 s = 0; s < 32; s++) {
+			colors[6 * 6 * 6 + i][s] = ((u32)0xFF << 24) |
+									   ((u32)(gray - (i32)(gray_step * s)) << 16) |
+									   ((u32)(gray - (i32)(gray_step * s)) << 8) |
+									   ((u32)(gray - (i32)(gray_step * s)));
 		}
 	}
 }

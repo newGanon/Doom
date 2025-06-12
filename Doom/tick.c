@@ -1,5 +1,5 @@
-#include "tick.h"
 #include "util.h"
+#include "tick.h"
 
 //head and tail of tickerlist
 ticker tickercap;

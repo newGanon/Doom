@@ -4,7 +4,7 @@
 #include "entityhandler.h"
 #include "player.h"
 
-void calc_all_rel_cam_pos(EntityHandler* handler, Player* player) {
+void entity_calculate_relative_camera_position(EntityHandler* handler, Player* player) {
 	for (u32 i = 0; i < handler->used; i++) {
 		Entity* entity = handler->entities[i];
 		v2 entityRelPos = world_pos_to_camera(entity->pos, player->pos, player->anglesin, player->anglecos);
@@ -19,7 +19,7 @@ void tick_item(Entity* item) {
 	const i32 ticks_half = ticks_total / 2;
 	const f32 max_z_offset = 0.8f;
 
-	i32 curtick = item->animationtick;
+	i32 curtick = (i32)item->animationtick;
 
 	if (curtick > ticks_total / 2) {
 		curtick = ticks_total - curtick;
@@ -36,19 +36,18 @@ void tick_item(Entity* item) {
 
 void tick_enemy(Entity* enemy) {
 	Player* player = enemy->target;
-	v2 dpos = { 0, 0 };
-	f32 acceleration = 0.3;
+	v2 dpos = { 0.0f, 0.0f };
+	f32 acceleration = 0.3f;
 	f32 movespeed = enemy->speed * SECONDS_PER_UPDATE;
 	bool chasing = false;
-	
 
-	if (abs(enemy->z - player->z) < 10.0f) {
+	if (fabsf(enemy->z - player->z) < 10.0f) {
 		f32 dx = player->pos.x - enemy->pos.x;
 		f32 dy = player->pos.y - enemy->pos.y;
 		f32 len = dx * dx + dy * dy;
-		len /= sqrt(len);
+		len /= sqrtf(len);
 		if (len < 15.0f) {
-			acceleration = 0.4;
+			acceleration = 0.4f;
 			chasing = true;
 			dpos = (v2) { dx / len, dy / len };
 		}
@@ -80,14 +79,14 @@ void tick_bullet(Entity* bullet) {
 	bullet->velocity.y = bullet->dir.y * bullet->speed * SECONDS_PER_UPDATE;
 
 	bool hitwall = entity_trymove(bullet, 0);
-	Sector* sec = get_sector(bullet->sector);
+	Sector* sec = map_get_sector(bullet->sector);
 	if (hitwall || sec->zfloor > bullet->z || sec->zceil < bullet->z) {
 		bullet->dirty = true;
 	}
 }
 
-void check_entity_collisions(EntityHandler* handler, Player* p) {
-	for (i32 i = 0; i < handler->used; i++) {
+void entity_check_collisions(EntityHandler* handler, Player* p) {
+	for (u32 i = 0; i < handler->used; i++) {
 		Entity* e = handler->entities[i];
 		if (e->dirty) continue;
 		switch (e->type) {
@@ -97,13 +96,13 @@ void check_entity_collisions(EntityHandler* handler, Player* p) {
 		case Projectile: {
 			//friendly projectile
 			if (!e->target){
-				for (i32 j = 0; j < handler->used; j++) {
+				for (u32 j = 0; j < handler->used; j++) {
 					Entity* tar = handler->entities[j];
 					if (tar->dirty) continue;
 					if (tar->type == Enemy && ((e->z - tar->z) < 10.0f)) {
 						f32 dx = tar->pos.x - e->pos.x;
 						f32 dy = tar->pos.y - e->pos.y;
-						f32 r = sqrt((dx * dx) + (dy * dy));
+						f32 r = sqrtf((dx * dx) + (dy * dy));
 						if (r < tar->scale.x/2.0f) {
 							tar->health -= e->damage;
 							if (tar->health <= 0) {
@@ -121,7 +120,7 @@ void check_entity_collisions(EntityHandler* handler, Player* p) {
 			break;
 		}
 		case Item: {
-			f32 r = sqrt(e->relCamPos.x * e->relCamPos.x + e->relCamPos.y + e->relCamPos.y);
+			f32 r = sqrtf(e->relCamPos.x * e->relCamPos.x + e->relCamPos.y + e->relCamPos.y);
 			//collect item
 			if (r < 3.0f) {
 				//TODO: give player item
@@ -136,8 +135,8 @@ void check_entity_collisions(EntityHandler* handler, Player* p) {
 
 
 bool entity_trymove(Entity* e, bool gravityactive) {
-	Map* map = get_map();
-	Sector curSec = *get_sector(e->sector);
+	Map* map = map_get_map();
+	Sector curSec = *map_get_sector(e->sector);
 
 	if (gravityactive) {
 		//vertical collision detection
@@ -170,12 +169,12 @@ bool entity_trymove(Entity* e, bool gravityactive) {
 		v2 pos = e->pos;
 		if ((POINTSIDE2D(pos.x, pos.y, curwall->a.x, curwall->a.y, curwall->b.x, curwall->b.y) < 0) &&
 			(get_line_intersection(pos, (v2) { pos.x + e->velocity.x, pos.y + e->velocity.y }, curwall->a, curwall->b, & intersection))) {
-			f32 stepl = curwall->portal >= 0 ? map->sectors[curwall->portal].zfloor : 10e10;
-			f32 steph = curwall->portal >= 0 ? map->sectors[curwall->portal].zceil : -10e10;
+			f32 stepl = curwall->portal >= 0 ? map->sectors[curwall->portal].zfloor : 10e10f;
+			f32 steph = curwall->portal >= 0 ? map->sectors[curwall->portal].zceil : -10e10f;
 			if (e->type == Projectile) {
 				v2 mappos = (v2){ intersection.x - curwall->a.x, intersection.y - curwall->a.y };
-				v2 wallpos = (v2){ sqrt(mappos.x * mappos.x + mappos.y * mappos.y), e->z };
-				if (spawn_decal(wallpos, curwall, (v2) { 2.0f, 2.0f }, 1)) {
+				v2 wallpos = (v2){ sqrtf(mappos.x * mappos.x + mappos.y * mappos.y), e->z };
+				if (map_spawn_decal(wallpos, curwall, (v2) { 2.0f, 2.0f }, 1)) {
 					hit = true;
 					break;
 				}

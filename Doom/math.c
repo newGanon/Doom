@@ -39,13 +39,13 @@ v2 camera_pos_to_world(v2 pos, v2 cam_pos, f32 camsin, f32 camcos) {
 //convert angle from [-HFOV/2, HFOV/2] to [0, SCREEN_WIDTH -1] 
 i32 screen_angle_to_x(f32 angle) {
 	//convert angle to [0.0, 2.0]
-	f32 t = 1.0f - tan(((angle + (HFOV / 2.0)) / HFOV) * PI_2 - PI_4);
-	return ((i32)(SCREEN_WIDTH / 2)) * t;
+	f32 t = 1.0f - tanf(((angle + (HFOV / 2.0f)) / HFOV) * PI_2 - PI_4);
+	return (i32)((SCREEN_WIDTH / 2) * t);
 }
 
 //convert x from [0, SCREEN_WIDTH -1] to  [-HFOV/2, HFOV/2], only used to fill lookuptable
 f32 screen_x_to_angle(i32 x) {
-	f32 at = atan(((-2 * x) / (f32)SCREEN_WIDTH) + 1);
+	f32 at = atanf(((-2 * x) / (f32)SCREEN_WIDTH) + 1);
 	return (f32)((2 * HFOV * at) / PI);
 }
 
@@ -56,8 +56,8 @@ v2 v2_normalize(v2 a) {
 
 v2 v2_rotate(v2 a, f32 rot) {
 	const v2 oVec = a;
-	a.x = oVec.x * (f32)cos(rot) - oVec.y * (f32)sin(rot);
-	a.y = oVec.x * (f32)sin(rot) + oVec.y * (f32)cos(rot);
+	a.x = oVec.x * cosf(rot) - oVec.y * sinf(rot);
+	a.y = oVec.x * sinf(rot) + oVec.y * cosf(rot);
 	return a;
 }
 
@@ -70,7 +70,7 @@ v2 v2_sub(v2 a, v2 b) {
 }
 
 f32 v2_len(v2 a) {
-	return (f32)sqrt(a.x * a.x + a.y * a.y);
+	return sqrtf(a.x * a.x + a.y * a.y);
 }
 
 v2 v2_mul(v2 a, f32 b) {
@@ -79,5 +79,5 @@ v2 v2_mul(v2 a, f32 b) {
 
 f32 ease_in_out_cubic(f32 x) {
     //return x < 0.5 ? 4 * x * x * x : 1 - pow(-2 * x + 2, 3) / 2;
-	return x < 0.5 ? 2 * x * x : 1 - pow(-2 * x + 2, 2) / 2;
+	return x < 0.5f ? 2.0f * x * x : 1.0f - powf(-2.0f * x + 2.0f, 2.0f) / 2.0f;
 }

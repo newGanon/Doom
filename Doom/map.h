@@ -9,8 +9,8 @@ typedef enum wall_section_type {
 } wall_section_type;
 
 typedef struct Decal_s {
-	struct Decal* next;
-	struct Decal* prev;
+	struct Decal_s* next;
+	struct Decal_s* prev;
 	i32 tag;
 	wall_section_type wall_type;
 	u32 tex_num;

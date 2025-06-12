@@ -12,7 +12,7 @@ void entityhandler_init(EntityHandler* handler, u32 initialsize) {
 void entity_add(EntityHandler* handler, Entity* entity) {
 	if (handler->used == handler->size) {
 		handler->size = handler->size << 1;
-		Entity* hand_p = (Entity*)realloc(handler->entities, handler->size * sizeof(Entity*));
+		Entity** hand_p = (Entity**)realloc(handler->entities, handler->size * sizeof(Entity*));
 		ASSERT(!(hand_p == NULL), "error while using realloc");
 		handler->entities = hand_p;
 	}

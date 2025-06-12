@@ -58,8 +58,8 @@ int main(int argc, char* args[]) {
 				}
 				case SDL_MOUSEMOTION: {
 					state.player.angle -= e.motion.xrel * PLAYERTOATIONSPEED;
-					state.player.anglecos = (f32)(cos(state.player.angle));
-					state.player.anglesin = (f32)(sin(state.player.angle));
+					state.player.anglecos = cosf(state.player.angle);
+					state.player.anglesin = sinf(state.player.angle);
 					break; 
 				}			
 				case SDL_MOUSEBUTTONDOWN: {
@@ -106,10 +106,10 @@ void render() {
 	draw_3d(&state.player, &state.entityhandler);
 	draw_2d();
 
-	u8* px;
+	u8* px = NULL;
 	int pitch;
 	if(!SDL_LockTexture(state.texture, NULL, &px, &pitch)) {
-		for (usize y = 0; y < SCREEN_HEIGHT; y++) {
+		for (u32 y = 0; y < SCREEN_HEIGHT; y++) {
 			memcpy(&px[y * pitch], &state.pixels[y * SCREEN_WIDTH], SCREEN_WIDTH * 4);
 		}
 	}
@@ -128,11 +128,11 @@ void render() {
 
 
 void update() {
-	sort_walls(state.player.pos, state.player.anglesin, state.player.anglecos);
+	map_sort_walls(state.player.pos, state.player.anglesin, state.player.anglecos);
 	player_tick(&state.player, &state.entityhandler, state.KEYS);
-	calc_all_rel_cam_pos(&state.entityhandler, &state.player);
+	entity_calculate_relative_camera_position(&state.entityhandler, &state.player);
 	tickers_run();
-	check_entity_collisions(&state.entityhandler, &state.player);
+	entity_check_collisions(&state.entityhandler, &state.player);
 	entityhandler_removedirty(&state.entityhandler);
 }
 
@@ -140,11 +140,11 @@ void init() {
 	sdl_init();
 	draw_init(state.pixels, &state.lightmap, state.index_textures);
 	tex_init(state.surfaces, &state.lightmap, state.index_textures);
-	loadlevel(&state.map);
+	map_init(&state.map);
 	entityhandler_init(&state.entityhandler, 128);
 	tickers_init();
 
-	for (size_t i = 0; i < SDL_NUM_SCANCODES; i++) state.KEYS[i] = false;
+	for (u32 i = 0; i < SDL_NUM_SCANCODES; i++) state.KEYS[i] = false;
 
 	Entity* e1 = malloc(sizeof(Entity));
 	if (e1) {
@@ -185,7 +185,7 @@ void init() {
 	}
 
 	Decal* decal = malloc(sizeof(Decal));
-	Decal* d = spawn_decal((v2) { 5.0f, 6.0f }, & state.map.walls[5], (v2) { 5.0f, 5.0f }, 1);
+	Decal* d = map_spawn_decal((v2) { 5.0f, 6.0f }, & state.map.walls[5], (v2) { 5.0f, 5.0f }, 1);
 	d->tag = 1;
 
 	state.map.sectors[6].tag = 1;
@@ -202,8 +202,8 @@ void init() {
 	state.player.speed = PLAYERSPEED;
 
 	state.player.angle = PI_2;
-	state.player.anglecos = (f32)cos(state.player.angle);
-	state.player.anglesin = (f32)sin(state.player.angle);
+	state.player.anglecos = cosf(state.player.angle);
+	state.player.anglesin = sinf(state.player.angle);
 }
 
 void close() {

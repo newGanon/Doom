@@ -4,6 +4,7 @@
 #include "map.h"
 #include "entity.h"
 #include "plat.h"
+#include "entityhandler.h"
 
 void calc_playervelocity(Player* p, bool* KEYS);
 void player_check_shoot(Player* p, EntityHandler* handler);
@@ -56,7 +57,7 @@ void calc_playervelocity(Player* p, bool* KEYS) {
 
 	u8 moved = KEYS[SDL_SCANCODE_W] || KEYS[SDL_SCANCODE_S] || KEYS[SDL_SCANCODE_A] || KEYS[SDL_SCANCODE_D];
 
-	f32 acceleration = moved ? 0.4 : 0.3;
+	f32 acceleration = moved ? 0.4f : 0.3f;
 
 	p->velocity.x = p->velocity.x * (1 - acceleration) + dpos.x * acceleration * movespeed;
 	p->velocity.y = p->velocity.y * (1 - acceleration) + dpos.y * acceleration * movespeed;
@@ -95,10 +96,10 @@ void player_check_shoot(Player* p, EntityHandler* handler) {
 			break;
 		}
 		case 1: {
-			RaycastResult res = raycast(get_sector(p->sector), p->pos, (v2) { p->pos.x + p->anglecos * 1000.0f, p->pos.y + p->anglesin * 1000.0f }, p->z);
+			RaycastResult res = map_raycast(map_get_sector(p->sector), p->pos, (v2) { p->pos.x + p->anglecos * 1000.0f, p->pos.y + p->anglesin * 1000.0f }, p->z);
 			if (res.hit) {
-				v2 wallpos = (v2){ sqrt(res.wall_pos.x * res.wall_pos.x + res.wall_pos.y * res.wall_pos.y), p->z };
-				spawn_decal(wallpos, res.wall, (v2) { 2.0f, 2.0f }, 1);
+				v2 wallpos = (v2){ (f32)sqrt(res.wall_pos.x * res.wall_pos.x + res.wall_pos.y * res.wall_pos.y), p->z };
+				map_spawn_decal(wallpos, res.wall, (v2) { 2.0f, 2.0f }, 1);
 			}
 			break;
 		}
@@ -107,13 +108,13 @@ void player_check_shoot(Player* p, EntityHandler* handler) {
 }
 
 void p_interact(Player* p) {
-	Sector* cursec = get_sector(p->sector);
-	RaycastResult res = raycast(cursec, p->pos, (v2) { p->pos. x + p->anglecos * 1000.0f, p->pos.y + p->anglesin * 1000.0f }, p->z);
+	Sector* cursec = map_get_sector(p->sector);
+	RaycastResult res = map_raycast(cursec, p->pos, (v2) { p->pos. x + p->anglecos * 1000.0f, p->pos.y + p->anglesin * 1000.0f }, p->z);
 	if (res.hit) {
 		if (res.distance > (15.0f)) return;
 		for (Decal* d = res.wall->decalhead; d != NULL; d = d->next) {
-			get_relative_decal_wall_height(d, res.wall, cursec->zfloor);
-			v2 rel_wallpos = (v2){ sqrt(res.wall_pos.x * res.wall_pos.x + res.wall_pos.y * res.wall_pos.y), p->z };
+			map_decal_wall_height(d, res.wall, cursec->zfloor);
+			v2 rel_wallpos = (v2){ sqrtf(res.wall_pos.x * res.wall_pos.x + res.wall_pos.y * res.wall_pos.y), p->z };
 			if (rel_wallpos.x > d->wallpos.x && rel_wallpos.x < (d->wallpos.x + d->size.x) && rel_wallpos.y > d->wallpos.y && rel_wallpos.y < (d->wallpos.y + d->size.y)) {
 				create_plat(d->tag, INFINITE_UP_DOWN, true);
 			}
@@ -126,8 +127,8 @@ void p_interact(Player* p) {
 void player_trymove(Player* p) {
 	//vertical collision detection
 	const f32 gravity = -GRAVITY * SECONDS_PER_UPDATE;
-	Map* map = get_map();
-	Sector* cur_sec = get_sector(p->sector);
+	Map* map = map_get_map();
+	Sector* cur_sec = map_get_sector(p->sector);
 	f32 eyeheight = p->sneak ? SNEAKHEIGHT : EYEHEIGHT;
 
 	// player above ground
@@ -184,8 +185,8 @@ void player_trymove(Player* p) {
 			Wall curwall = map->walls[i];
 			if (BOXINTERSECT2D(p->pos.x, p->pos.y, p->pos.x + p->velocity.x, p->pos.y + p->velocity.y, curwall.a.x, curwall.a.y, curwall.b.x, curwall.b.y) &&
 				POINTSIDE2D(p->pos.x + p->velocity.x, p->pos.y + p->velocity.y, curwall.a.x, curwall.a.y, curwall.b.x, curwall.b.y) > 0)) {
-					f32 stepl = curwall.portal >= 0 ? get_sector(curwall.portal)->zfloor : 10e10;
-					f32 steph = curwall.portal >= 0 ? get_sector(curwall.portal)->zceil : -10e10;
+					f32 stepl = curwall.portal >= 0 ? map_get_sector(curwall.portal)->zfloor : 10e10f;
+					f32 steph = curwall.portal >= 0 ? map_get_sector(curwall.portal)->zceil : -10e10f;
 					//collision with wall, top or lower part of portal
 					if (stepl > p->z - eyeheight + STEPHEIGHT ||
 						steph < p->z + HEADMARGIN ||
@@ -220,7 +221,7 @@ void player_trymove(Player* p) {
 							break;
 						}
 						hit_portal = true;
-						sec_new = get_sector(curwall.portal);
+						sec_new = map_get_sector(curwall.portal);
 					}
 			}
 		}

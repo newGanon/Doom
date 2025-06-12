@@ -5,9 +5,9 @@
 Platform* activeplats[MAXPLATFORMS];
 
 i32 find_sector_from_tag(i32 tag, i32 sec_start) {
-	i32 num_of_sectors = get_sectoramt();
-	for (size_t i = sec_start; i < num_of_sectors; i++) {
-		Sector* sec = get_sector(i);
+	i32 num_of_sectors = map_get_sectoramt();
+	for (i32 i = sec_start; i < num_of_sectors; i++) {
+		Sector* sec = map_get_sector(i);
 		if (sec->tag == tag) return i;
 	}
 	return -1;
@@ -28,11 +28,11 @@ void plat_move(Platform* plat) {
 	bool done = false;
 	switch (plat->status) {
 		case UP: {
-			done = move_sector_plane(plat->sec, plat->speed, plat->high, plat->floor, true);
+			done = map_move_sector_plane(plat->sec, plat->speed, plat->high, plat->floor, true);
 			break;
 		}
 		case DOWN: {
-			done = move_sector_plane(plat->sec, plat->speed, plat->low, plat->floor, false);
+			done = map_move_sector_plane(plat->sec, plat->speed, plat->low, plat->floor, false);
 			break;
 		}
 		case WAIT: {
@@ -69,7 +69,7 @@ void create_plat(i32 tag, plat_type type, bool floor) {
 	Sector* sec;
 
 	while ((secnum = find_sector_from_tag(tag, secnum)) >= 0) {
-		sec = get_sector(secnum);
+		sec = map_get_sector(secnum);
 		// if sector already has an action try to reverse it
 		if (sec->specialdata) {
 			try_reverse_move(sec, type, floor);

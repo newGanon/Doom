@@ -15,6 +15,7 @@ typedef struct Entity_s{
 	Entitytype type;
 	v2 pos, relCamPos;
 	f32 z;
+	v2 dir;
 	v3 velocity;
 	u32 spriteNum[8];
 	u8 spriteAmt;

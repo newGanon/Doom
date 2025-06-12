@@ -64,20 +64,13 @@ void tick_enemy(Entity* enemy) {
 }
 
 void tick_bullet(Entity* bullet) {
-	f32 movespeed = bullet->speed * SECONDS_PER_UPDATE;
-	v3 oldvel = bullet->velocity;
-	
-	bullet->velocity.x *= movespeed;
-	bullet->velocity.y *= movespeed;
-
+	bullet->velocity.x = bullet->dir.x * bullet->speed * SECONDS_PER_UPDATE;
+	bullet->velocity.y = bullet->dir.y * bullet->speed * SECONDS_PER_UPDATE;
 
 	bool hitwall = trymove_entity(bullet, 0);
 	Sector* sec = get_sector(bullet->sector);
 	if (hitwall || sec->zfloor > bullet->z || sec->zceil < bullet->z) {
 		bullet->dirty = true;
-	}
-	else {
-		bullet->velocity = oldvel;
 	}
 }
 

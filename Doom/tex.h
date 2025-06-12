@@ -2,14 +2,12 @@
 #include "util.h"
 #include <SDL.h>
 
-
 typedef struct Palette_t {
 	// colors has 256, each with 32 shades
 	u32 colors[256][32];
 	u32 color_amt;
 	u32 shade_amt;
 } Palette;
-
 
 typedef struct LightmapindexTexture_t {
 	u8* indices;

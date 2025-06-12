@@ -83,7 +83,8 @@ void check_shoot(Player* p, EntityHandler* handler) {
 				bullet->spriteAmt = 1;
 				bullet->spriteNum[0] = 1;
 				bullet->type = Projectile;
-				bullet->velocity = (v3){ p->anglecos, p->anglesin, 0 };
+				bullet->dir = (v2){ p->anglecos, p->anglesin };
+				bullet->velocity = (v3){ 0 };
 				bullet->sector = p->sector;
 				bullet->target = NULL;
 				bullet->dirty = false;

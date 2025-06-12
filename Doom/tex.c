@@ -1,4 +1,4 @@
-#include "tex.h";
+#include "tex.h"
 
 u32 tex_amt;
 
@@ -7,7 +7,7 @@ void load_textures(SDL_Surface** surfaces) {
 	char textureFileNames[4][50] = { "Assets/test.bmp", "Assets/spritetest2.bmp", "Assets/ammo.bmp", "Assets/test3.bmp"};
 	tex_amt = sizeof(textureFileNames) / sizeof(textureFileNames[0]);
 
-	for (i32 i = 0; i < tex_amt; i++) {
+	for (u32 i = 0; i < tex_amt; i++) {
 		bmpTex = SDL_LoadBMP(textureFileNames[i]);
 		ASSERT(bmpTex, "Error loading texture %s\n", SDL_GetError());
 		surfaces[i] = bmpTex;
@@ -16,9 +16,12 @@ void load_textures(SDL_Surface** surfaces) {
 
 
 void create_lightmap(Palette* pal) {
-	// "web-safe" palette
+	// "web-safe" palette, but 0 is a special value for transparent color, and there are only 39 gray scale colors at the end
+	// 0 : special value for trasparent 
+	// 1-217 : colors
+	// 218-255 : gray-scale colors
 	u8 levels[] = {0, 51, 102, 153, 204, 255};
-	u32(*colors)[32] = (u8(*)[32])pal->colors;
+	u32(*colors)[32] = (u32(*)[32])pal->colors;
 	// first color is special color for transparent pixels
 	for (usize i = 0; i < 32; i++) colors[0][i] = 0;
 	// normal colors
@@ -31,7 +34,7 @@ void create_lightmap(Palette* pal) {
 				f32 r_step = r / 31.0f;
 				f32 g_step = g / 31.0f;
 				f32 b_step = b / 31.0f;
-				i32 color_number = z + (6 * y) + (6 * 6 * x) + 1;
+				usize color_number = z + (6 * y) + (6 * 6 * x) + 1;
 				// 32 shades
 				for (usize s = 0; s < 32; s++) {
 					u32 c = (0xFF << 24) | ((r - (i32)(r_step * s)) << 16) | ((g - (i32)(g_step * s)) << 8) | ((b - (i32)(b_step * s)));
@@ -42,7 +45,7 @@ void create_lightmap(Palette* pal) {
 	}
 	// 39 tones of gray
 	for (usize i = 1; i < 40; i++) {
-		u8 gray = (255 / 39.0f) * i;
+		u8 gray = (u8)((255 / 39.0f) * i);
 		f32 gray_step = gray / 32.0f;
 		for (usize s = 0; s < 32; s++) {
 			colors[6 * 6 * 6 + i][s] = (11111111 << 24) | ((gray - (i32)(gray_step * s)) << 16) | ((gray - (i32)(gray_step * s)) << 8) | ((gray - (i32)(gray_step * s)));
@@ -81,7 +84,7 @@ u8 find_closest_color_index(u32 color, const u32 palette[256][32]) {
 }
 
 void create_lightmap_indices(SDL_Surface** surfaces, Palette* pal, LightmapindexTexture* index_textures) {
-	for (i32 index = 0; index < tex_amt; ++index) {
+	for (u32 index = 0; index < tex_amt; ++index) {
 		SDL_Surface* cur_sur = surfaces[index];
 		LightmapindexTexture* cur_index_array = &index_textures[index];
 
@@ -97,7 +100,6 @@ void create_lightmap_indices(SDL_Surface** surfaces, Palette* pal, Lightmapindex
 		}
 
 		u32* surface_pixels = (u32*)cur_sur->pixels;
-		i32 size = sizeof(u8) * width * height;
 		cur_index_array->indices = (u8*)malloc(sizeof(u8) * width * height);
 		if (!cur_index_array->indices) {
 			fprintf(stderr, "Memory allocation failed for index_array at surface %d\n", index);
@@ -119,6 +121,14 @@ void init_tex(SDL_Surface** surfaces, Palette* lightmap, LightmapindexTexture* i
 	load_textures(surfaces);
 	create_lightmap(lightmap);
 	create_lightmap_indices(surfaces, lightmap, index_textures);
-	i32 index = index_textures[3].indices[100 * 256 + 100];
-	printf("%u", lightmap->colors[index][0]);
+	return tex_amt;
+}
+
+
+void free_textures(SDL_Surface** surfaces, LightmapindexTexture* index_textures) {
+	for (u32 i = 0; i < tex_amt; i++) {
+		SDL_FreeSurface(surfaces[i]);
+		if (index_textures[i].width <= 0 || index_textures[i].height <= 0 || (size_t)index_textures[i].width * (size_t)index_textures[i].height > SIZE_MAX) { continue; }
+		free(index_textures[i].indices);
+	}
 }

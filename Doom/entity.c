@@ -4,17 +4,17 @@
 
 EntityHandler* h;
 
-void init_entityhandler(EntityHandler* h1, u32 initialSize) {
+void init_entityhandler(EntityHandler* h1, u32 initialsize) {
 	h = h1;
-	h->entities = malloc(initialSize * sizeof(Entity*));
+	h->entities = malloc(initialsize * sizeof(Entity*));
 	h->used = 0;
-	h->size = initialSize;
+	h->size = initialsize;
 }
 
 void add_entity(Entity* entity) {
 	if (h->used == h->size) {
 		h->size *= 2;
-		Entity* tmp = (Entity*)realloc(h->entities, h->size * sizeof(Entity));
+		Entity** tmp = (Entity**)realloc(h->entities, h->size * sizeof(Entity*));
 		ASSERT(!(tmp == NULL), "error while using realloc");
 		h->entities = tmp;
 	}
@@ -66,7 +66,7 @@ void calc_all_rel_cam_pos(Player* player) {
 
 
 void tick_item(Entity* item) {
-	f32 speed = 250.0f * SECONDS_PER_UPDATE;
+	f32 speed = 150.0f * SECONDS_PER_UPDATE;
 	i32 totalanimationticks = 240;
 	i32 curtick = item->animationtick;
 	if (curtick > totalanimationticks / 2) curtick = totalanimationticks - curtick;
@@ -81,7 +81,8 @@ void tick_enemy(Entity* enemy) {
 	v2 dpos = { 0, 0 };
 	f32 acceleration = 0.3;
 	f32 movespeed = enemy->speed * SECONDS_PER_UPDATE;
-	u8 chasing = 0;
+	bool chasing = false;
+	
 
 	if (abs(enemy->z - player->z) < 10.0f) {
 		f32 dx = player->pos.x - enemy->pos.x;
@@ -90,7 +91,7 @@ void tick_enemy(Entity* enemy) {
 		len /= sqrt(len);
 		if (len < 15.0f) {
 			acceleration = 0.4;
-			chasing = 1;
+			chasing = true;
 			dpos = (v2) { dx / len, dy / len };
 		}
 	}
@@ -124,15 +125,16 @@ void tick_bullet(Entity* bullet) {
 	bullet->velocity.y *= movespeed;
 
 
-	u8 hitwall = trymove_entity(bullet, 0);
-	if (hitwall) {
-
+	bool hitwall = trymove_entity(bullet, 0);
+	Sector* sec = get_sector(bullet->sector);
+	if (hitwall || sec->zfloor > bullet->z || sec->zceil < bullet->z) {
 		remove_ticker(&bullet->tick);
 		remove_entity(bullet);
 	}
 	else {
 		bullet->velocity = oldvel;
 	}
+
 }
 
 void check_entity_collisions(Player* p) {

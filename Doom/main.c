@@ -27,7 +27,7 @@ struct {
 	Player player;
 	bool quit;
 	bool KEYS[SDL_NUM_SCANCODES];
-	f32 deltaTimeAcc;
+	f32 delta_time_acc;
 } state;
 
 
@@ -37,6 +37,7 @@ void render();
 void close();
 void sdl_init();
 
+// TODO: anchor texture at bottom of the wall and remember where oringinal anchor height is, to make texture stay when floor or ceiling moves
 // TODO: implement proper player and enitiy collision detection where player hitbox is a circle
 
 int main(int argc, char* args[]) {
@@ -58,8 +59,8 @@ int main(int argc, char* args[]) {
 				}
 				case SDL_MOUSEMOTION: {
 					state.player.angle -= e.motion.xrel * PLAYERTOATIONSPEED;
-					state.player.anglecos = cos(state.player.angle);
-					state.player.anglesin = sin(state.player.angle);
+					state.player.anglecos = (f32)(cos(state.player.angle));
+					state.player.anglesin = (f32)(sin(state.player.angle));
 					break; 
 				}			
 				case SDL_MOUSEBUTTONDOWN: {
@@ -81,12 +82,12 @@ int main(int argc, char* args[]) {
 			}
 		}
 		a = SDL_GetTicks();
-		state.deltaTimeAcc += a - b;
+		state.delta_time_acc += a - b;
 		b = a;
-		if (state.deltaTimeAcc >= MS_PER_UPDATE) {
-			while (state.deltaTimeAcc > MS_PER_UPDATE) {
+		if (state.delta_time_acc >= MS_PER_UPDATE) {
+			while (state.delta_time_acc > MS_PER_UPDATE) {
 				update();
-				state.deltaTimeAcc -= MS_PER_UPDATE;
+				state.delta_time_acc -= MS_PER_UPDATE;
 			}
 			render();
 			//fps calc
@@ -104,16 +105,11 @@ void render() {
 	// clear pixel buffer
 	memset(state.pixels, 0, sizeof(state.pixels));
 	draw_3d(state.player, &state.entityhandler);
-
-	// draw crosshair
-	// drawCircle(SCREEN_WIDTH / 2, SCREEN_HEIGHT / 2, 10, 10, RED); 
-	fill_rectangle(SCREEN_WIDTH / 2 - 8, SCREEN_HEIGHT / 2 - 1, SCREEN_WIDTH / 2 + 8, SCREEN_HEIGHT / 2 + 1, GREEN, &state.pixels);
-	fill_rectangle(SCREEN_WIDTH / 2 - 1, SCREEN_HEIGHT / 2 - 8, SCREEN_WIDTH / 2 + 1, SCREEN_HEIGHT / 2 + 8, GREEN, &state.pixels);
+	draw_2d();
 
 	u8* px;
 	int pitch;
-	SDL_LockTexture(state.texture, NULL, &px, &pitch);
-	{
+	if(!SDL_LockTexture(state.texture, NULL, &px, &pitch)) {
 		for (usize y = 0; y < SCREEN_HEIGHT; y++) {
 			memcpy(&px[y * pitch], &state.pixels[y * SCREEN_WIDTH], SCREEN_WIDTH * 4);
 		}
@@ -143,7 +139,7 @@ void update() {
 void init() {
 	sdl_init();
 	draw_init(state.pixels, &state.lightmap, state.index_textures);
-	init_tex(&state.surfaces, &state.lightmap, state.index_textures);
+	init_tex(state.surfaces, &state.lightmap, state.index_textures);
 	load_level(&state.map);
 	init_entityhandler(&state.entityhandler, 128);
 	init_tickers();
@@ -203,18 +199,13 @@ void init() {
 	state.player.speed = PLAYERSPEED;
 
 	state.player.angle = PI_2;
-	state.player.anglecos = cos(state.player.angle);
-	state.player.anglesin = sin(state.player.angle);
+	state.player.anglecos = (f32)cos(state.player.angle);
+	state.player.anglesin = (f32)sin(state.player.angle);
 }
 
 void close() {
 	free_entityhandler();
-
-	for (size_t i = 0; i < 100; i++){
-		SDL_Surface* surface = state.surfaces[i];
-		if (surface == NULL) break;
-		SDL_FreeSurface(surface);
-	}
+	free_textures(state.surfaces, state.index_textures);
 
 	SDL_DestroyWindow(state.window);
 	state.window = NULL;

@@ -22,7 +22,7 @@ typedef struct visplane_t {
 
 void inline draw_pixel(i32 x, i32 y, u32 color);
 void inline draw_pixel_from_lightmap(i32 x, i32 y, u8 index, u8 shade);
-void draw_tex_line(i32 x, i32 y0, i32 y1, i32 yf, i32 yc, i32 ayf, f64 u, u8 shade, f32 dis, f32 sec_floor_height, f32 wallheight, f32 wallwidth, Wall* wall, wall_section_type type);
+void draw_tex_line(i32 x, i32 y0, i32 y1, i32 yf, i32 yc, i32 ayf, f64 u, u8 shade_index, f32 dis, f32 zfloor, f32 zfloor_old, f32 wallheight, f32 wallwidth, Wall* wall, wall_section_type type);
 void draw_wall_3d(Player player, WallRenderingInfo* now, u32 rd);
 void draw_planes_3d(Player player);
 void make_spans(i32 x, i32 t1, i32 b1, i32 t2, i32 b2, visplane_t* v, Player player);
@@ -222,6 +222,7 @@ u8 calc_shade_from_distance(f32 dis){
 
 void draw_wall_3d(Player player, WallRenderingInfo* now, u32 rd)
 {
+	// recursion depth
 	if (rd > 32) return;
 	Sector sec = *get_sector(now->sectorno);
 	for (i32 i = sec.index; i < (sec.index + sec.numWalls); i++) {
@@ -307,8 +308,8 @@ void draw_wall_3d(Player player, WallRenderingInfo* now, u32 rd)
 		i32 yc0 = (SCREEN_HEIGHT / 2) + (i32)((sec.zceil - player.z) * sy0);
 		i32 yc1 = (SCREEN_HEIGHT / 2) + (i32)((sec.zceil - player.z) * sy1);
 		// bottom wall coordinates if bottom of wall would be ar heigh 0, used for absolute texture drawing regardless of floor and ceil height
-		i32 yaf0 = (SCREEN_HEIGHT / 2) + (i32)((0.0f - player.z) * sy0);
-		i32 yaf1 = (SCREEN_HEIGHT / 2) + (i32)((0.0f - player.z) * sy1);
+		i32 yaf0 = (SCREEN_HEIGHT / 2) + (i32)((sec.zfloor_old - player.z) * sy0);
+		i32 yaf1 = (SCREEN_HEIGHT / 2) + (i32)((sec.zfloor_old - player.z) * sy1);
 
 		// portal coordinates in the wall
 		i32 pf0 = (SCREEN_HEIGHT / 2) + (i32)((nzfloor - player.z) * sy0);
@@ -377,7 +378,7 @@ void draw_wall_3d(Player player, WallRenderingInfo* now, u32 rd)
 				//drawVerticalLine(x, yf, yc, color, pixels); wall in one color
 				if (yc > tyf && yf < tyc) {
 					f32 wallheight = sec.zceil - sec.zfloor;
-					draw_tex_line(x, yf, yc, tyf, tyc, tayf, u, wallshade_index, dis, sec.zfloor, wallheight, wallwidth, &w, WALL);
+					draw_tex_line(x, yf, yc, tyf, tyc, tayf, u, wallshade_index, dis, sec.zfloor, sec.zfloor_old, wallheight, wallwidth, &w, WALL);
 				}
 				ceilingclip[x] = 0;
 				floorclip[x] = SCREEN_HEIGHT - 1;
@@ -395,14 +396,14 @@ void draw_wall_3d(Player player, WallRenderingInfo* now, u32 rd)
 				//if (pyf > yf) { drawVerticalLine(x, yf, pyf, YELLOW, pixels); }
 				if (pyf > yf) { 
 					wallheight = nzfloor - sec.zfloor;
-					draw_tex_line(x, yf, pyf, tyf, tpyf, tayf, u, wallshade_index, dis, sec.zfloor, wallheight, wallwidth, &w, PORTAL_LOWER);
+					draw_tex_line(x, yf, pyf, tyf, tpyf, tayf, u, wallshade_index, dis, sec.zfloor, sec.zfloor_old, wallheight, wallwidth, &w, PORTAL_LOWER);
 				}
 				//draw window
 				//drawVerticalLine(x, pyf, pyc, color, pixels);
 				//if neighborceiling is lower than current sectorceiling then draw it
 				if (pyc < yc) { 
 					wallheight = sec.zceil - nzceil;
-					draw_tex_line(x, pyc, yc, tpyc, tyc, tayf, u, wallshade_index, dis, sec.zfloor, wallheight, wallwidth, &w, PORTAL_UPPER);
+					draw_tex_line(x, pyc, yc, tpyc, tyc, tayf, u, wallshade_index, dis, sec.zfloor, sec.zfloor_old, wallheight, wallwidth, &w, PORTAL_UPPER);
 				}
 
 				//update vertical clipping arrays
@@ -433,14 +434,14 @@ void draw_wall_3d(Player player, WallRenderingInfo* now, u32 rd)
 // wallwidth: how long is the wall
 // wall: pointer to the wall
 // is_upper_portals: bool that describes if the wallsegement is an upper part of a portal
-void draw_tex_line(i32 x, i32 y0, i32 y1, i32 yf, i32 yc, i32 ayf, f64 u, u8 shade_index, f32 dis, f32 sec_floor_height, f32 wallheight, f32 wallwidth, Wall* wall, wall_section_type type) {
+void draw_tex_line(i32 x, i32 y0, i32 y1, i32 yf, i32 yc, i32 ayf, f64 u, u8 shade_index, f32 dis, f32 zfloor, f32 zfloor_old, f32 wallheight, f32 wallwidth, Wall* wall, wall_section_type type) {
 	// draw decals
 	f32 wall_pos_x = u * wallwidth;
 	
 	bool decal[SCREEN_HEIGHT] = { false };
 	for (Decal* d = wall->decalhead; d != NULL; d = d->next) {
 		if (d->wall_type != type) continue;
-		f32 rel_decal_height = get_relative_decal_wall_height(d, wall, sec_floor_height);
+		f32 rel_decal_height = get_relative_decal_wall_height(d, wall, zfloor);
 		// if the decal is on the top portal, then sbtract the height of the neighbouring sector, as the thats where the bottom of the wall
 		if (d->wall_type == PORTAL_UPPER) {
 			Sector* sec = get_sector(wall->portal);
@@ -484,7 +485,8 @@ void draw_tex_line(i32 x, i32 y0, i32 y1, i32 yf, i32 yc, i32 ayf, f64 u, u8 sha
 	// draw walls
 	u32 wall_tex_num = 3;
 	LightmapindexTexture* wall_texture_ind = &index_textures[wall_tex_num];
-	f32 texture_scale = 4.0f;
+
+	f32 texture_scale = 10.0f;
 	f32 texheight = wallheight / texture_scale;
 	f32 texwidth = wallwidth / texture_scale;
 
@@ -502,7 +504,8 @@ void draw_tex_line(i32 x, i32 y0, i32 y1, i32 yf, i32 yc, i32 ayf, f64 u, u8 sha
 		if (type == PORTAL_UPPER) ty = tex_res.x;
 	}
 	else {
-		v2 tex_res = calc_tex_start_and_step_abs(ayf, yf, yc, y0, y1, wall_texture_ind->height, ((wallheight + (sec_floor_height)) / texture_scale));
+		f32 abs_wallheight = (wallheight + (zfloor - zfloor_old));
+		v2 tex_res = calc_tex_start_and_step_abs(ayf, yf, yc, y0, y1, wall_texture_ind->height, abs_wallheight / texture_scale);
 		ty = tex_res.x;
 		ty_step = tex_res.y;
 	}
@@ -517,7 +520,6 @@ void draw_tex_line(i32 x, i32 y0, i32 y1, i32 yf, i32 yc, i32 ayf, f64 u, u8 sha
 		}
 		ty += ty_step;
 	}
-
 }
 
 void clear_planes() {
@@ -832,7 +834,7 @@ v3 calc_tex_start_and_step(f32 true_low, f32 true_high, f32 low, f32 high, i32 t
 
 // return texture y pos if texture is anchored at the bottom and texture y pos if texture is anchored at the top, with a step
 v3 calc_tex_low_high_and_step(f32 true_low, f32 true_high, f32 low, f32 high, i32 tex_size, f32 scale) {
-	f32 step = -(tex_size / (f32)(true_high - true_low));
+	f32 step = -((tex_size-1) / (f32)(true_high - true_low));
 	// add how many pixels are cut off the bottom
 	f32 start_low = (low - true_low) * step;
 	// add how many pixels are cut off the top + the pixels in the drawing area, as we always start drawing from the bottom
@@ -841,9 +843,16 @@ v3 calc_tex_low_high_and_step(f32 true_low, f32 true_high, f32 low, f32 high, i3
 }
 
 // return texture y pos to start and step for each update, textures are anchored at the bottom, so texture drawing starts at y pos 0 at the bottom of the object
-v2 calc_tex_start_and_step_abs(f32 true_abs_low, f32 true_low, f32 true_high, f32 low, f32 high, i32 tex_size, f32 scale){
-	f32 step = -(tex_size / (f32)(true_high - true_abs_low));
+v2 calc_tex_start_and_step_abs(f32 true_abs_low, f32 true_low, f32 true_high, f32 low, f32 high, i32 tex_size, f32 scale) {
+	f32 step = -((tex_size - 1) / (f32)(true_high - true_abs_low));
 	// add how many pixels are cut off the bottom
 	f32 start_low = (low - true_abs_low) * step;
-	return (v2) { start_low* scale, step* scale };
+	return (v2) { start_low * scale, step * scale };
+}
+
+void draw_2d() {
+	// draw crosshair
+	// drawCircle(SCREEN_WIDTH / 2, SCREEN_HEIGHT / 2, 10, 10, RED); 
+	fill_rectangle(SCREEN_WIDTH / 2 - 8, SCREEN_HEIGHT / 2 - 1, SCREEN_WIDTH / 2 + 8, SCREEN_HEIGHT / 2 + 1, GREEN);
+	fill_rectangle(SCREEN_WIDTH / 2 - 1, SCREEN_HEIGHT / 2 - 8, SCREEN_WIDTH / 2 + 1, SCREEN_HEIGHT / 2 + 8, GREEN);
 }

@@ -10,7 +10,7 @@ void load_level(Map* map1) {
 	fopen_s(&fp, "Levels/level4.txt", "r");
 	ASSERT(fp, "error opening leveldata file");
 	enum { SECTOR, WALL, NONE } sm = NONE;
-	u8 done = 0;
+	bool done = false;
 
 	char line[1024];
 	while (fgets(line, sizeof(line), fp) && !done) {
@@ -27,8 +27,16 @@ void load_level(Map* map1) {
 		switch (sm) {
 		case SECTOR: {
 			Sector* sector = &map->sectors[map->sectoramt++];
-			sscanf_s(p, "%d %d %d %f %f", &sector->id, &sector->index, &sector->numWalls, &sector->zfloor, &sector->zceil);
+			sscanf_s(p, "%d %d %f %f", &sector->id, &sector->numWalls, &sector->zfloor, &sector->zceil);
 			sector->id -= 1;
+			sector->zfloor_old = sector->zfloor;
+			if (sector->id == 0) {
+				sector->index = 0;
+			}
+			else {
+				Sector prec_sec = map->sectors[map->sectoramt - 2];
+				sector->index = prec_sec.index + prec_sec.numWalls;
+			}
 		}
 				   break;
 		case WALL: {
@@ -38,7 +46,7 @@ void load_level(Map* map1) {
 		}
 				 break;
 		case NONE:
-			done = 1;
+			done = true;
 			break;
 		}
 	}
@@ -46,15 +54,15 @@ void load_level(Map* map1) {
 }
 
 
-u8 point_inside_sector(i32 sec, v2 p) {
+bool point_inside_sector(i32 sec, v2 p) {
 	Sector s = map->sectors[sec];
 	for (i32 i = s.index; i < (s.index + s.numWalls); i++) {
 		Wall w = map->walls[i];
 		if (POINTSIDE2D(p.x, p.y, w.a.x, w.a.y, w.b.x, w.b.y) > 0) {
-			return 0;
+			return false;
 		}
 	}
-	return 1;
+	return true;
 }
 
 // walls are sorted in order to to draw them recursivly and allow for non konvex sectors
@@ -201,7 +209,7 @@ void trymove_player(Player* p) {
 	p->pos.y += p->velocity.y;
 }
 
-u8 trymove_entity(Entity* e, u8 gravityactive) {
+bool trymove_entity(Entity* e, bool gravityactive) {
 	Sector curSec = *get_sector(e->sector);;
 
 	if (gravityactive) {
@@ -228,7 +236,7 @@ u8 trymove_entity(Entity* e, u8 gravityactive) {
 			}
 		}
 	}
-	u8 hit = 0;
+	bool hit = false;
 	for (i32 i = curSec.index; i < curSec.index + curSec.numWalls; i++) {
 		Wall* curwall = &map->walls[i];
 		v2 intersection;
@@ -241,7 +249,7 @@ u8 trymove_entity(Entity* e, u8 gravityactive) {
 				v2 mappos = (v2){ intersection.x - curwall->a.x, intersection.y - curwall->a.y };
 				v2 wallpos = (v2){ sqrt(mappos.x * mappos.x + mappos.y * mappos.y), e->z };
 				if (spawn_decal(wallpos, curwall, (v2) {2.0f, 2.0f}, 1)) {
-					hit = 1;
+					hit = true;
 					break;
 				}
 			}
@@ -257,7 +265,7 @@ u8 trymove_entity(Entity* e, u8 gravityactive) {
 
 				e->velocity.x = projVel.x;
 				e->velocity.y = projVel.y;
-				hit = 1;
+				hit = true;
 				break;
 			}
 

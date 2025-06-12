@@ -9,6 +9,7 @@ i32 find_sector_from_tag(i32 tag, i32 sec_start) {
 		Sector* sec = get_sector(i);
 		if (sec->tag == tag) return i;
 	}
+	return -1;
 }
 
 void add_plat(Platform* plat) {
@@ -43,6 +44,7 @@ void plat_move(Platform* plat) {
 			case INFINITE_UP_DOWN: {
 				if (plat->status == UP) plat->status = DOWN;
 				else plat->status = UP;
+
 				break;
 			}
 		}

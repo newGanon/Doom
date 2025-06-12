@@ -24,8 +24,9 @@ typedef struct Decal {
 typedef struct Sector {
 	i32 id, index, numWalls;
 	f32 zfloor, zceil;
+	f32 zfloor_old; // first value of the zfloor
 	i32 tag;
-	void* specialdata; 	// pointer to ticker to reverse actions
+	void* specialdata; // pointer to ticker to reverse actions
 } Sector;
 
 typedef struct Wall {
@@ -52,10 +53,10 @@ typedef struct RaycastResult {
 
 
 void load_level(Map* map);
-u8 point_inside_sector(i32 sec, v2 p); 
+bool point_inside_sector(i32 sec, v2 p); 
 void sort_walls(Player* player);
 void trymove_player(Player* p);
-u8 trymove_entity(Entity* e, u8 gravityactive);
+bool trymove_entity(Entity* e, bool gravityactive);
 Sector* get_sector(i32 index);
 Wall* get_wall(i32 index);
 i32 get_sectoramt();

@@ -6,3 +6,4 @@
 
 void draw_init(u32* pixels, Palette* lightmap1, LightmapindexTexture* index_textures1);
 void draw_3d(Player player, EntityHandler* h);
+void draw_2d();

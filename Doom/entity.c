@@ -2,68 +2,14 @@
 #include "math.h"
 #include "map.h"
 
-EntityHandler* h;
-
-void init_entityhandler(EntityHandler* h1, u32 initialsize) {
-	h = h1;
-	h->entities = malloc(initialsize * sizeof(Entity*));
-	h->used = 0;
-	h->size = initialsize;
-}
-
-void add_entity(Entity* entity) {
-	if (h->used == h->size) {
-		h->size *= 2;
-		Entity** tmp = (Entity**)realloc(h->entities, h->size * sizeof(Entity*));
-		ASSERT(!(tmp == NULL), "error while using realloc");
-		h->entities = tmp;
-	}
-	h->entities[h->used++] = entity;
-}
-
-void free_entityhandler() {
-	for (u32 i = 0; i < h->used; i++) { free(h->entities[i]); }
-	free(h->entities);
-	h->entities = NULL;
-	h->used = h->size = 0;
-}
-
-void remove_entity(Entity* e) {
-	for (u32 i = 0; i < h->used; i++) {
-		if (h->entities[i] == e) {
-			free(e);
-			h->entities[i] = h->entities[h->used - 1];
-			h->used--;
-			break;
-		}
+void calc_all_rel_cam_pos(EntityHandler* handler, Player* player) {
+	for (u32 i = 0; i < handler->used; i++) {
+		Entity* entity = handler->entities[i];
+		v2 entityRelPos = world_pos_to_camera(entity->pos, *player);
+		entity->relCamPos.y = entityRelPos.y;
+		entity->relCamPos.x = entityRelPos.x;
 	}
 }
-
-void sort_entities(Player* player) {
-
-	if (h->used == 0) return;
-	calc_all_rel_cam_pos(player);
-
-	//relCamPos.y is the distance from the camera
-	for (u32 i = 0; i < h->used - 1; i++)
-	{
-		if (h->entities[i]->relCamPos.y < h->entities[i + 1]->relCamPos.y) {
-
-			Entity* temp = h->entities[i];
-			h->entities[i] = h->entities[i + 1];
-			h->entities[i + 1] = temp;
-		}
-	}
-}
-
-void calc_all_rel_cam_pos(Player* player) {
-	for (u32 i = 0; i < h->used; i++) {
-		v2 entityRelPos = world_pos_to_camera(h->entities[i]->pos, *player);
-		h->entities[i]->relCamPos.y = entityRelPos.y;
-		h->entities[i]->relCamPos.x = entityRelPos.x;
-	}
-}
-
 
 void tick_item(Entity* item) {
 	f32 speed = 150.0f * SECONDS_PER_UPDATE;
@@ -128,18 +74,17 @@ void tick_bullet(Entity* bullet) {
 	bool hitwall = trymove_entity(bullet, 0);
 	Sector* sec = get_sector(bullet->sector);
 	if (hitwall || sec->zfloor > bullet->z || sec->zceil < bullet->z) {
-		remove_ticker(&bullet->tick);
-		remove_entity(bullet);
+		bullet->dirty = true;
 	}
 	else {
 		bullet->velocity = oldvel;
 	}
-
 }
 
-void check_entity_collisions(Player* p) {
-	for (i32 i = 0; i < h->used; i++) {
-		Entity* e = h->entities[i];
+void check_entity_collisions(EntityHandler* handler, Player* p) {
+	for (i32 i = 0; i < handler->used; i++) {
+		Entity* e = handler->entities[i];
+		if (e->dirty) continue;
 		switch (e->type) {
 		case Enemy: {
 			break; 
@@ -147,19 +92,19 @@ void check_entity_collisions(Player* p) {
 		case Projectile: {
 			//friendly projectile
 			if (!e->target){
-				for (i32 j = 0; j < h->used; j++) {
-					Entity* tar = h->entities[j];
-					if (tar->type == Enemy) {
-						if ((e->z - tar->z) < 10.0f) {
-							f32 dx = tar->pos.x - e->pos.x;
-							f32 dy = tar->pos.y - e->pos.y;
-							f32 r = sqrt((dx * dx) + (dy * dy));
-							if (r < tar->scale.x/2.0f) {
-								tar->health -= e->damage;
-								//TODO: only for testing, proper death checking
-								free_and_remove_entity(e);
-								free_and_remove_entity(tar);
+				for (i32 j = 0; j < handler->used; j++) {
+					Entity* tar = handler->entities[j];
+					if (tar->dirty) continue;
+					if (tar->type == Enemy && ((e->z - tar->z) < 10.0f)) {
+						f32 dx = tar->pos.x - e->pos.x;
+						f32 dy = tar->pos.y - e->pos.y;
+						f32 r = sqrt((dx * dx) + (dy * dy));
+						if (r < tar->scale.x/2.0f) {
+							tar->health -= e->damage;
+							if (tar->health <= 0) {
+								tar->dirty = true;
 							}
+							e->dirty = true;
 						}
 					}
 				}
@@ -175,17 +120,11 @@ void check_entity_collisions(Player* p) {
 			//collect item
 			if (r < 3.0f) {
 				//TODO: give player item
-				free_and_remove_entity(e);
+				e->dirty = true;
 			}
 			break;
 		}
 		default: break;
 		}
 	}
-}
-
-//frees entity and removes it from ticklist and entityhandler
-void free_and_remove_entity(Entity* e) {
-	if (e->tick.function != (actionf)(-1)) { remove_ticker(&e->tick); }
-	remove_entity(e);
 }

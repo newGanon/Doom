@@ -4,13 +4,13 @@
 #include "tick.h"
 #include "player.h"
 
-typedef enum EntityType {
+typedef enum EntityType_e {
 	Enemy,
 	Item,
 	Projectile
 }Entitytype;
 
-typedef struct {
+typedef struct Entity_s{
 	ticker tick;
 	Entitytype type;
 	v2 pos, relCamPos;
@@ -19,27 +19,18 @@ typedef struct {
 	u32 spriteNum[8];
 	u8 spriteAmt;
 	v2 scale;
-	i32 health, damage, speed;
+	f32 health, damage, speed;
 	f32 animationtick;
 	u8 inAir;
 	u32 sector;
 	Player* target;
-}Entity;
+	bool dirty;
+} Entity;
 
-typedef struct {
-	Entity** entities;
-	u32 used;
-	u32 size;
-}EntityHandler;
+typedef struct EntityHandler_s EntityHandler;
 
-void add_entity(Entity* e);
-void init_entityhandler(EntityHandler* h, u32 initialSize);
-void free_entityhandler();
-void remove_entity(Entity* e);
-void calc_all_rel_cam_pos(Player* player);
-void sort_entities(Player* player);
+void calc_all_rel_cam_pos(EntityHandler* handler, Player* player);
 void tick_item(Entity* item);
 void tick_enemy(Entity* enemy);
 void tick_bullet(Entity* bullet);
-void check_entity_collisions(Player* p);
-void free_and_remove_entity(Entity* e);
+void check_entity_collisions(EntityHandler* handler, Player* player);

@@ -2,8 +2,8 @@
 #include "util.h"
 #include "ticker.h"
 
-void init_tickers();
-void add_ticker(ticker* ticker);
-void remove_ticker(ticker* ticker);
-void run_tickers();
+void tickers_init();
+void ticker_add(ticker* ticker);
+void ticker_remove(ticker* ticker);
+void tickers_run();
 

@@ -1,10 +1,10 @@
 #Jump and run Build
 #SECTOR <id> <index(number of walls before this sector)> <num walls in sector> <floorheight> <ceilingheigt>
 {SECTORS}
-1 0 4 0.0 15.0
-2 4 8 2.0 12.0
-3 12 4 5.0 15.0
-4 16 4 3.9 17.0
+1 4 0.0 15.0
+2 8 2.0 12.0
+3 4 5.0 15.0
+4 4 3.9 17.0
 
 
 

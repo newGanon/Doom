@@ -2,6 +2,7 @@
 #include "util.h"
 #include "player.h"
 #include "entity.h"
+#include "entityhandler.h"
 #include "draw.h"
 
 typedef enum wall_section_type {
@@ -47,12 +48,13 @@ typedef struct Map {
 typedef struct RaycastResult {
 	bool hit;
 	v2 wall_pos;
+	f32 distance;
 	Wall* wall;
 	Sector* wall_sec;
 }RaycastResult;
 
 
-void load_level(Map* map);
+void loadlevel(Map* map);
 bool point_inside_sector(i32 sec, v2 p); 
 void sort_walls(Player* player);
 void trymove_player(Player* p);
@@ -61,10 +63,7 @@ Sector* get_sector(i32 index);
 Wall* get_wall(i32 index);
 i32 get_sectoramt();
 f32 get_relative_decal_wall_height(Decal* d, Wall* wall, f32 cur_sec_floorz);
-
 Decal* spawn_decal(v2 wallpos, Wall* curwall, v2 size, i32 tex_id);
-
 RaycastResult raycast(Sector* cursec, v2 pos, v2 target_pos, f32 z);
-
 bool move_sector_plane(Sector* sec, f32 speed, f32 dest, bool floor, bool up);
 

@@ -18,6 +18,6 @@ typedef struct LightmapindexTexture_t {
 }LightmapindexTexture;
 
 
-void init_tex(SDL_Surface** surfaces, Palette* lightmap, LightmapindexTexture* index_textures);
-void free_textures(SDL_Surface** surfaces, LightmapindexTexture* index_textures);
-void load_textures(SDL_Surface** surfaces);
+void tex_init(SDL_Surface** surfaces, Palette* lightmap, LightmapindexTexture* index_textures);
+void tex_free(SDL_Surface** surfaces, LightmapindexTexture* index_textures);
+void tex_load(SDL_Surface** surfaces);

@@ -139,6 +139,7 @@
   <ItemGroup>
     <ClCompile Include="draw.c" />
     <ClCompile Include="entity.c" />
+    <ClCompile Include="entityhandler.c" />
     <ClCompile Include="main.c" />
     <ClCompile Include="map.c" />
     <ClCompile Include="math.c" />
@@ -150,6 +151,7 @@
   <ItemGroup>
     <ClInclude Include="draw.h" />
     <ClInclude Include="entity.h" />
+    <ClInclude Include="entityhandler.h" />
     <ClInclude Include="map.h" />
     <ClInclude Include="math.h" />
     <ClInclude Include="plat.h" />

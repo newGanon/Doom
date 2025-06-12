@@ -9,6 +9,7 @@
 #include "player.h"
 #include "tex.h"
 #include "plat.h"
+#include "entityhandler.h"
 #include <ctype.h>
 
 struct {
@@ -130,19 +131,20 @@ void render() {
 
 void update() {
 	sort_walls(&state.player);
-	player_tick(&state.player, state.KEYS);
-	sort_entities(&state.player);
-	run_tickers();
-	check_entity_collisions(&state.player);
+	player_tick(&state.player, &state.entityhandler, state.KEYS);
+	calc_all_rel_cam_pos(&state.entityhandler, &state.player);
+	tickers_run();
+	check_entity_collisions(&state.entityhandler, &state.player);
+	entityhandler_removedirty(&state.entityhandler);
 }
 
 void init() {
 	sdl_init();
 	draw_init(state.pixels, &state.lightmap, state.index_textures);
-	init_tex(state.surfaces, &state.lightmap, state.index_textures);
-	load_level(&state.map);
-	init_entityhandler(&state.entityhandler, 128);
-	init_tickers();
+	tex_init(state.surfaces, &state.lightmap, state.index_textures);
+	loadlevel(&state.map);
+	entityhandler_init(&state.entityhandler, 128);
+	tickers_init();
 
 	for (size_t i = 0; i < SDL_NUM_SCANCODES; i++) state.KEYS[i] = false;
 
@@ -158,8 +160,9 @@ void init() {
 		e1->tick.function = &tick_item;
 		e1->type = Item;
 		e1->z = 5.0f;
-		add_ticker(&e1->tick);
-		add_entity(e1);
+		e1->dirty = false;
+		ticker_add(&e1->tick);
+		entity_add(&state.entityhandler, e1);
 	}
 	
 	Entity* e2 = malloc(sizeof(Entity));
@@ -177,8 +180,10 @@ void init() {
 		e2->type = Enemy;
 		e2->z = 2.0f;
 		e2->target = &state.player;
-		add_ticker(&e2->tick);
-		add_entity(e2);
+		e2->dirty = false;
+		e2->health = 10.0f;
+		ticker_add(&e2->tick);
+		entity_add(&state.entityhandler, e2);
 	}
 
 	Decal* decal = malloc(sizeof(Decal));
@@ -204,8 +209,8 @@ void init() {
 }
 
 void close() {
-	free_entityhandler();
-	free_textures(state.surfaces, state.index_textures);
+	entityhandler_free(&state.entityhandler);
+	tex_free(state.surfaces, state.index_textures);
 
 	SDL_DestroyWindow(state.window);
 	state.window = NULL;

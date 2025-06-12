@@ -1,8 +1,8 @@
 #include "tex.h"
 
-u32 tex_amt;
+static u32 tex_amt;
 
-void load_textures(SDL_Surface** surfaces) {
+void tex_load(SDL_Surface** surfaces) {
 	SDL_Surface* bmpTex;
 	char textureFileNames[4][50] = { "Assets/test.bmp", "Assets/spritetest2.bmp", "Assets/ammo.bmp", "Assets/test3.bmp"};
 	tex_amt = sizeof(textureFileNames) / sizeof(textureFileNames[0]);
@@ -53,6 +53,7 @@ void create_lightmap(Palette* pal) {
 	}
 }
 
+
 // only first element of each array is used, as this is the normal unshaded color
 u8 find_closest_color_index(u32 color, const u32 palette[256][32]) {
 	if (A(color) == 0) return 0;
@@ -83,7 +84,8 @@ u8 find_closest_color_index(u32 color, const u32 palette[256][32]) {
 	return closest_index;
 }
 
-void create_lightmap_indices(SDL_Surface** surfaces, Palette* pal, LightmapindexTexture* index_textures) {
+
+void create_index_textures(SDL_Surface** surfaces, Palette* pal, LightmapindexTexture* index_textures) {
 	for (u32 index = 0; index < tex_amt; ++index) {
 		SDL_Surface* cur_sur = surfaces[index];
 		LightmapindexTexture* cur_index_array = &index_textures[index];
@@ -117,15 +119,14 @@ void create_lightmap_indices(SDL_Surface** surfaces, Palette* pal, Lightmapindex
 }
 
 
-void init_tex(SDL_Surface** surfaces, Palette* lightmap, LightmapindexTexture* index_textures) {
-	load_textures(surfaces);
+void tex_init(SDL_Surface** surfaces, Palette* lightmap, LightmapindexTexture* index_textures) {
+	tex_load(surfaces);
 	create_lightmap(lightmap);
-	create_lightmap_indices(surfaces, lightmap, index_textures);
-	return tex_amt;
+	create_index_textures(surfaces, lightmap, index_textures);
 }
 
 
-void free_textures(SDL_Surface** surfaces, LightmapindexTexture* index_textures) {
+void tex_free(SDL_Surface** surfaces, LightmapindexTexture* index_textures) {
 	for (u32 i = 0; i < tex_amt; i++) {
 		SDL_FreeSurface(surfaces[i]);
 		if (index_textures[i].width <= 0 || index_textures[i].height <= 0 || (size_t)index_textures[i].width * (size_t)index_textures[i].height > SIZE_MAX) { continue; }

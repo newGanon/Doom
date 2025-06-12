@@ -4,18 +4,18 @@
 
 ticker tickercap;
 
-void init_tickers() {
+void tickers_init() {
 	tickercap.prev = tickercap.next = &tickercap;
 }
 
-void add_ticker(ticker* ticker) {
+void ticker_add(ticker* ticker) {
 	tickercap.prev->next = ticker;
 	ticker->next = &tickercap;
 	ticker->prev = tickercap.prev;
 	tickercap.prev = ticker;
 }
 
-void remove_ticker(ticker* ticker) {
+void ticker_remove(ticker* ticker) {
 	if (ticker->next && ticker->prev) {
 		ticker->next->prev = ticker->prev;
 		ticker->prev->next = ticker->next;
@@ -23,13 +23,13 @@ void remove_ticker(ticker* ticker) {
 	}
 }
 
-void run_tickers() {
+void tickers_run() {
 	ticker* currentticker;
 	currentticker = tickercap.next;
 	while (currentticker != &tickercap) {
 		ticker* nextticker = currentticker->next;
 		if (currentticker->function == (actionf)(-1)) {
-			remove_ticker(currentticker);
+			ticker_remove(currentticker);
 		}
 		else {
 			//update entity

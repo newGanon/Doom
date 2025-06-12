@@ -77,12 +77,7 @@ v2 v2_mul(v2 a, f32 b) {
 	return (v2) { a.x* b, a.y* b };
 }
 
-f32 clamp(f32 d, f32 min, f32 max) {
-	const f32 t = d < min ? min : d;
-	return t > max ? max : t;
-}
-
 f32 ease_in_out_cubic(f32 x) {
-  //return x < 0.5 ? 4 * x * x * x : 1 - pow(-2 * x + 2, 3) / 2;
+    //return x < 0.5 ? 4 * x * x * x : 1 - pow(-2 * x + 2, 3) / 2;
 	return x < 0.5 ? 2 * x * x : 1 - pow(-2 * x + 2, 2) / 2;
 }

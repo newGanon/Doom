@@ -2,9 +2,9 @@
 #include "math.h"
 #include "tex.h"
 
-Map* map;
+static Map* map;
 
-void load_level(Map* map1) {
+void loadlevel(Map* map1) {
 	map = map1;
 	FILE* fp = NULL;
 	fopen_s(&fp, "Levels/level4.txt", "r");
@@ -210,7 +210,7 @@ void trymove_player(Player* p) {
 }
 
 bool trymove_entity(Entity* e, bool gravityactive) {
-	Sector curSec = *get_sector(e->sector);;
+	Sector curSec = *get_sector(e->sector);
 
 	if (gravityactive) {
 		//vertical collision detection
@@ -430,13 +430,13 @@ f32 get_relative_decal_wall_height(Decal* d, Wall* wall, f32 cur_sec_floorz) {
 			rel_decal_height = d->wallpos.y - cur_sec_floorz;
 			break;
 		}
-				 // decal has height relative to floor of portal sector
+		// decal has height relative to floor of portal sector
 		case PORTAL_LOWER: {
 			Sector* sec = get_sector(wall->portal);
 			rel_decal_height = (d->wallpos.y + sec->zfloor) - cur_sec_floorz;
 			break;
 		}
-						 // decal has height relative to ceil of portal sector
+		// decal has height relative to ceil of portal sector
 		case PORTAL_UPPER: {
 			Sector* sec = get_sector(wall->portal);
 			rel_decal_height = d->wallpos.y + sec->zceil;
@@ -450,31 +450,33 @@ f32 get_relative_decal_wall_height(Decal* d, Wall* wall, f32 cur_sec_floorz) {
 RaycastResult raycast(Sector* cursec, v2 pos, v2 target_pos, f32 z) {
 	if(cursec->zceil < z || cursec->zfloor > z) return (RaycastResult) { .hit = false };
 	v2 intersection;
+	bool hit = false;
 	for (i32 i = cursec->index; i < cursec->index + cursec->numWalls; i++) {
 		Wall* curwall = &map->walls[i];
 		i32 test = (POINTSIDE2D(pos.x, pos.y, curwall->a.x, curwall->a.y, curwall->b.x, curwall->b.y));
 		if ((POINTSIDE2D(pos.x, pos.y, curwall->a.x, curwall->a.y, curwall->b.x, curwall->b.y) < 0) && 
 			(get_line_intersection(pos, target_pos, curwall->a, curwall->b, &intersection))) {
 			// normal wall hit
-			if (curwall->portal == -1) {
-				v2 hit_pos = (v2){ intersection.x - curwall->a.x, intersection.y - curwall->a.y };
-				return (RaycastResult) {.hit = true, .wall_pos = hit_pos, .wall = curwall, .wall_sec = cursec};
-			}
+			if (curwall->portal == -1) { hit = true; }
 			// portal hit
 			else {
 				f32 stepl = get_sector(curwall->portal)->zfloor;
 				f32 steph = get_sector(curwall->portal)->zceil;
 				// top or bottom of portal hit
-				if (stepl > z || steph < z) {
-					v2 hit_pos = (v2){ intersection.x - curwall->a.x, intersection.y - curwall->a.y };
-					return (RaycastResult) { .hit = true, .wall_pos = hit_pos, .wall = curwall, .wall_sec = cursec };
-				}
-				// flight through portal, change sector
+				if (stepl > z || steph < z) { hit = true; }
+				// fit through portal, change sector
 				else {
 					cursec = get_sector(curwall->portal);
 					i = cursec->index;
 					pos = intersection;
 				}
+			}
+			// if hit was detected return the result
+			if (hit) {
+				v2 hit_pos = (v2){ intersection.x - curwall->a.x, intersection.y - curwall->a.y };
+				v2 pos_to_hit = (v2){ intersection.x - pos.x, intersection.y - pos.y };
+				f32 distance = sqrt(pos_to_hit.x * pos_to_hit.x + pos_to_hit.y * pos_to_hit.y);
+				return (RaycastResult) { .hit = true, .wall_pos = hit_pos, .wall = curwall, .wall_sec = cursec, .distance = distance };
 			}
 		}
 	}

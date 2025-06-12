@@ -23,13 +23,13 @@ typedef struct visplane_t {
 void inline draw_pixel(i32 x, i32 y, u32 color);
 void inline draw_pixel_from_lightmap(i32 x, i32 y, u8 index, u8 shade);
 void draw_tex_line(i32 x, i32 y0, i32 y1, i32 yf, i32 yc, i32 ayf, f64 u, u8 shade_index, f32 dis, f32 zfloor, f32 zfloor_old, f32 wallheight, f32 wallwidth, Wall* wall, wall_section_type type);
-void draw_wall_3d(Player player, WallRenderingInfo* now, u32 rd);
-void draw_planes_3d(Player player);
-void make_spans(i32 x, i32 t1, i32 b1, i32 t2, i32 b2, visplane_t* v, Player player);
-void map_plane(i32 y, i32 x1, i32 x2, visplane_t* v, Player player);
-void draw_minimap(Player player);
+void draw_wall_3d(Player* player, WallRenderingInfo* now, u32 rd);
+void draw_planes_3d(Player* player);
+void make_spans(i32 x, i32 t1, i32 b1, i32 t2, i32 b2, visplane_t* v, Player* player);
+void map_plane(i32 y, i32 x1, i32 x2, visplane_t* v, Player* player);
+void draw_minimap(Player* player);
 void clear_planes();
-void draw_sprites(Player player, EntityHandler* h);
+void draw_sprites(Player* player, EntityHandler* handler);
 void draw_vertical_line(i32 x, i32 y0, i32 y1, u32 color);
 void draw_line(i32 x0, i32 y0, i32 x1, i32 y1, u32 color);
 void draw_square(i32 x0, i32 y0, u32 size, u32 color);
@@ -47,31 +47,31 @@ v3 calc_tex_low_high_and_step(f32 true_low, f32 true_high, f32 low, f32 high, i3
 // used for walls
 v2 calc_tex_start_and_step_abs(f32 true_abs_low, f32 true_low, f32 true_high, f32 low, f32 high, i32 tex_size, f32 scale);
 
-visplane_t visplanes[MAXVISPLANES];
-visplane_t* lastvisplane;
-visplane_t* floorplane;
-visplane_t* ceilplane;
+static visplane_t visplanes[MAXVISPLANES];
+static visplane_t* lastvisplane;
+static visplane_t* floorplane;
+static visplane_t* ceilplane;
 
-v2 zdl, zdr, znl, znr, zfl, zfr;
+static v2 zdl, zdr, znl, znr, zfl, zfr;
 
 // global variables
-u32* pixels;
-Palette* lightmap;
-LightmapindexTexture* index_textures;
+static u32* pixels;
+static Palette* lightmap;
+static LightmapindexTexture* index_textures;
 
 //lockuptable of how far you would need to travel in y direction to move 1 in horizontal direction for each y value
-f32 yslope[SCREEN_HEIGHT];
+static f32 yslope[SCREEN_HEIGHT];
 //lockuptable of pixel x value to angle
-f32 screenxtoangle[SCREEN_WIDTH];
+static f32 screenxtoangle[SCREEN_WIDTH];
 
-f32 zBuffer[SCREEN_HEIGHT * SCREEN_WIDTH];
+static f32 zBuffer[SCREEN_HEIGHT * SCREEN_WIDTH];
 
 //clipping information of walls
-u16 ceilingclip[SCREEN_WIDTH * SECTOR_MAX];
-u16 floorclip[SCREEN_WIDTH * SECTOR_MAX];
+static u16 ceilingclip[SCREEN_WIDTH * SECTOR_MAX];
+static u16 floorclip[SCREEN_WIDTH * SECTOR_MAX];
 
 //used for horizontal drawing of visplain strips
-i32 spanstart[SCREEN_HEIGHT];
+static i32 spanstart[SCREEN_HEIGHT];
 
 
 void inline draw_pixel(i32 x, i32 y, u32 color) {
@@ -111,12 +111,12 @@ void draw_init(u32* pixels1, Palette* lightmap1, LightmapindexTexture* index_tex
 	zfr = (v2){ zdr.x * ZFAR, zdr.y * ZFAR };
 }
 
-void draw_3d(Player player, EntityHandler* h) {
+void draw_3d(Player* player, EntityHandler* handler) {
 
 	clear_planes();
-	draw_wall_3d(player, &(WallRenderingInfo) { player.sector, 0, SCREEN_WIDTH - 1, { 0 }}, 0);
+	draw_wall_3d(player, &(WallRenderingInfo) { player->sector, 0, SCREEN_WIDTH - 1, { 0 }}, 0);
 	draw_planes_3d(player);
-	draw_sprites(player, h);
+	draw_sprites(player, handler);
 	draw_minimap(player);
 }
 
@@ -212,7 +212,7 @@ void draw_circle(i32 x0, i32 y0, i32 a, i32 b, u32 color) {
 // return index to lightmap between 0 and 31 
 u8 calc_shade_from_distance(f32 dis){
 	f32 max_render_distance = 100.0f;
-	dis = clamp(dis, 0.0f, max_render_distance);
+	dis = CLAMP(dis, 0.0f, max_render_distance);
 
 	// Map to [0, 31]
 	u8 shade = (u8)(dis / max_render_distance * 31.0f);
@@ -220,7 +220,7 @@ u8 calc_shade_from_distance(f32 dis){
 	return shade;
 }
 
-void draw_wall_3d(Player player, WallRenderingInfo* now, u32 rd)
+void draw_wall_3d(Player* player, WallRenderingInfo* now, u32 rd)
 {
 	// recursion depth
 	if (rd > 32) return;
@@ -229,8 +229,8 @@ void draw_wall_3d(Player player, WallRenderingInfo* now, u32 rd)
 
 		Wall w = *get_wall(i);
 		//world pos
-		v2 p1 = world_pos_to_camera(w.a, player);
-		v2 p2 = world_pos_to_camera(w.b, player);
+		v2 p1 = world_pos_to_camera(w.a, *player);
+		v2 p2 = world_pos_to_camera(w.b, *player);
 
 		v2 tp1 = p1;
 		v2 tp2 = p2;
@@ -263,8 +263,8 @@ void draw_wall_3d(Player player, WallRenderingInfo* now, u32 rd)
 		if (tx1 > now->sx2) continue;
 		if (tx2 < now->sx1) continue;
 
-		i32 x1 = clamp(tx1, now->sx1, now->sx2);
-		i32 x2 = clamp(tx2, now->sx1, now->sx2);
+		i32 x1 = CLAMP(tx1, now->sx1, now->sx2);
+		i32 x2 = CLAMP(tx2, now->sx1, now->sx2);
 
 		if (x1 >= x2) continue;
 
@@ -303,19 +303,19 @@ void draw_wall_3d(Player player, WallRenderingInfo* now, u32 rd)
 		f32 sy1 = (VFOV * SCREEN_HEIGHT) / p2.y;
 
 		// wall coordinates
-		i32 yf0 = (SCREEN_HEIGHT / 2) + (i32)((sec.zfloor - player.z) * sy0);
-		i32 yf1 = (SCREEN_HEIGHT / 2) + (i32)((sec.zfloor - player.z) * sy1);
-		i32 yc0 = (SCREEN_HEIGHT / 2) + (i32)((sec.zceil - player.z) * sy0);
-		i32 yc1 = (SCREEN_HEIGHT / 2) + (i32)((sec.zceil - player.z) * sy1);
+		i32 yf0 = (SCREEN_HEIGHT / 2) + (i32)((sec.zfloor - player->z) * sy0);
+		i32 yf1 = (SCREEN_HEIGHT / 2) + (i32)((sec.zfloor - player->z) * sy1);
+		i32 yc0 = (SCREEN_HEIGHT / 2) + (i32)((sec.zceil - player->z) * sy0);
+		i32 yc1 = (SCREEN_HEIGHT / 2) + (i32)((sec.zceil - player->z) * sy1);
 		// bottom wall coordinates if bottom of wall would be ar heigh 0, used for absolute texture drawing regardless of floor and ceil height
-		i32 yaf0 = (SCREEN_HEIGHT / 2) + (i32)((sec.zfloor_old - player.z) * sy0);
-		i32 yaf1 = (SCREEN_HEIGHT / 2) + (i32)((sec.zfloor_old - player.z) * sy1);
+		i32 yaf0 = (SCREEN_HEIGHT / 2) + (i32)((sec.zfloor_old - player->z) * sy0);
+		i32 yaf1 = (SCREEN_HEIGHT / 2) + (i32)((sec.zfloor_old - player->z) * sy1);
 
 		// portal coordinates in the wall
-		i32 pf0 = (SCREEN_HEIGHT / 2) + (i32)((nzfloor - player.z) * sy0);
-		i32 pf1 = (SCREEN_HEIGHT / 2) + (i32)((nzfloor - player.z) * sy1);
-		i32 pc0 = (SCREEN_HEIGHT / 2) + (i32)((nzceil - player.z) * sy0);
-		i32 pc1 = (SCREEN_HEIGHT / 2) + (i32)((nzceil - player.z) * sy1);
+		i32 pf0 = (SCREEN_HEIGHT / 2) + (i32)((nzfloor - player->z) * sy0);
+		i32 pf1 = (SCREEN_HEIGHT / 2) + (i32)((nzfloor - player->z) * sy1);
+		i32 pc0 = (SCREEN_HEIGHT / 2) + (i32)((nzceil - player->z) * sy0);
+		i32 pc1 = (SCREEN_HEIGHT / 2) + (i32)((nzceil - player->z) * sy1);
 
 		// wall texture mapping varaibles
 		v2 difp1 = v2_sub(p1, tp1);
@@ -331,8 +331,8 @@ void draw_wall_3d(Player player, WallRenderingInfo* now, u32 rd)
 			i32 tyf = (i32)(xp * (yf1 - yf0)) + yf0;
 			i32 tyc = (i32)(xp * (yc1 - yc0)) + yc0;
 			i32 tayf = (i32)(xp * (yaf1 - yaf0)) + yaf0; // bottom of the wall, if wall had height 0, used for absolute texture drawing of walls
-			i32 yf = clamp(tyf, floorclip[x], ceilingclip[x]);
-			i32 yc = clamp(tyc, floorclip[x], ceilingclip[x]);
+			i32 yf = CLAMP(tyf, floorclip[x], ceilingclip[x]);
+			i32 yc = CLAMP(tyc, floorclip[x], ceilingclip[x]);
 			
 			//set visplane top and bottom clipping
 			//TODO: DRAW PLANES 1 PIXEL ON TOP AND BOTTOM HIGHER
@@ -388,9 +388,9 @@ void draw_wall_3d(Player player, WallRenderingInfo* now, u32 rd)
 			else {
 				//get top and bottom coordinates of the portal
 				i32 tpyf = (i32)(xp * (pf1 - pf0)) + pf0;
-				i32 pyf = clamp(tpyf, yf, yc);
+				i32 pyf = CLAMP(tpyf, yf, yc);
 				i32 tpyc = (i32)(xp * (pc1 - pc0)) + pc0;
-				i32 pyc = clamp(tpyc, yf, yc);
+				i32 pyc = CLAMP(tpyc, yf, yc);
 
 				//if neighborfloor is higher than current sectorceiling then draw it
 				//if (pyf > yf) { drawVerticalLine(x, yf, pyf, YELLOW, pixels); }
@@ -407,8 +407,8 @@ void draw_wall_3d(Player player, WallRenderingInfo* now, u32 rd)
 				}
 
 				//update vertical clipping arrays
-				ceilingclip[x] = clamp(pyc, 0, ceilingclip[x]);
-				floorclip[x] = clamp(pyf, floorclip[x], SCREEN_HEIGHT - 1);
+				ceilingclip[x] = CLAMP(pyc, 0, ceilingclip[x]);
+				floorclip[x] = CLAMP(pyf, floorclip[x], SCREEN_HEIGHT - 1);
 			}
 		}
 
@@ -461,10 +461,10 @@ void draw_tex_line(i32 x, i32 y0, i32 y1, i32 yf, i32 yc, i32 ayf, f64 u, u8 sha
 		i32 top_ty = top_y * (yc - yf) + yf;
 		i32 bot_ty = bot_y * (yc - yf) + yf;
 
-		i32 bot_ty_clamp = clamp(bot_ty, y0, y1);
-		i32 top_ty_clamp = clamp(top_ty, y0, y1);
+		i32 bot_ty_clamp = CLAMP(bot_ty, y0, y1);
+		i32 top_ty_clamp = CLAMP(top_ty, y0, y1);
 
-		v3 tex_res = calc_tex_start_and_step(bot_ty, top_ty, clamp(bot_ty, y0, y1), clamp(top_ty, y0, y1), decal_tex_ind->height, 1.0f);
+		v3 tex_res = calc_tex_start_and_step(bot_ty, top_ty, CLAMP(bot_ty, y0, y1), CLAMP(top_ty, y0, y1), decal_tex_ind->height, 1.0f);
 		f32 ty = tex_res.x;
 		f32 ty_step = tex_res.z;
 
@@ -624,7 +624,7 @@ visplane_t* check_plane(visplane_t* v, i32 start, i32 stop) {
 	return v;
 }
 
-void make_spans(i32 x, i32 t1, i32 b1, i32 t2, i32 b2, visplane_t* v, Player player) {
+void make_spans(i32 x, i32 t1, i32 b1, i32 t2, i32 b2, visplane_t* v, Player* player) {
 	while (t1 > t2 && t1 >= b1) {
 		map_plane(t1, spanstart[t1], x+1, v, player);
 		t1--;
@@ -644,7 +644,7 @@ void make_spans(i32 x, i32 t1, i32 b1, i32 t2, i32 b2, visplane_t* v, Player pla
 	}
 }
 
-void map_plane(i32 y, i32 x1, i32 x2, visplane_t* v, Player player) {
+void map_plane(i32 y, i32 x1, i32 x2, visplane_t* v, Player* player) {
 	f32 tex_scale = 4.0f;
 
 	i32 texheight = 256;
@@ -660,20 +660,20 @@ void map_plane(i32 y, i32 x1, i32 x2, visplane_t* v, Player player) {
 	//v2 p = {player.pos.x * (SCREEN_WIDTH / 2) + (dis/cos(a)) * cos(player.angle + a),  player.pos.y * (SCREEN_WIDTH / 2) + (dis / cos(a)) * sin(player.angle + a)};
 
 	//scale normalized yslope by actual camera pos and divide by the cosine of angle to prevent fisheye effect
-	f32 dis = fabs(((player.z - v->height) * yslope[y]));
+	f32 dis = fabs(((player->z - v->height) * yslope[y]));
 	//relative coordinates to player
 	f32 xt = -sin(a) * dis / cos(a);
 	f32 yt = cos(a) * dis / cos(a);
 	// absolute coordinates
-	v2 p = camera_pos_to_world((v2) { xt, yt }, player);
+	v2 p = camera_pos_to_world((v2) { xt, yt }, *player);
 
 	p.x *= texsizefactor.x;
 	p.y *= texsizefactor.y;
 
 	f32 step = dis / (SCREEN_WIDTH / 2);
 
-	f32 xstep = step * cos(player.angle - PI_2) * texsizefactor.x;
-	f32 ystep = step * sin(player.angle - PI_2) * texsizefactor.y;
+	f32 xstep = step * cos(player->angle - PI_2) * texsizefactor.x;
+	f32 ystep = step * sin(player->angle - PI_2) * texsizefactor.y;
 
 	u8 floor_row_shade_index = calc_shade_from_distance(dis);
 
@@ -690,7 +690,7 @@ void map_plane(i32 y, i32 x1, i32 x2, visplane_t* v, Player player) {
 	}
 }
 
-void draw_planes_3d(Player player) {
+void draw_planes_3d(Player* player) {
 	
 	for (visplane_t* v = visplanes; v < lastvisplane; v++) {
 		if (v->minx > v->maxx) continue;
@@ -734,14 +734,14 @@ void draw_planes_3d(Player player) {
 }
 
 
-void draw_sprites(Player player, EntityHandler* h) {
+void draw_sprites(Player* player, EntityHandler* handler) {
 
-	for (i32 i = 0; i < h->used; i++)
+	for (i32 i = 0; i < handler->used; i++)
 	{
-		Entity e = *h->entities[i];
+		const Entity e = *handler->entities[i];
 		if (e.type == Projectile){
-			f32 dx = e.pos.x - player.pos.x;
-			f32 dy = e.pos.y - player.pos.y;
+			f32 dx = e.pos.x - player->pos.x;
+			f32 dy = e.pos.y - player->pos.y;
 			f32 dis = sqrt(dx * dx + dy * dy);
 			if (dis < 4.0f) {
 				continue;
@@ -750,7 +750,7 @@ void draw_sprites(Player player, EntityHandler* h) {
 
 		if (e.relCamPos.y <= 0) continue;
 
-		f32 spritevMove = -SCREEN_HEIGHT  * (e.z - player.z);
+		f32 spritevMove = -SCREEN_HEIGHT  * (e.z - player->z);
 		f32 spritea = atan2(e.relCamPos.y, e.relCamPos.x) - PI / 2;
 		i32 spriteScreenX = screen_angle_to_x(spritea);
 		i32 vMoveScreen = spritevMove / e.relCamPos.y;
@@ -760,9 +760,9 @@ void draw_sprites(Player player, EntityHandler* h) {
 
 		i32 spriteHeight = (SCREEN_HEIGHT / e.relCamPos.y) * e.scale.y;
 		i32 y0 = -spriteHeight / 2 + SCREEN_HEIGHT / 2 - vMoveScreen;
-		i32 y0_clamp = clamp(y0, 0, SCREEN_HEIGHT);
+		i32 y0_clamp = CLAMP(y0, 0, SCREEN_HEIGHT);
 		i32 y1 = spriteHeight / 2 + SCREEN_HEIGHT / 2 - vMoveScreen;
-		i32 y1_clamp = clamp(y1, 0, SCREEN_HEIGHT);
+		i32 y1_clamp = CLAMP(y1, 0, SCREEN_HEIGHT);
 
 		v3 tex_res_y =  calc_tex_start_and_step(y0, y1, y0_clamp, y1_clamp, sprite_ind->height, 1.0f);
 		f32 ty = tex_res_y.x;
@@ -771,9 +771,9 @@ void draw_sprites(Player player, EntityHandler* h) {
 		// multiply by 9.0f/16.0f as this is the usual resolution for this game
 		i32 spriteWidth = (SCREEN_WIDTH / e.relCamPos.y) * e.scale.x * (9.0f / 16.0f);
 		i32 x0 = -spriteWidth / 2 + spriteScreenX;
-		i32 x0_clamp = clamp(x0, 0, SCREEN_WIDTH);
+		i32 x0_clamp = CLAMP(x0, 0, SCREEN_WIDTH);
 		i32 x1 = spriteWidth / 2 + spriteScreenX;
-		i32 x1_clamp = clamp(x1, 0, SCREEN_WIDTH);
+		i32 x1_clamp = CLAMP(x1, 0, SCREEN_WIDTH);
 
 		v3 tex_res_x = calc_tex_start_and_step(x0, x1, x0_clamp, x1_clamp, sprite_ind->width, 1.0f);
 		f32 tx_start = 256 - tex_res_x.x;
@@ -798,7 +798,7 @@ void draw_sprites(Player player, EntityHandler* h) {
 	}
 }
 
-void draw_minimap(Player player) {
+void draw_minimap(Player* player) {
 	v2i mapoffset = (v2i){ SCREEN_WIDTH/20 , SCREEN_HEIGHT - SCREEN_HEIGHT/4 };
 	f32 x_scale = SCREEN_WIDTH / 1280.0f;
 	f32 y_scale = SCREEN_HEIGHT / 720.0f;
@@ -813,8 +813,9 @@ void draw_minimap(Player player) {
 			draw_line((w.a.x * scale + mapoffset.x), (w.a.y * scale + mapoffset.y), (w.b.x * scale + mapoffset.x), (w.b.y * scale + mapoffset.y), WHITE);
 		}
 	}
-	draw_circle(player.pos.x * scale +mapoffset.x, player.pos.y * scale + mapoffset.y, 3 * scale, 3 * scale, RED);
-	draw_line(player.pos.x * scale + mapoffset.x, player.pos.y * scale + mapoffset.y, (player.anglecos * 10 + player.pos.x) * scale + mapoffset.x, (player.anglesin * 10 + player.pos.y) * scale + mapoffset.y, RED);
+	draw_circle(player->pos.x * scale +mapoffset.x, player->pos.y * scale + mapoffset.y, 3 * scale, 3 * scale, RED);
+	draw_line(player->pos.x * scale + mapoffset.x, player->pos.y * scale + mapoffset.y,
+			 (player->anglecos * 10 + player->pos.x) * scale + mapoffset.x, (player->anglesin * 10 + player->pos.y) * scale + mapoffset.y, RED);
 }
 
 

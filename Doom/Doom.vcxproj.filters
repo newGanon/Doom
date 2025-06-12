@@ -42,6 +42,9 @@
     <ClCompile Include="plat.c">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="entityhandler.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="math.h">
@@ -72,6 +75,9 @@
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="plat.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="entityhandler.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>

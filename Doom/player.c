@@ -6,10 +6,10 @@
 #include "plat.h"
 
 void calc_playervelocity(Player* p, bool* KEYS);
-void check_shoot(Player* p);
+void check_shoot(Player* p, EntityHandler* handler);
 void p_interact(Player* p);
 
-void player_tick(Player* p, bool* KEYS) {
+void player_tick(Player* p, EntityHandler* handler, bool* KEYS) {
 	//const u8* keyboardstate = SDL_GetKeyboardState(NULL);
 
 	// check for player pressing interaction key
@@ -23,7 +23,7 @@ void player_tick(Player* p, bool* KEYS) {
 
 	calc_playervelocity(p, KEYS);
 	trymove_player(p);
-	check_shoot(p);
+	check_shoot(p, handler);
 
 	// reset player pos
 	if (KEYS[SDL_SCANCODE_R] || p->dead) {
@@ -66,7 +66,7 @@ void calc_playervelocity(Player* p, bool* KEYS) {
 }
 
 
-void check_shoot(Player* p) {
+void check_shoot(Player* p, EntityHandler* handler) {
 	if (!p->shoot) return;
 	p->shoot = false;
 	i32 weapon = 0;
@@ -86,8 +86,10 @@ void check_shoot(Player* p) {
 				bullet->velocity = (v3){ p->anglecos, p->anglesin, 0 };
 				bullet->sector = p->sector;
 				bullet->target = NULL;
-				add_ticker(&bullet->tick);
-				add_entity(bullet);
+				bullet->dirty = false;
+				bullet->damage = 2.0f;
+				ticker_add(&bullet->tick);
+				entity_add(handler, bullet);
 			}
 			break;
 		}
@@ -107,15 +109,11 @@ void p_interact(Player* p) {
 	Sector* cursec = get_sector(p->sector);
 	RaycastResult res = raycast(cursec, p->pos, (v2) { p->pos. x + p->anglecos * 1000.0f, p->pos.y + p->anglesin * 1000.0f }, p->z);
 	if (res.hit) {
-		v2 wallpos = res.wall_pos;
-		v2 world_pos = (v2){ wallpos.x + res.wall->a.x, wallpos.y + res.wall->a.y };
-		v2 player_to_wall = (v2){ world_pos.x - p->pos.x, world_pos.y - p->pos.y };
-		f32 distance = player_to_wall.x * player_to_wall.x + player_to_wall.y * player_to_wall.y;
-		if (distance > (15.0f * 15.0f)) return;
+		if (res.distance > (15.0f)) return;
 		for (Decal* d = res.wall->decalhead; d != NULL; d = d->next) {
 			get_relative_decal_wall_height(d, res.wall, cursec->zfloor);
-			v2 relative_wallpos = (v2){ sqrt(wallpos.x * wallpos.x + wallpos.y * wallpos.y), p->z };
-			if (relative_wallpos.x > d->wallpos.x && relative_wallpos.x < (d->wallpos.x + d->size.x) && relative_wallpos.y > d->wallpos.y && relative_wallpos.y < (d->wallpos.y + d->size.y)) {
+			v2 rel_wallpos = (v2){ sqrt(res.wall_pos.x * res.wall_pos.x + res.wall_pos.y * res.wall_pos.y), p->z };
+			if (rel_wallpos.x > d->wallpos.x && rel_wallpos.x < (d->wallpos.x + d->size.x) && rel_wallpos.y > d->wallpos.y && rel_wallpos.y < (d->wallpos.y + d->size.y)) {
 				create_plat(d->tag, INFINITE_UP_DOWN, true);
 			}
 		}

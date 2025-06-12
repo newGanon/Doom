@@ -83,7 +83,7 @@ void create_plat(i32 tag, plat_type type, bool floor) {
 		plat->sec->specialdata = plat;
 		plat->floor = floor;
 		plat->tick.function = (actionf) plat_move;
-		add_ticker(&plat->tick);
+		ticker_add(&plat->tick);
 
 		switch (type) {
 			case INFINITE_UP_DOWN: {

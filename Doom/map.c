@@ -45,7 +45,7 @@ void map_init(Map* map1) {
 			sscanf_s(p, "%f %f %f %f %d", &wall->a.x, &wall->a.y, &wall->b.x, &wall->b.y, &wall->portal);
 			wall->portal -= 1;
 			wall->tex = 3;
-			if (map->wallnum == 9) {
+			if (map->wallnum == 9 || map->wallnum == 10) {
 				wall->transparent = true;
 				wall->tex = 4;
 			}
@@ -270,10 +270,12 @@ RaycastResult map_raycast(Sector* cursec, v2 pos, v2 target_pos, f32 z) {
 	bool hit = false;
 	for (i32 i = cursec->index; i < cursec->index + cursec->numWalls; i++) {
 		Wall* curwall = &map->walls[i];
-		bool front = (POINTSIDE2D(pos.x, pos.y, curwall->a.x, curwall->a.y, curwall->b.x, curwall->b.y) >= 0);
+		bool front = (POINTSIDE2D(pos.x, pos.y, curwall->a.x, curwall->a.y, curwall->b.x, curwall->b.y) < 0);
 		if (get_line_intersection(pos, target_pos, curwall->a, curwall->b, &intersection)) {
+			// raycast cant hit transarent walls
+			if (curwall->transparent) continue;
 			// normal wall hit
-			if (curwall->portal == -1) { hit = true; }
+			else if (curwall->portal == -1) { hit = true; }
 			// portal hit
 			else {
 				f32 stepl = map_get_sector(curwall->portal)->zfloor;

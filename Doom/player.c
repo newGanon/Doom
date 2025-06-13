@@ -70,7 +70,7 @@ void calc_playervelocity(Player* p, bool* KEYS) {
 void player_check_shoot(Player* p, EntityHandler* handler) {
 	if (!p->shoot) return;
 	p->shoot = false;
-	i32 weapon = 0;
+	i32 weapon = 1;
 
 	switch (weapon) {
 		case 0: {
@@ -106,6 +106,7 @@ void player_check_shoot(Player* p, EntityHandler* handler) {
 		default: break;
 	}
 }
+
 
 void player_interact(Player* p) {
 	Sector* cursec = map_get_sector(p->sector);

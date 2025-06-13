@@ -575,49 +575,47 @@ void draw_tex_line(i32 x, i32 y0, i32 y1, i32 yf, i32 yc, i32 ayf, f32 u, u8 sha
 	if (wall_backside) u = 1.0f - u;
 	f32 wall_pos_x = u * wallwidth;
 	
-	bool decal[SCREEN_HEIGHT] = { false };
-	
+	bool wall_drawn[SCREEN_HEIGHT] = { false };
 	// draw decals on the front
-	for (Decal* d = wall->decalhead; d != NULL; d = d->next) {
-		if (d->wall_type != type || d->front == wall_backside) continue;
-		f32 rel_decal_height = map_decal_wall_height(d, wall, zfloor);
-		// if the decal is on the top portal, then sbtract the height of the neighbouring sector, as the thats where the bottom of the wall
-		if (d->wall_type == PORTAL_UPPER) {
-			Sector* sec = map_get_sector(wall->portal);
-			rel_decal_height -= sec->zceil;
-		} 
-		// if decal is above wall
-		if (rel_decal_height > wallheight || rel_decal_height < -d->size.y) continue;
-		// decal not in current stripe of wall, check next decal
-		if (!(d->wallpos.x < wall_pos_x && (d->wallpos.x + d->size.x) > wall_pos_x)) continue;
-		LightmapindexTexture* decal_tex_ind = &index_textures[d->tex_num];
+	if (!wall->transparent) {
+		for (Decal* d = wall->decalhead; d != NULL; d = d->next) {
+			if (d->wall_type != type || d->front == wall_backside) continue;
+			f32 rel_decal_height = map_decal_wall_height(d, wall, zfloor);
+			// if the decal is on the top portal, then sbtract the height of the neighbouring sector, as the thats where the bottom of the wall
+			if (d->wall_type == PORTAL_UPPER) {
+				Sector* sec = map_get_sector(wall->portal);
+				rel_decal_height -= sec->zceil;
+			}
+			// if decal is above wall
+			if (rel_decal_height > wallheight || rel_decal_height < -d->size.y) continue;
+			// decal not in current stripe of wall, check next decal
+			if (!(d->wallpos.x < wall_pos_x && (d->wallpos.x + d->size.x) > wall_pos_x)) continue;
+			LightmapindexTexture* decal_tex_ind = &index_textures[d->tex_num];
 
-		f32 pos_x = wall_pos_x - d->wallpos.x;
-		f32 tx = (pos_x / d->size.x) * decal_tex_ind->width;
+			f32 pos_x = wall_pos_x - d->wallpos.x;
+			f32 tx = (pos_x / d->size.x) * decal_tex_ind->width;
 
-		f32 top_y = (rel_decal_height + d->size.y) / wallheight;
-		f32 bot_y = rel_decal_height / wallheight;
-		i32 top_ty = (i32)(top_y * (yc - yf) + yf);
-		i32 bot_ty = (i32)(bot_y * (yc - yf) + yf);
+			f32 top_y = (rel_decal_height + d->size.y) / wallheight;
+			f32 bot_y = rel_decal_height / wallheight;
+			i32 top_ty = (i32)(top_y * (yc - yf) + yf);
+			i32 bot_ty = (i32)(bot_y * (yc - yf) + yf);
 
-		i32 bot_ty_clamp = CLAMP(bot_ty, y0, y1);
-		i32 top_ty_clamp = CLAMP(top_ty, y0, y1);
+			i32 bot_ty_clamp = CLAMP(bot_ty, y0, y1);
+			i32 top_ty_clamp = CLAMP(top_ty, y0, y1);
 
-		v3 tex_res = calc_tex_start_and_step(bot_ty, top_ty, CLAMP(bot_ty, y0, y1), CLAMP(top_ty, y0, y1), decal_tex_ind->height, 1.0f);
-		f32 ty = tex_res.x;
-		f32 ty_step = tex_res.z;
+			v3 tex_res = calc_tex_start_and_step(bot_ty, top_ty, CLAMP(bot_ty, y0, y1), CLAMP(top_ty, y0, y1), decal_tex_ind->height, 1.0f);
+			f32 ty = tex_res.x;
+			f32 ty_step = tex_res.z;
 
-		for (i32 y = bot_ty_clamp; y < top_ty_clamp; y++) {
-			// only draw pixel of decal if pixel has not already been drawn by other decal
-			if (!decal[y]) {
+			for (i32 y = bot_ty_clamp; y < top_ty_clamp; y++) {
 				u8 index = decal_tex_ind->indices[((i32)ty) * decal_tex_ind->width + (i32)tx];
-				if (index && zBuffer[y * SCREEN_WIDTH + x] > dis) {
+				if (index) {
 					draw_pixel_from_lightmap(x, y, index, shade_index);
-					decal[y] = true;
+					wall_drawn[y] = true;
 					zBuffer[y * SCREEN_WIDTH + x] = dis;
 				}
+				ty += ty_step;
 			}
-			ty += ty_step;
 		}
 	}
 
@@ -653,10 +651,10 @@ void draw_tex_line(i32 x, i32 y0, i32 y1, i32 yf, i32 yc, i32 ayf, f32 u, u8 sha
 	if (!wall->transparent) {
 		for (i32 y = y0; y <= y1; y++) {
 			// only draw wall when there is no decal
-			if (!decal[y]) {
+			if (!wall_drawn[y]) {
 				u8 index = wall_texture_ind->indices[((i32)ty % wall_texture_ind->height) * wall_texture_ind->width + (i32)tx];
 				draw_pixel_from_lightmap(x, y, index, shade_index);
-				decal[y] = true;
+				wall_drawn[y] = true;
 				zBuffer[y * SCREEN_WIDTH + x] = dis;
 			}
 			ty += ty_step;
@@ -665,11 +663,11 @@ void draw_tex_line(i32 x, i32 y0, i32 y1, i32 yf, i32 yc, i32 ayf, f32 u, u8 sha
 	else {
 		for (i32 y = y0; y <= y1; y++) {
 			// only draw wall when there is no decal
-			if (!decal[y] && zBuffer[y * SCREEN_WIDTH + x] > dis) {
+			if (!wall_drawn[y] && zBuffer[y * SCREEN_WIDTH + x] > dis) {
 				u8 index = wall_texture_ind->indices[((i32)ty % wall_texture_ind->height) * wall_texture_ind->width + (i32)tx];
-				if (index) {
+				if (index && zBuffer[y * SCREEN_WIDTH + x] > dis) {
 					draw_pixel_from_lightmap(x, y, index, shade_index);
-					decal[y] = true;
+					wall_drawn[y] = true;
 					zBuffer[y * SCREEN_WIDTH + x] = dis;
 				}
 			}
@@ -677,48 +675,49 @@ void draw_tex_line(i32 x, i32 y0, i32 y1, i32 yf, i32 yc, i32 ayf, f32 u, u8 sha
 		}
 	}
 
-	// draw decals on the back 
-	wall_pos_x = u * wallwidth;
-	for (Decal* d = wall->decalhead; d != NULL; d = d->next) {
-		if (d->wall_type != type || !d->front == wall_backside) continue;
-		f32 rel_decal_height = map_decal_wall_height(d, wall, zfloor);
-		// if the decal is on the top portal, then sbtract the height of the neighbouring sector, as the thats where the bottom of the wall
-		if (d->wall_type == PORTAL_UPPER) {
-			Sector* sec = map_get_sector(wall->portal);
-			rel_decal_height -= sec->zceil;
-		}
-		// if decal is above wall
-		if (rel_decal_height > wallheight || rel_decal_height < -d->size.y) continue;
-		// decal not in current stripe of wall, check next decal
-		if (!(d->wallpos.x < wall_pos_x && (d->wallpos.x + d->size.x) > wall_pos_x)) continue;
-		LightmapindexTexture* decal_tex_ind = &index_textures[d->tex_num];
-
-		f32 pos_x = wall_pos_x - d->wallpos.x;
-		f32 tx = (pos_x / d->size.x) * decal_tex_ind->width;
-
-		f32 top_y = (rel_decal_height + d->size.y) / wallheight;
-		f32 bot_y = rel_decal_height / wallheight;
-		i32 top_ty = (i32)(top_y * (yc - yf) + yf);
-		i32 bot_ty = (i32)(bot_y * (yc - yf) + yf);
-
-		i32 bot_ty_clamp = CLAMP(bot_ty, y0, y1);
-		i32 top_ty_clamp = CLAMP(top_ty, y0, y1);
-
-		v3 tex_res = calc_tex_start_and_step(bot_ty, top_ty, CLAMP(bot_ty, y0, y1), CLAMP(top_ty, y0, y1), decal_tex_ind->height, 1.0f);
-		f32 ty = tex_res.x;
-		f32 ty_step = tex_res.z;
-
-		for (i32 y = bot_ty_clamp; y < top_ty_clamp; y++) {
-			// only draw pixel of decal if pixel has not already been drawn by other decal
-			if (!decal[y]) {
-				u8 index = decal_tex_ind->indices[((i32)ty) * decal_tex_ind->width + (i32)tx];
-				if (index && zBuffer[y * SCREEN_WIDTH + x] > dis) {
-					draw_pixel_from_lightmap(x, y, index, shade_index);
-					decal[y] = true;
-					zBuffer[y * SCREEN_WIDTH + x] = dis;
-				}
+	// draw on front of transparent walls 
+	if (wall->transparent) {
+		for (Decal* d = wall->decalhead; d != NULL; d = d->next) {
+			if (d->wall_type != type || d->front == wall_backside) continue;
+			f32 rel_decal_height = map_decal_wall_height(d, wall, zfloor);
+			// if the decal is on the top portal, then sbtract the height of the neighbouring sector, as the thats where the bottom of the wall
+			if (d->wall_type == PORTAL_UPPER) {
+				Sector* sec = map_get_sector(wall->portal);
+				rel_decal_height -= sec->zceil;
 			}
-			ty += ty_step;
+			// if decal is above wall
+			if (rel_decal_height > wallheight || rel_decal_height < -d->size.y) continue;
+			// decal not in current stripe of wall, check next decal
+			if (!(d->wallpos.x < wall_pos_x && (d->wallpos.x + d->size.x) > wall_pos_x)) continue;
+			LightmapindexTexture* decal_tex_ind = &index_textures[d->tex_num];
+
+			f32 pos_x = wall_pos_x - d->wallpos.x;
+			f32 tx = (pos_x / d->size.x) * decal_tex_ind->width;
+
+			f32 top_y = (rel_decal_height + d->size.y) / wallheight;
+			f32 bot_y = rel_decal_height / wallheight;
+			i32 top_ty = (i32)(top_y * (yc - yf) + yf);
+			i32 bot_ty = (i32)(bot_y * (yc - yf) + yf);
+
+			i32 bot_ty_clamp = CLAMP(bot_ty, y0, y1);
+			i32 top_ty_clamp = CLAMP(top_ty, y0, y1);
+
+			v3 tex_res = calc_tex_start_and_step(bot_ty, top_ty, CLAMP(bot_ty, y0, y1), CLAMP(top_ty, y0, y1), decal_tex_ind->height, 1.0f);
+			f32 ty = tex_res.x;
+			f32 ty_step = tex_res.z;
+
+			for (i32 y = bot_ty_clamp; y < top_ty_clamp; y++) {
+				// only draw pixel of decal if pixel has not already been drawn by other decal
+				if (wall_drawn[y]) {
+					u8 index = decal_tex_ind->indices[((i32)ty) * decal_tex_ind->width + (i32)tx];
+					if (index) {
+						draw_pixel_from_lightmap(x, y, index, shade_index);
+						wall_drawn[y] = true;
+						zBuffer[y * SCREEN_WIDTH + x] = dis;
+					}
+				}
+				ty += ty_step;
+			}
 		}
 	}
 }

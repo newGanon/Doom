@@ -99,7 +99,7 @@ void player_check_shoot(Player* p, EntityHandler* handler) {
 			RaycastResult res = map_raycast(map_get_sector(p->sector), p->pos, (v2) { p->pos.x + p->anglecos * 1000.0f, p->pos.y + p->anglesin * 1000.0f }, p->z);
 			if (res.hit) {
 				v2 wallpos = (v2){ sqrtf(res.wall_pos.x * res.wall_pos.x + res.wall_pos.y * res.wall_pos.y), p->z };
-				map_spawn_decal(wallpos, res.wall, (v2) { 2.0f, 2.0f }, 1);
+				map_spawn_decal(wallpos, res.wall, (v2) { 2.0f, 2.0f }, 1, res.front);
 			}
 			break;
 		}
@@ -174,11 +174,13 @@ void player_trymove(Player* p) {
 	bool in_air_old = p->airborne;
 	bool collided = false;
 	Player old_p = *p;
+	v2 intersection;
 	for (u32 k = 0; k < 3; k++) {
 		for (i32 i = cur_sec->index; i < cur_sec->index + cur_sec->numWalls; i++) {
 			Wall curwall = map->walls[i];
-			if (BOXINTERSECT2D(p->pos.x, p->pos.y, p->pos.x + p->velocity.x, p->pos.y + p->velocity.y, curwall.a.x, curwall.a.y, curwall.b.x, curwall.b.y) &&
-				POINTSIDE2D(p->pos.x + p->velocity.x, p->pos.y + p->velocity.y, curwall.a.x, curwall.a.y, curwall.b.x, curwall.b.y) > 0)) {
+			//if (BOXINTERSECT2D(p->pos.x, p->pos.y, p->pos.x + p->velocity.x, p->pos.y + p->velocity.y, curwall.a.x, curwall.a.y, curwall.b.x, curwall.b.y) &&
+			//	POINTSIDE2D(p->pos.x + p->velocity.x, p->pos.y + p->velocity.y, curwall.a.x, curwall.a.y, curwall.b.x, curwall.b.y) > 0)) {
+			if(get_line_intersection(p->pos, (v2) { p->pos.x + p->velocity.x, p->pos.y + p->velocity.y }, curwall.a, curwall.b, & intersection)){
 				f32 stepl = curwall.portal >= 0 ? map_get_sector(curwall.portal)->zfloor : 10e10f;
 				f32 steph = curwall.portal >= 0 ? map_get_sector(curwall.portal)->zceil : -10e10f;
 				//collision with wall, top or lower part of portal

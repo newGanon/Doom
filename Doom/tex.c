@@ -5,7 +5,7 @@ static u32 tex_amt;
 
 void tex_load(SDL_Surface** surfaces) {
 	SDL_Surface* bmpTex;
-	char textureFileNames[4][50] = { "Assets/test.bmp", "Assets/spritetest2.bmp", "Assets/ammo.bmp", "Assets/test3.bmp"};
+	char textureFileNames[5][50] = { "Assets/test.bmp", "Assets/spritetest2.bmp", "Assets/ammo.bmp", "Assets/test3.bmp", "Assets/test4.bmp" };
 	tex_amt = sizeof(textureFileNames) / sizeof(textureFileNames[0]);
 
 	for (u32 i = 0; i < tex_amt; i++) {

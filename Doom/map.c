@@ -44,6 +44,11 @@ void map_init(Map* map1) {
 			Wall* wall = &map->walls[map->wallnum++];
 			sscanf_s(p, "%f %f %f %f %d", &wall->a.x, &wall->a.y, &wall->b.x, &wall->b.y, &wall->portal);
 			wall->portal -= 1;
+			wall->tex = 3;
+			if (map->wallnum == 9) {
+				wall->transparent = true;
+				wall->tex = 4;
+			}
 		}
 				 break;
 		case NONE:
@@ -69,8 +74,7 @@ bool map_point_inside_sector(i32 sec, v2 p) {
 // walls are sorted in order to to draw them recursivly and allow for non konvex sectors
 void map_sort_walls(v2 cam_pos, f32 camsin, f32 camcos) {
 	//calc distances
-	for (i32 wallind = 0; wallind < map->wallnum; wallind++)
-	{
+	for (i32 wallind = 0; wallind < map->wallnum; wallind++) {
 		Wall wall = map->walls[wallind];
 		v2 p1 = world_pos_to_camera(wall.a, cam_pos, camsin, camcos);
 		v2 p2 = world_pos_to_camera(wall.b, cam_pos, camsin, camcos);
@@ -79,13 +83,10 @@ void map_sort_walls(v2 cam_pos, f32 camsin, f32 camcos) {
 
 	}
 	//sort wall with distance from player
-	for (i32 secind = 0; secind < map->sectoramt; secind++)
-	{
+	for (i32 secind = 0; secind < map->sectoramt; secind++) {
 		Sector sec = map->sectors[secind];
-		for (i32 step = sec.index; step < sec.index + sec.numWalls; step++)
-		{
-			for (i32 i = sec.index; i < sec.index + sec.numWalls - 1; i++)
-			{
+		for (i32 step = sec.index; step < sec.index + sec.numWalls; step++) {
+			for (i32 i = sec.index; i < sec.index + sec.numWalls - 1; i++) {
 				if (map->walls[i].distance > map->walls[i + 1].distance) {
 					Wall tempWall = map->walls[i];
 					map->walls[i] = map->walls[i + 1];
@@ -114,7 +115,7 @@ Map* map_get_map() {
 	return map;
 }
 
-Decal* map_spawn_decal(v2 wallpos, Wall* curwall, v2 size, i32 tex_id) {
+Decal* map_spawn_decal(v2 wallpos, Wall* curwall, v2 size, i32 tex_id, bool front) {
 	f32 stepl = curwall->portal >= 0 ? map->sectors[curwall->portal].zfloor : 10e10f;
 	f32 steph = curwall->portal >= 0 ? map->sectors[curwall->portal].zceil : -10e10f;
 
@@ -140,6 +141,7 @@ Decal* map_spawn_decal(v2 wallpos, Wall* curwall, v2 size, i32 tex_id) {
 		decal->prev = NULL;
 		decal->size = size;
 		decal->wall_type = type;
+		decal->front = front;
 		f32 decal_height = 0.0f;
 		switch (type) {
 			// decal has absoute height
@@ -268,8 +270,8 @@ RaycastResult map_raycast(Sector* cursec, v2 pos, v2 target_pos, f32 z) {
 	bool hit = false;
 	for (i32 i = cursec->index; i < cursec->index + cursec->numWalls; i++) {
 		Wall* curwall = &map->walls[i];
-		if ((POINTSIDE2D(pos.x, pos.y, curwall->a.x, curwall->a.y, curwall->b.x, curwall->b.y) < 0) && 
-			(get_line_intersection(pos, target_pos, curwall->a, curwall->b, &intersection))) {
+		bool front = (POINTSIDE2D(pos.x, pos.y, curwall->a.x, curwall->a.y, curwall->b.x, curwall->b.y) >= 0);
+		if (get_line_intersection(pos, target_pos, curwall->a, curwall->b, &intersection)) {
 			// normal wall hit
 			if (curwall->portal == -1) { hit = true; }
 			// portal hit
@@ -280,9 +282,11 @@ RaycastResult map_raycast(Sector* cursec, v2 pos, v2 target_pos, f32 z) {
 				if (stepl > z || steph < z) { hit = true; }
 				// fit through portal, change sector
 				else {
-					cursec = map_get_sector(curwall->portal);
-					i = cursec->index;
-					pos = intersection;
+					if (POINTSIDE2D(target_pos.x, target_pos.y, curwall->a.x, curwall->a.y, curwall->b.x, curwall->b.y) > 0) {
+						cursec = map_get_sector(curwall->portal);
+						i = cursec->index;
+						pos = intersection;
+					}
 				}
 			}
 			// if hit was detected return the result
@@ -290,7 +294,7 @@ RaycastResult map_raycast(Sector* cursec, v2 pos, v2 target_pos, f32 z) {
 				v2 hit_pos = (v2){ intersection.x - curwall->a.x, intersection.y - curwall->a.y };
 				v2 pos_to_hit = (v2){ intersection.x - pos.x, intersection.y - pos.y };
 				f32 distance = sqrtf(pos_to_hit.x * pos_to_hit.x + pos_to_hit.y * pos_to_hit.y);
-				return (RaycastResult) { .hit = true, .wall_pos = hit_pos, .wall = curwall, .wall_sec = cursec, .distance = distance };
+				return (RaycastResult) { .hit = true, .wall_pos = hit_pos, .wall = curwall, .wall_sec = cursec, .distance = distance, .front = front };
 			}
 		}
 	}

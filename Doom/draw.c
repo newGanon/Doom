@@ -7,9 +7,11 @@
 #include "tex.h"
 
 
+//TODO: make queue for transparent wall sliced, that should get drawn when everyhtning has finished drawing
+
 typedef struct WallRenderingInfo {
 	int sectorno, sx1, sx2;
-	u8 renderedSectors[SECTOR_MAX];
+	bool renderedSectors[SECTOR_MAX];
 } WallRenderingInfo;
 
 typedef struct visplane_t {
@@ -26,8 +28,9 @@ typedef struct visplane_t {
 
 void inline draw_pixel(i32 x, i32 y, u32 color);
 void inline draw_pixel_from_lightmap(i32 x, i32 y, u8 index, u8 shade);
-void draw_tex_line(i32 x, i32 y0, i32 y1, i32 yf, i32 yc, i32 ayf, f32 u, u8 shade_index, f32 dis, f32 zfloor, f32 zfloor_old, f32 wallheight, f32 wallwidth, Wall* wall, wall_section_type type);
+void draw_tex_line(i32 x, i32 y0, i32 y1, i32 yf, i32 yc, i32 ayf, f32 u, u8 shade_index, f32 dis, f32 zfloor, f32 zfloor_old, f32 wallheight, f32 wallwidth, Wall* wall, wall_section_type type, bool wall_backside);
 void draw_wall_3d(Player* player, WallRenderingInfo* now, u32 rd);
+void draw_transparent_walls(Player* player);
 void draw_planes_3d(Player* player);
 void draw_make_spans(i32 x, i32 t1, i32 b1, i32 t2, i32 b2, visplane_t* v, Player* player);
 void draw_map_plane(i32 y, i32 x1, i32 x2, visplane_t* v, Player* player);
@@ -71,11 +74,13 @@ static f32 screenxtoangle[SCREEN_WIDTH];
 static f32 zBuffer[SCREEN_HEIGHT * SCREEN_WIDTH];
 
 //clipping information of walls
-static u16 ceilingclip[SCREEN_WIDTH * SECTOR_MAX];
-static u16 floorclip[SCREEN_WIDTH * SECTOR_MAX];
+static u16 ceilingclip[SCREEN_WIDTH];
+static u16 floorclip[SCREEN_WIDTH];
 
 //used for horizontal drawing of visplain strips
 static i32 spanstart[SCREEN_HEIGHT];
+
+static bool drawn_sectors[SECTOR_MAX];
 
 
 void inline draw_pixel(i32 x, i32 y, u32 color) {
@@ -116,10 +121,13 @@ void draw_init(u32* pixels1, Palette* lightmap1, LightmapindexTexture* index_tex
 }
 
 void draw_3d(Player* player, EntityHandler* handler) {
-
 	draw_clear_planes();
-	draw_wall_3d(player, &(WallRenderingInfo) { player->sector, 0, SCREEN_WIDTH - 1, { 0 }}, 0);
+	WallRenderingInfo wr = { player->sector, 0, SCREEN_WIDTH - 1, { 0 } };
+	wr.renderedSectors[player->sector] = true;
+	drawn_sectors[player->sector] = true;
+	draw_wall_3d(player, &wr, 0);
 	draw_planes_3d(player);
+	draw_transparent_walls(player);
 	draw_sprites(player, handler);
 	draw_minimap(player);
 }
@@ -224,8 +232,7 @@ u8 draw_calculate_shade_from_distance(f32 dis){
 	return shade;
 }
 
-void draw_wall_3d(Player* player, WallRenderingInfo* now, u32 rd)
-{
+void draw_wall_3d(Player* player, WallRenderingInfo* now, u32 rd) {
 	// recursion depth
 	if (rd > 32) return;
 	Sector sec = *map_get_sector(now->sectorno);
@@ -311,7 +318,7 @@ void draw_wall_3d(Player* player, WallRenderingInfo* now, u32 rd)
 		i32 yf1 = (SCREEN_HEIGHT / 2) + (i32)((sec.zfloor - player->z) * sy1);
 		i32 yc0 = (SCREEN_HEIGHT / 2) + (i32)((sec.zceil - player->z) * sy0);
 		i32 yc1 = (SCREEN_HEIGHT / 2) + (i32)((sec.zceil - player->z) * sy1);
-		// bottom wall coordinates if bottom of wall would be ar heigh 0, used for absolute texture drawing regardless of floor and ceil height
+		// bottom wall coordinates if bottom of wall would be at original height, used for absolute texture drawing regardless of floor and ceil height
 		i32 yaf0 = (SCREEN_HEIGHT / 2) + (i32)((sec.zfloor_old - player->z) * sy0);
 		i32 yaf1 = (SCREEN_HEIGHT / 2) + (i32)((sec.zfloor_old - player->z) * sy1);
 
@@ -378,11 +385,11 @@ void draw_wall_3d(Player* player, WallRenderingInfo* now, u32 rd)
 			f32 wallwidth = sqrtf(dx * dx + dy * dy);
 
 			//draw Wall
-			if (w.portal == -1) {
+			if (w.portal == -1 && !w.transparent) {
 				//drawVerticalLine(x, yf, yc, color, pixels); wall in one color
 				if (yc > tyf && yf < tyc) {
 					f32 wallheight = sec.zceil - sec.zfloor;
-					draw_tex_line(x, yf, yc, tyf, tyc, tayf, u, wallshade_index, dis, sec.zfloor, sec.zfloor_old, wallheight, wallwidth, &w, WALL);
+					draw_tex_line(x, yf, yc, tyf, tyc, tayf, u, wallshade_index, dis, sec.zfloor, sec.zfloor_old, wallheight, wallwidth, &w, WALL, false);
 				}
 				ceilingclip[x] = 0;
 				floorclip[x] = SCREEN_HEIGHT - 1;
@@ -400,14 +407,14 @@ void draw_wall_3d(Player* player, WallRenderingInfo* now, u32 rd)
 				//if (pyf > yf) { drawVerticalLine(x, yf, pyf, YELLOW, pixels); }
 				if (pyf > yf) { 
 					wallheight = nzfloor - sec.zfloor;
-					draw_tex_line(x, yf, pyf, tyf, tpyf, tayf, u, wallshade_index, dis, sec.zfloor, sec.zfloor_old, wallheight, wallwidth, &w, PORTAL_LOWER);
+					draw_tex_line(x, yf, pyf, tyf, tpyf, tayf, u, wallshade_index, dis, sec.zfloor, sec.zfloor_old, wallheight, wallwidth, &w, PORTAL_LOWER, false);
 				}
 				//draw window
 				//drawVerticalLine(x, pyf, pyc, color, pixels);
 				//if neighborceiling is lower than current sectorceiling then draw it
 				if (pyc < yc) { 
 					wallheight = sec.zceil - nzceil;
-					draw_tex_line(x, pyc, yc, tpyc, tyc, tayf, u, wallshade_index, dis, sec.zfloor, sec.zfloor_old, wallheight, wallwidth, &w, PORTAL_UPPER);
+					draw_tex_line(x, pyc, yc, tpyc, tyc, tayf, u, wallshade_index, dis, sec.zfloor, sec.zfloor_old, wallheight, wallwidth, &w, PORTAL_UPPER, false);
 				}
 
 				//update vertical clipping arrays
@@ -419,11 +426,133 @@ void draw_wall_3d(Player* player, WallRenderingInfo* now, u32 rd)
 		if (w.portal >= 0 && !now->renderedSectors[w.portal]) {
 			WallRenderingInfo* wr = &(WallRenderingInfo){ w.portal, x1, x2};
 			memcpy(wr->renderedSectors, now->renderedSectors, SECTOR_MAX * sizeof(u8));
-			wr->renderedSectors[now->sectorno] = 1;
+			wr->renderedSectors[now->sectorno] = true;
+			drawn_sectors[now->sectorno] = true;
 			draw_wall_3d(player, wr, ++rd);
 		}
 	}
 }
+
+
+void draw_transparent_walls(Player* player) {
+	for (size_t i = 0; i < map_get_sectoramt(); i++) {
+		if (!drawn_sectors[i]) continue;
+		Sector sec = *map_get_sector(i);
+		for (i32 i = sec.index; i < (sec.index + sec.numWalls); i++) {
+			Wall w = *map_get_wall(i);
+			if (!w.transparent) continue;
+			for (size_t k = 0; k < 2; k++) {
+				// try drawing the backside of the wall
+				if (k == 1) {
+					v2 b = w.b;
+					w.b = w.a;
+					w.a = b;
+				}
+
+				//world pos
+				v2 p1 = world_pos_to_camera(w.a, player->pos, player->anglesin, player->anglecos);
+				v2 p2 = world_pos_to_camera(w.b, player->pos, player->anglesin, player->anglecos);
+
+				v2 tp1 = p1;
+				v2 tp2 = p2;
+
+				f32 a1 = atan2f(p1.y, p1.x) - PI_2;
+				f32 a2 = atan2f(p2.y, p2.x) - PI_2;
+
+				//calculate intersection between walls and view frustum and clip walls
+				if (p1.y <= ZNEAR || p2.y <= ZNEAR || a1 >= +(HFOV / 2) || a2 <= -(HFOV / 2)) {
+					v2 il;
+					i32 hitl = get_line_intersection(p1, p2, znl, zfl, &il);
+					v2 ir;
+					i32 hitr = get_line_intersection(p1, p2, znr, zfr, &ir);
+					if (hitl && hitr) {
+						if (p1.x - p2.x > 0) continue;
+					}
+					if (hitl) {
+						p1 = il;
+						a1 = atan2f(p1.y, p1.x) - PI_2;
+					}
+					if (hitr) {
+						p2 = ir;
+						a2 = atan2f(p2.y, p2.x) - PI_2;
+					}
+				}
+				if (a1 < a2 || a2 < -(HFOV / 2) - 0.01f || a1 > +(HFOV / 2) + 0.01f) continue;
+
+				//convert the angle of the wall into screen coordinates (player FOV is 90 degrees or 1/2 PI)
+				i32 x1 = screen_angle_to_x(a1);
+				i32 x2 = screen_angle_to_x(a2);
+
+				f32 sy0 = (VFOV * SCREEN_HEIGHT) / p1.y;
+				f32 sy1 = (VFOV * SCREEN_HEIGHT) / p2.y;
+
+				// wall coordinates
+				i32 yf0 = (SCREEN_HEIGHT / 2) + (i32)((sec.zfloor - player->z) * sy0);
+				i32 yf1 = (SCREEN_HEIGHT / 2) + (i32)((sec.zfloor - player->z) * sy1);
+				i32 yc0 = (SCREEN_HEIGHT / 2) + (i32)((sec.zceil - player->z) * sy0);
+				i32 yc1 = (SCREEN_HEIGHT / 2) + (i32)((sec.zceil - player->z) * sy1);
+				// bottom wall coordinates if bottom of wall would be at original heigh, used for absolute texture drawing regardless of floor and ceil height
+				i32 yaf0 = (SCREEN_HEIGHT / 2) + (i32)((sec.zfloor_old - player->z) * sy0);
+				i32 yaf1 = (SCREEN_HEIGHT / 2) + (i32)((sec.zfloor_old - player->z) * sy1);
+
+
+				// wall texture mapping varaibles
+				v2 difp1 = v2_sub(p1, tp1);
+				v2 difp2 = v2_sub(p2, tp2);
+				f32 twlen = v2_len(v2_sub(tp1, tp2));
+				v2 cutoff = { fabsf(v2_len(difp1) / twlen), fabsf(v2_len(difp2) / twlen) };
+
+				for (i32 x = x1; x <= x2; x++) {
+					//calculate x stepsize
+					f32 xp = (x - x1) / (f32)(x2 - x1);
+
+					//get top and bottom coordinates of the wall
+					i32 tyf = (i32)(xp * (yf1 - yf0)) + yf0;
+					i32 tyc = (i32)(xp * (yc1 - yc0)) + yc0;
+					i32 tayf = (i32)(xp * (yaf1 - yaf0)) + yaf0; // bottom of the wall, if wall had height 0, used for absolute texture drawing of walls
+					i32 yf = CLAMP(tyf, 0, SCREEN_HEIGHT - 1);
+					i32 yc = CLAMP(tyc, 0, SCREEN_HEIGHT - 1);
+
+					//variables used in wikipedia equation for texture mapping https://en.wikipedia.org/wiki/Texture_mapping
+					//affine texture mapping: (1.0f-a) * u0 + a*u1
+					//perspective correct texture mapping: ((1.0f-a) * u0/z0 + a*(u1/z1)) / ((1.0f-a) * 1/z0 + a*(1.0f/z1))
+
+					//a: x part where we currently are on the wall [0...1]
+					f32 a = xp;
+					//u0: how much of the left part of the wall is cut off
+					f32 u0 = cutoff.x;
+					//u1: how much of the right part of the wall is cut off 
+					f32 u1 = 1.0f - cutoff.y;
+					//z0: how far away the left wallpoint is from the player
+					f32 z0 = p1.y;
+					//z1: how far away the right wallpoint ist from the player
+					f32 z1 = p2.y;
+
+					f32 u = ((1.0f - a) * (u0 / z0) + a * (u1 / z1)) / ((1.0f - a) * 1 / z0 + a * (1.0f / z1));
+
+					//wall distance for lightlevel calc
+					f32 dis = tp1.y * (1 - u) + tp2.y * (u);
+
+					u8 wallshade_index = draw_calculate_shade_from_distance(dis);
+
+					f32 wallheight;
+
+					f32 dx = w.a.x - w.b.x;
+					f32 dy = w.a.y - w.b.y;
+					f32 wallwidth = sqrtf(dx * dx + dy * dy);
+
+					//draw transparent Wall
+					if (yc > tyf && yf < tyc) {
+						f32 wallheight = sec.zceil - sec.zfloor;
+						bool mirrored = k == 1 ? true : false;
+						draw_tex_line(x, yf, yc, tyf, tyc, tayf, u, wallshade_index, dis, sec.zfloor, sec.zfloor_old, wallheight, wallwidth, &w, WALL, mirrored);
+					}
+				}
+			}
+		}
+	}
+}
+
 
 
 // x: screen pixel position of the current wallstrip
@@ -440,13 +569,17 @@ void draw_wall_3d(Player* player, WallRenderingInfo* now, u32 rd)
 // wallwidth: how long is the wall
 // wall: pointer to the wall
 // is_upper_portals: bool that describes if the wallsegement is an upper part of a portal
-void draw_tex_line(i32 x, i32 y0, i32 y1, i32 yf, i32 yc, i32 ayf, f32 u, u8 shade_index, f32 dis, f32 zfloor, f32 zfloor_old, f32 wallheight, f32 wallwidth, Wall* wall, wall_section_type type) {
+// wall_backside: if backside of the wall gets drawn, so walltexture gets flipped and decal get drawm with respect if they are on the front or back
+void draw_tex_line(i32 x, i32 y0, i32 y1, i32 yf, i32 yc, i32 ayf, f32 u, u8 shade_index, f32 dis, f32 zfloor, f32 zfloor_old, f32 wallheight, f32 wallwidth, Wall* wall, wall_section_type type, bool wall_backside) {
 	// draw decals
+	if (wall_backside) u = 1.0f - u;
 	f32 wall_pos_x = u * wallwidth;
 	
 	bool decal[SCREEN_HEIGHT] = { false };
+	
+	// draw decals on the front
 	for (Decal* d = wall->decalhead; d != NULL; d = d->next) {
-		if (d->wall_type != type) continue;
+		if (d->wall_type != type || d->front == wall_backside) continue;
 		f32 rel_decal_height = map_decal_wall_height(d, wall, zfloor);
 		// if the decal is on the top portal, then sbtract the height of the neighbouring sector, as the thats where the bottom of the wall
 		if (d->wall_type == PORTAL_UPPER) {
@@ -478,7 +611,7 @@ void draw_tex_line(i32 x, i32 y0, i32 y1, i32 yf, i32 yc, i32 ayf, f32 u, u8 sha
 			// only draw pixel of decal if pixel has not already been drawn by other decal
 			if (!decal[y]) {
 				u8 index = decal_tex_ind->indices[((i32)ty) * decal_tex_ind->width + (i32)tx];
-				if (index) {
+				if (index && zBuffer[y * SCREEN_WIDTH + x] > dis) {
 					draw_pixel_from_lightmap(x, y, index, shade_index);
 					decal[y] = true;
 					zBuffer[y * SCREEN_WIDTH + x] = dis;
@@ -489,7 +622,7 @@ void draw_tex_line(i32 x, i32 y0, i32 y1, i32 yf, i32 yc, i32 ayf, f32 u, u8 sha
 	}
 
 	// draw walls
-	u32 wall_tex_num = 3;
+	u32 wall_tex_num = wall->tex;
 	LightmapindexTexture* wall_texture_ind = &index_textures[wall_tex_num];
 
 	f32 texture_scale = 10.0f;
@@ -516,15 +649,76 @@ void draw_tex_line(i32 x, i32 y0, i32 y1, i32 yf, i32 yc, i32 ayf, f32 u, u8 sha
 		ty_step = tex_res.y;
 	}
 
-	for (i32 y = y0; y <= y1; y++) {
-		// only draw wall when there is no decal
-		if (!decal[y]) {
-			u8 index = wall_texture_ind->indices[((i32)ty % wall_texture_ind->height) * wall_texture_ind->width + (i32)tx];
-			draw_pixel_from_lightmap(x, y, index, shade_index);
-			decal[y] = true;
-			zBuffer[y * SCREEN_WIDTH + x] = dis;
+	if (!wall->transparent) {
+		for (i32 y = y0; y <= y1; y++) {
+			// only draw wall when there is no decal
+			if (!decal[y]) {
+				u8 index = wall_texture_ind->indices[((i32)ty % wall_texture_ind->height) * wall_texture_ind->width + (i32)tx];
+				draw_pixel_from_lightmap(x, y, index, shade_index);
+				decal[y] = true;
+				zBuffer[y * SCREEN_WIDTH + x] = dis;
+			}
+			ty += ty_step;
 		}
-		ty += ty_step;
+	}
+	else {
+		for (i32 y = y0; y <= y1; y++) {
+			// only draw wall when there is no decal
+			if (!decal[y] && zBuffer[y * SCREEN_WIDTH + x] > dis) {
+				u8 index = wall_texture_ind->indices[((i32)ty % wall_texture_ind->height) * wall_texture_ind->width + (i32)tx];
+				if (index) {
+					draw_pixel_from_lightmap(x, y, index, shade_index);
+					decal[y] = true;
+					zBuffer[y * SCREEN_WIDTH + x] = dis;
+				}
+			}
+			ty += ty_step;
+		}
+	}
+
+	// draw decals on the back 
+	wall_pos_x = u * wallwidth;
+	for (Decal* d = wall->decalhead; d != NULL; d = d->next) {
+		if (d->wall_type != type || !d->front == wall_backside) continue;
+		f32 rel_decal_height = map_decal_wall_height(d, wall, zfloor);
+		// if the decal is on the top portal, then sbtract the height of the neighbouring sector, as the thats where the bottom of the wall
+		if (d->wall_type == PORTAL_UPPER) {
+			Sector* sec = map_get_sector(wall->portal);
+			rel_decal_height -= sec->zceil;
+		}
+		// if decal is above wall
+		if (rel_decal_height > wallheight || rel_decal_height < -d->size.y) continue;
+		// decal not in current stripe of wall, check next decal
+		if (!(d->wallpos.x < wall_pos_x && (d->wallpos.x + d->size.x) > wall_pos_x)) continue;
+		LightmapindexTexture* decal_tex_ind = &index_textures[d->tex_num];
+
+		f32 pos_x = wall_pos_x - d->wallpos.x;
+		f32 tx = (pos_x / d->size.x) * decal_tex_ind->width;
+
+		f32 top_y = (rel_decal_height + d->size.y) / wallheight;
+		f32 bot_y = rel_decal_height / wallheight;
+		i32 top_ty = (i32)(top_y * (yc - yf) + yf);
+		i32 bot_ty = (i32)(bot_y * (yc - yf) + yf);
+
+		i32 bot_ty_clamp = CLAMP(bot_ty, y0, y1);
+		i32 top_ty_clamp = CLAMP(top_ty, y0, y1);
+
+		v3 tex_res = calc_tex_start_and_step(bot_ty, top_ty, CLAMP(bot_ty, y0, y1), CLAMP(top_ty, y0, y1), decal_tex_ind->height, 1.0f);
+		f32 ty = tex_res.x;
+		f32 ty_step = tex_res.z;
+
+		for (i32 y = bot_ty_clamp; y < top_ty_clamp; y++) {
+			// only draw pixel of decal if pixel has not already been drawn by other decal
+			if (!decal[y]) {
+				u8 index = decal_tex_ind->indices[((i32)ty) * decal_tex_ind->width + (i32)tx];
+				if (index && zBuffer[y * SCREEN_WIDTH + x] > dis) {
+					draw_pixel_from_lightmap(x, y, index, shade_index);
+					decal[y] = true;
+					zBuffer[y * SCREEN_WIDTH + x] = dis;
+				}
+			}
+			ty += ty_step;
+		}
 	}
 }
 

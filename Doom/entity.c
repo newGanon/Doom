@@ -167,14 +167,14 @@ bool entity_trymove(Entity* e, bool gravityactive) {
 		Wall* curwall = &map->walls[i];
 		v2 intersection;
 		v2 pos = e->pos;
-		if ((POINTSIDE2D(pos.x, pos.y, curwall->a.x, curwall->a.y, curwall->b.x, curwall->b.y) < 0) &&
-			(get_line_intersection(pos, (v2) { pos.x + e->velocity.x, pos.y + e->velocity.y }, curwall->a, curwall->b, & intersection))) {
+		if (get_line_intersection(pos, (v2) { pos.x + e->velocity.x, pos.y + e->velocity.y }, curwall->a, curwall->b, &intersection)) {
 			f32 stepl = curwall->portal >= 0 ? map->sectors[curwall->portal].zfloor : 10e10f;
 			f32 steph = curwall->portal >= 0 ? map->sectors[curwall->portal].zceil : -10e10f;
-			if (e->type == Projectile) {
+			if (e->type == Projectile && curwall->portal == -1) {
 				v2 mappos = (v2){ intersection.x - curwall->a.x, intersection.y - curwall->a.y };
 				v2 wallpos = (v2){ sqrtf(mappos.x * mappos.x + mappos.y * mappos.y), e->z };
-				if (map_spawn_decal(wallpos, curwall, (v2) { 2.0f, 2.0f }, 1)) {
+				bool front = (POINTSIDE2D(pos.x, pos.y, curwall->a.x, curwall->a.y, curwall->b.x, curwall->b.y) < 0);
+				if (map_spawn_decal(wallpos, curwall, (v2) { 2.0f, 2.0f }, 1, front)) {
 					hit = true;
 					break;
 				}
@@ -196,9 +196,10 @@ bool entity_trymove(Entity* e, bool gravityactive) {
 			}
 
 			//if entity fits throught portal change entitysector
-			if (curwall->portal >= 0) {
+			if (curwall->portal >= 0 && POINTSIDE2D(e->pos.x + e->velocity.x, e->pos.y + e->velocity.y, curwall->a.x, curwall->a.y, curwall->b.x, curwall->b.y) > 0) {
 				curSec = map->sectors[curwall->portal];
 				e->sector = curSec.id;
+				i = curSec.index;
 				if (e->type == Projectile) continue;
 				if (e->z < e->scale.y + curSec.zfloor) e->z = e->scale.y + curSec.zfloor;
 				else if (e->z > e->scale.y + curSec.zfloor) e->airborne = 1;

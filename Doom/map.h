@@ -16,6 +16,7 @@ typedef struct Decal_s {
 	u32 tex_num;
 	v2 wallpos; // bottom left corner of decal
 	v2 size;  // width and height of the decal
+	bool front;
 } Decal;
 
 typedef struct Sector_s {
@@ -31,6 +32,8 @@ typedef struct Wall_s {
 	v2 a, b;
 	i32 portal;
 	f32 distance;
+	bool transparent;
+	u32 tex;
 } Wall;
 
 typedef struct Map_s {
@@ -43,6 +46,7 @@ typedef struct Map_s {
 
 typedef struct RaycastResult_s {
 	bool hit;
+	bool front;
 	v2 wall_pos;
 	f32 distance;
 	Wall* wall;
@@ -58,7 +62,7 @@ i32 map_get_sectoramt();
 bool map_point_inside_sector(i32 sec, v2 p); 
 void map_sort_walls(v2 cam_pos, f32 camsin, f32 camcos);
 f32 map_decal_wall_height(Decal* d, Wall* wall, f32 cur_sec_floorz);
-Decal* map_spawn_decal(v2 wallpos, Wall* curwall, v2 size, i32 tex_id);
+Decal* map_spawn_decal(v2 wallpos, Wall* curwall, v2 size, i32 tex_id, bool front);
 RaycastResult map_raycast(Sector* cursec, v2 pos, v2 target_pos, f32 z);
 bool map_move_sector_plane(Sector* sec, f32 speed, f32 dest, bool floor, bool up);
 

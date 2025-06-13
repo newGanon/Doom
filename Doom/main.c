@@ -163,7 +163,7 @@ void init() {
 		entity_add(&state.entityhandler, e1);
 	}
 	
-	Entity* e2 = malloc(sizeof(Entity));
+	/*Entity* e2 = malloc(sizeof(Entity));
 	if (e2) {
 		e2->animationtick = 0;
 		e2->airborne = 1;
@@ -182,10 +182,10 @@ void init() {
 		e2->health = 10.0f;
 		ticker_add(&e2->tick);
 		entity_add(&state.entityhandler, e2);
-	}
+	}*/
 
 	Decal* decal = malloc(sizeof(Decal));
-	Decal* d = map_spawn_decal((v2) { 5.0f, 6.0f }, & state.map.walls[5], (v2) { 5.0f, 5.0f }, 1);
+	Decal* d = map_spawn_decal((v2) { 5.0f, 6.0f }, & state.map.walls[5], (v2) { 5.0f, 5.0f }, 1, true);
 	d->tag = 1;
 
 	state.map.sectors[6].tag = 1;
@@ -195,7 +195,7 @@ void init() {
 	create_plat(2, INFINITE_UP_DOWN, false);
 
 
-	state.player.pos = (v2){ 20.0f, 20.0f};
+	state.player.pos = (v2){ 25.0f, 20.0f};
 	state.player.sector = 0;
 	state.player.z = EYEHEIGHT + state.map.sectors[state.player.sector].zfloor;
 	state.player.airborne = false;

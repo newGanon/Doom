@@ -175,11 +175,9 @@ void player_trymove(Player* p) {
 	bool collided = false;
 	Player old_p = *p;
 	v2 intersection;
-	for (u32 k = 0; k < 3; k++) {
+	for (u32 k = 0; k < 5; k++) {
 		for (i32 i = cur_sec->index; i < cur_sec->index + cur_sec->numWalls; i++) {
 			Wall curwall = map->walls[i];
-			//if (BOXINTERSECT2D(p->pos.x, p->pos.y, p->pos.x + p->velocity.x, p->pos.y + p->velocity.y, curwall.a.x, curwall.a.y, curwall.b.x, curwall.b.y) &&
-			//	POINTSIDE2D(p->pos.x + p->velocity.x, p->pos.y + p->velocity.y, curwall.a.x, curwall.a.y, curwall.b.x, curwall.b.y) > 0)) {
 			if(get_line_intersection(p->pos, (v2) { p->pos.x + p->velocity.x, p->pos.y + p->velocity.y }, curwall.a, curwall.b, & intersection)){
 				f32 stepl = curwall.portal >= 0 ? map_get_sector(curwall.portal)->zfloor : 10e10f;
 				f32 steph = curwall.portal >= 0 ? map_get_sector(curwall.portal)->zceil : -10e10f;
@@ -206,7 +204,7 @@ void player_trymove(Player* p) {
 
 				}
 				//if player fits throught portal change playersector
-				else if (curwall.portal >= 0) {
+				else if (curwall.portal >= 0 && POINTSIDE2D(p->pos.x + p->velocity.x, p->pos.y + p->velocity.y, curwall.a.x, curwall.a.y, curwall.b.x, curwall.b.y) > 0) {
 					collided = true;
 					cur_sec = map_get_sector(curwall.portal);
 					p->sector = cur_sec->id;

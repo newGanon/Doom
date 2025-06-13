@@ -170,7 +170,7 @@ bool entity_trymove(Entity* e, bool gravityactive) {
 		if (get_line_intersection(pos, (v2) { pos.x + e->velocity.x, pos.y + e->velocity.y }, curwall->a, curwall->b, &intersection)) {
 			f32 stepl = curwall->portal >= 0 ? map->sectors[curwall->portal].zfloor : 10e10f;
 			f32 steph = curwall->portal >= 0 ? map->sectors[curwall->portal].zceil : -10e10f;
-			if (e->type == Projectile && curwall->portal == -1) {
+			if (e->type == Projectile) {
 				v2 mappos = (v2){ intersection.x - curwall->a.x, intersection.y - curwall->a.y };
 				v2 wallpos = (v2){ sqrtf(mappos.x * mappos.x + mappos.y * mappos.y), e->z };
 				bool front = (POINTSIDE2D(pos.x, pos.y, curwall->a.x, curwall->a.y, curwall->b.x, curwall->b.y) < 0);

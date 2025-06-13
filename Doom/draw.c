@@ -649,6 +649,7 @@ void draw_tex_line(i32 x, i32 y0, i32 y1, i32 yf, i32 yc, i32 ayf, f32 u, u8 sha
 		ty_step = tex_res.y;
 	}
 
+	// don't check for transparancy and zbuffer if wall is a normal wall
 	if (!wall->transparent) {
 		for (i32 y = y0; y <= y1; y++) {
 			// only draw wall when there is no decal

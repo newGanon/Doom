@@ -78,20 +78,25 @@ bool map_point_inside_sector(i32 sec, v2 p) {
 void map_sort_walls(v2 cam_pos, f32 camsin, f32 camcos) {
 	//calc distances
 	for (i32 wallind = 0; wallind < map->wallnum; wallind++) {
-		Wall wall = map->walls[wallind];
-		v2 p1 = world_pos_to_camera(wall.a, cam_pos, camsin, camcos);
-		v2 p2 = world_pos_to_camera(wall.b, cam_pos, camsin, camcos);
-
-		map->walls[wallind].distance = (fabs(p1.y) + fabs(p2.y)) / 2;
-
+		Wall* wall = map_get_wall(wallind);
+		// calc distance to camera
+		f32 mid_x = (wall->a.x + wall->b.x) / 2.0f;
+		f32 mid_y = (wall->a.y + wall->b.y) / 2.0f;
+		f32 dx = mid_x - cam_pos.x;
+		f32 dy = mid_y - cam_pos.y;
+		f32 dis = dx * dx + dy * dy;
+		map->walls[wallind].distance = dis;
 	}
-	//sort wall with distance from player
+	//sort wall with distance from player 
+	// TODO: implement more efficient sorting algorithm
 	for (i32 secind = 0; secind < map->sectoramt; secind++) {
 		Sector sec = map->sectors[secind];
 		for (i32 step = sec.index; step < sec.index + sec.numWalls; step++) {
 			for (i32 i = sec.index; i < sec.index + sec.numWalls - 1; i++) {
-				if (map->walls[i].distance > map->walls[i + 1].distance) {
-					Wall tempWall = map->walls[i];
+				Wall* w1 = map_get_wall(i);
+				Wall* w2 = map_get_wall(i+1);
+				if (w1->distance > w2->distance) {
+					Wall tempWall = *w1;
 					map->walls[i] = map->walls[i + 1];
 					map->walls[i + 1] = tempWall;
 				}

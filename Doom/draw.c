@@ -301,8 +301,10 @@ void draw_wall_3d(Player* player, WallRenderingInfo* now, u32 rd) {
 		floorplane = draw_find_plane(sec.zfloor, 0);
 		ceilplane = draw_find_plane(sec.zceil, 0);
 
-		floorplane = draw_check_plane(floorplane, x1, x2);
-		ceilplane = draw_check_plane(ceilplane, x1, x2);
+		i32 x2_test = CLAMP(x2 + 1, 0, SCREEN_WIDTH-1);
+		i32 x1_test = CLAMP(x1 - 1, 0, SCREEN_WIDTH - 1);
+		floorplane = draw_check_plane(floorplane, x1_test, x2_test);
+		ceilplane = draw_check_plane(ceilplane, x1_test, x2_test);
 
 		// get floor and ceiling height of sector behind wall if wall is a portal
 		f32 nzfloor = sec.zfloor;
@@ -806,7 +808,7 @@ visplane_t* draw_check_plane(visplane_t* v, i32 start, i32 stop) {
 		if (v->bottom[x] != SCREEN_HEIGHT + 1) break;
 	}
 
-	if (x >= intrh) {
+	if (x > intrh) {
 		v->minx = unionl;
 		v->maxx = unionh;
 		return v;
@@ -820,7 +822,7 @@ visplane_t* draw_check_plane(visplane_t* v, i32 start, i32 stop) {
 	v->minx = start;
 	v->maxx = stop;
 
-	for (int i = 0; i < SCREEN_WIDTH; i++) {
+	for (i32 i = 0; i < SCREEN_WIDTH; i++) {
 		v->bottom[i] = SCREEN_HEIGHT + 1;
 		v->top[i] = 0;
 	}
@@ -830,11 +832,11 @@ visplane_t* draw_check_plane(visplane_t* v, i32 start, i32 stop) {
 
 void draw_make_spans(i32 x, i32 t1, i32 b1, i32 t2, i32 b2, visplane_t* v, Player* player) {
 	while (t1 > t2 && t1 >= b1) {
-		draw_map_plane(t1, spanstart[t1], x+1, v, player);
+		draw_map_plane(t1, spanstart[t1], x, v, player);
 		t1--;
 	}
 	while (b1 < b2 && b1 <= t1) {
-		draw_map_plane(b1, spanstart[b1], x+1, v, player);
+		draw_map_plane(b1, spanstart[b1], x, v, player);
 		b1++;
 	}
 
@@ -907,8 +909,8 @@ void draw_planes_3d(Player* player) {
 		}
 	}
 
-
-	/*u32 colors[8] = {BLUE,RED,GREEN,YELLOW,PURPLE,ORANGE,WHITE,LIGHTGRAY};
+	
+	u32 colors[8] = {BLUE,RED,GREEN,YELLOW,PURPLE,ORANGE,WHITE,LIGHTGRAY};
 	visplane_t* v;
 	u32 color = 0;
 	i32 texheight = 256;
@@ -919,21 +921,21 @@ void draw_planes_3d(Player* player) {
 			for (i32 y = v->bottom[x]; y < v->top[x]; y++) {
 				f32 a = screenxtoangle[x];
 				//scale normalized yslope by actual camera pos and divide by the cosine of angle to prevent fisheye effect
-				f32 dis = fabs(((player.pos.z - v->height) * yslope[y]));
+				f32 dis = fabs(((player->z - v->height) * yslope[y]));
 				//relative coordinates to player
 				f32 xt = -sin(a) * dis / (cos(a));
 				f32 yt = cos(a) * dis / (cos(a));
 				// absolute coordinates
-				v2 p = camera_pos_to_world((v2) { xt, yt }, player);
+				v2 p = camera_pos_to_world((v2) { xt, yt }, player->pos, player->anglesin, player->anglecos);
 				// texutre coordinates
 				v2i t = { (i32)((p.x - ((i32)p.x)) * texheight) & (texwidth - 1), (i32)((p.y - ((i32)p.y)) * texheight) & (texwidth - 1)};
 				//u32 color = tex[0].pixels[(256 - t.y) * tex[0].width + t.x];
-				drawPixel(x, y, colors[color%8], pixels);
+				draw_pixel(x, y, colors[color%8], pixels);
 				//drawPixel(x, y, color, pixels);
 				zBuffer[y * SCREEN_WIDTH + x] = dis;
 			}
 		}
-	}*/
+	}
 }
 
 

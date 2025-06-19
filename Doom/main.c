@@ -190,7 +190,7 @@ void init() {
 	d->tag_action = INFINITE_UP_DOWN;
 
 	// button to activate raise staris in sector 9,10,11,12
-	Decal* d2 = map_spawn_decal((v2) { 5.0f, 12.0f }, & state.map.walls[45], (v2) { 5.0f, 5.0f }, 1, true);
+	Decal* d2 = map_spawn_decal((v2) { 5.0f, 12.0f }, & state.map.walls[46], (v2) { 5.0f, 5.0f }, 1, true);
 	d2->tag = 3;
 	d2->tag_action = RAISE_STAIRS;
 

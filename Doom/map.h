@@ -1,6 +1,8 @@
 #pragma once
 #include "util.h"
 
+typedef enum plat_type_e plat_type;
+
 typedef enum wall_section_type {
 	WALL,
 	PORTAL_LOWER,
@@ -12,6 +14,7 @@ typedef struct Decal_s {
 	struct Decal_s* next;
 	struct Decal_s* prev;
 	i32 tag;
+	plat_type tag_action;
 	wall_section_type wall_type;
 	u32 tex_num;
 	v2 wallpos; // bottom left corner of decal
@@ -24,6 +27,7 @@ typedef struct Sector_s {
 	f32 zfloor, zceil;
 	f32 zfloor_old; // first value of the zfloor
 	i32 tag;
+	f32 lightlevel;
 	void* specialdata; // pointer to ticker to reverse actions
 } Sector;
 

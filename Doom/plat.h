@@ -5,7 +5,8 @@
 typedef struct Sector_s Sector;
 
 typedef enum {
-	INFINITE_UP_DOWN
+	INFINITE_UP_DOWN,
+	RAISE_STAIRS
 } plat_type;
 
 typedef enum {
@@ -26,4 +27,4 @@ typedef struct Platform {
 	bool reverseable;
 } Platform;
 
-void create_plat(i32 tag, plat_type type, bool floor);
+void create_plat(i32 tag, plat_type type, bool floor, i32 sector_search_start_index, f32 height);

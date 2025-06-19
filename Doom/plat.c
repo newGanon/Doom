@@ -13,6 +13,7 @@ i32 find_sector_from_tag(i32 tag, i32 sec_start) {
 	return -1;
 }
 
+
 void add_plat(Platform* plat) {
 	for (size_t i = 0; i < MAXPLATFORMS; i++) {
 		if (activeplats[i] == NULL) {
@@ -22,6 +23,7 @@ void add_plat(Platform* plat) {
 	}
 	fprintf(stderr, "PLATS FULL\n");
 }
+
 
 void plat_move(Platform* plat) {
 	// move plat
@@ -48,9 +50,18 @@ void plat_move(Platform* plat) {
 
 				break;
 			}
+			case RAISE_STAIRS: {
+				if (plat->tick.function != (actionf)(-1)) ticker_remove(&plat->tick);
+				plat->sec->specialdata = NULL;
+				plat->sec->tag = 0;
+				*plat = (Platform){ 0 };
+				free(plat);
+				break;
+			}
 		}
 	}
 }
+
 
 void try_reverse_move(Sector* sec, plat_type type, bool floor) {
 	Platform* old_plat = (Platform*)sec->specialdata;
@@ -61,11 +72,12 @@ void try_reverse_move(Sector* sec, plat_type type, bool floor) {
 }
 
 
-void create_plat(i32 tag, plat_type type, bool floor) {
+// creates a plat for a sector, sector_search_start_index and height are only used sometimes
+void create_plat(i32 tag, plat_type type, bool floor, i32 sector_search_start_index, f32 height) {
 	// tag 0 and below have no effect
 	if (tag <= 0) return;
 	Platform* plat;
-	i32 secnum = 0;
+	i32 secnum = sector_search_start_index;
 	Sector* sec;
 
 	while ((secnum = find_sector_from_tag(tag, secnum)) >= 0) {
@@ -93,6 +105,16 @@ void create_plat(i32 tag, plat_type type, bool floor) {
 				plat->high = sec->zceil;
 				plat->status = UP;
 				plat->reverseable = true;
+				break;
+			}
+			case RAISE_STAIRS: {
+				// recursivly create more plats for neighbouring sector to also raise, but each a incrementally higher
+				f32 new_height = height + 2.0f;
+				create_plat(tag, type, floor, secnum + 1, new_height);
+				plat->speed = 1.0f;
+				plat->high = new_height + sec->zfloor;
+				plat->status = UP;
+				plat->reverseable = false;
 				break;
 			}
 		}

@@ -28,13 +28,14 @@ void map_init(Map* map1) {
 		switch (sm) {
 		case SECTOR: {
 			Sector* sector = &map->sectors[map->sectoramt++];
-			sscanf_s(p, "%d %d %f %f", &sector->id, &sector->numWalls, &sector->zfloor, &sector->zceil);
+			sscanf_s(p, "%d %d %f %f %f %d", &sector->id, &sector->numWalls, &sector->zfloor, &sector->zceil, &sector->lightlevel, &sector->tag);
 			sector->id -= 1;
 			sector->zfloor_old = sector->zfloor;
 			if (sector->id == 0) {
 				sector->index = 0;
 			}
 			else {
+				// calculate wall index
 				Sector prec_sec = map->sectors[map->sectoramt - 2];
 				sector->index = prec_sec.index + prec_sec.numWalls;
 			}
@@ -45,6 +46,8 @@ void map_init(Map* map1) {
 			sscanf_s(p, "%f %f %f %f %d", &wall->a.x, &wall->a.y, &wall->b.x, &wall->b.y, &wall->portal);
 			wall->portal -= 1;
 			wall->tex = 3;
+
+			// make 2 walls transparent
 			if (map->wallnum == 9 || map->wallnum == 10) {
 				wall->transparent = true;
 				wall->tex = 4;
@@ -79,7 +82,7 @@ void map_sort_walls(v2 cam_pos, f32 camsin, f32 camcos) {
 		v2 p1 = world_pos_to_camera(wall.a, cam_pos, camsin, camcos);
 		v2 p2 = world_pos_to_camera(wall.b, cam_pos, camsin, camcos);
 
-		map->walls[wallind].distance = (p1.y + p2.y) / 2;
+		map->walls[wallind].distance = (fabs(p1.y) + fabs(p2.y)) / 2;
 
 	}
 	//sort wall with distance from player

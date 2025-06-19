@@ -124,7 +124,7 @@ void draw_3d(Player* player, EntityHandler* handler) {
 	draw_clear_planes();
 	WallRenderingInfo wr = { player->sector, 0, SCREEN_WIDTH - 1, { 0 } };
 	wr.renderedSectors[player->sector] = true;
-	drawn_sectors[player->sector] = true;
+	memset(drawn_sectors, 0, sizeof(drawn_sectors));
 	draw_wall_3d(player, &wr, 0);
 	draw_planes_3d(player);
 	draw_transparent_walls(player);
@@ -255,6 +255,9 @@ void draw_wall_3d(Player* player, WallRenderingInfo* now, u32 rd) {
 			i32 hitl = get_line_intersection(p1, p2, znl, zfl, &il);
 			v2 ir;
 			i32 hitr = get_line_intersection(p1, p2, znr, zfr, &ir);
+			if (hitl && hitr) {
+				if (p1.x - p2.x > 0) continue;
+			}
 			if (hitl) {
 				p1 = il;
 				a1 = atan2f(p1.y, p1.x) - PI_2;
@@ -265,6 +268,7 @@ void draw_wall_3d(Player* player, WallRenderingInfo* now, u32 rd) {
 			}
 		}
 		if (a1 < a2 || a2 < -(HFOV / 2) - 0.01f || a1 > +(HFOV / 2) + 0.01f) continue;
+
 
 		//convert the angle of the wall into screen coordinates (player FOV is 90 degrees or 1/2 PI)
 		i32 tx1 = screen_angle_to_x(a1);
@@ -422,12 +426,11 @@ void draw_wall_3d(Player* player, WallRenderingInfo* now, u32 rd) {
 				floorclip[x] = CLAMP(pyf, floorclip[x], SCREEN_HEIGHT - 1);
 			}
 		}
-
+		drawn_sectors[now->sectorno] = true;
 		if (w.portal >= 0 && !now->renderedSectors[w.portal]) {
 			WallRenderingInfo* wr = &(WallRenderingInfo){ w.portal, x1, x2};
 			memcpy(wr->renderedSectors, now->renderedSectors, SECTOR_MAX * sizeof(u8));
 			wr->renderedSectors[now->sectorno] = true;
-			drawn_sectors[now->sectorno] = true;
 			draw_wall_3d(player, wr, ++rd);
 		}
 	}
@@ -939,6 +942,7 @@ void draw_sprites(Player* player, EntityHandler* handler) {
 	for (u32 i = 0; i < handler->used; i++)
 	{
 		const Entity e = *handler->entities[i];
+		if (!drawn_sectors[e.sector]) continue;
 		if (e.type == Projectile){
 			f32 dx = e.pos.x - player->pos.x;
 			f32 dy = e.pos.y - player->pos.y;

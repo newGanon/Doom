@@ -184,19 +184,23 @@ void init() {
 		entity_add(&state.entityhandler, e2);
 	}*/
 
-	Decal* decal = malloc(sizeof(Decal));
+	// button to activate infinite up and down in sector 2 
 	Decal* d = map_spawn_decal((v2) { 5.0f, 6.0f }, & state.map.walls[5], (v2) { 5.0f, 5.0f }, 1, true);
 	d->tag = 1;
+	d->tag_action = INFINITE_UP_DOWN;
 
-	state.map.sectors[6].tag = 1;
-	//create_plat(1, INFINITE_UP_DOWN, true);
+	// button to activate raise staris in sector 9,10,11,12
+	Decal* d2 = map_spawn_decal((v2) { 5.0f, 12.0f }, & state.map.walls[45], (v2) { 5.0f, 5.0f }, 1, true);
+	d2->tag = 3;
+	d2->tag_action = RAISE_STAIRS;
 
-	state.map.sectors[5].tag = 2;
-	create_plat(2, INFINITE_UP_DOWN, false);
+	//create_plat(1, INFINITE_UP_DOWN, true, 0, 0.0f);
+
+	create_plat(2, INFINITE_UP_DOWN, false, 0, 0.0f);
 
 
-	state.player.pos = (v2){ 25.0f, 20.0f};
-	state.player.sector = 0;
+	state.player.pos = (v2){ 210.0f, 30.0f};
+	state.player.sector = 7;
 	state.player.z = EYEHEIGHT + state.map.sectors[state.player.sector].zfloor;
 	state.player.airborne = false;
 	state.player.speed = PLAYERSPEED;

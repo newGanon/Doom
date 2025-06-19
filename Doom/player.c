@@ -101,7 +101,7 @@ void player_interact(Player* p) {
 			map_decal_wall_height(d, res.wall, cursec->zfloor);
 			v2 rel_wallpos = (v2){ sqrtf(res.wall_pos.x * res.wall_pos.x + res.wall_pos.y * res.wall_pos.y), p->z };
 			if (rel_wallpos.x > d->wallpos.x && rel_wallpos.x < (d->wallpos.x + d->size.x) && rel_wallpos.y > d->wallpos.y && rel_wallpos.y < (d->wallpos.y + d->size.y)) {
-				create_plat(d->tag, INFINITE_UP_DOWN, true);
+				create_plat(d->tag, d->tag_action, true, 0, 0.0f);
 			}
 		}
 	}

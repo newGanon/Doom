@@ -212,3 +212,25 @@ bool entity_trymove(Entity* e, bool gravityactive) {
 
 	return hit;
 }
+
+Entity* entity_create_bullet(v2 pos, f32 z, v2 dir, f32 speed, v2 scale, i32 sector, Player* target, f32 damage, i32 texture) {
+	Entity* bullet = malloc(sizeof(Entity));
+	if (bullet) {
+		bullet->tick.function = &tick_bullet;
+		bullet->pos = pos;
+		bullet->speed = speed;
+		bullet->z = z;
+		bullet->scale = scale;
+		bullet->spriteAmt = 1;
+		bullet->spriteNum[texture] = 1;
+		bullet->type = Projectile;
+		bullet->dir = dir;
+		bullet->velocity = (v3){ 0 };
+		bullet->sector = sector;
+		bullet->target = NULL;
+		bullet->dirty = false;
+		bullet->damage = damage;
+		ticker_add(&bullet->tick);
+	}
+	return bullet;
+}

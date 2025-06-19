@@ -70,29 +70,13 @@ void calc_playervelocity(Player* p, bool* KEYS) {
 void player_check_shoot(Player* p, EntityHandler* handler) {
 	if (!p->shoot) return;
 	p->shoot = false;
-	i32 weapon = 1;
+	i32 weapon = 0;
 
 	switch (weapon) {
 		case 0: {
-			Entity* bullet = malloc(sizeof(Entity));
-			if (bullet) {
-				bullet->tick.function = &tick_bullet;
-				bullet->pos = (v2){ p->pos.x, p->pos.y };
-				bullet->speed = 80.0f;
-				bullet->z = p->z;
-				bullet->scale = (v2){ 2.0f, 2.0f };
-				bullet->spriteAmt = 1;
-				bullet->spriteNum[0] = 1;
-				bullet->type = Projectile;
-				bullet->dir = (v2){ p->anglecos, p->anglesin };
-				bullet->velocity = (v3){ 0 };
-				bullet->sector = p->sector;
-				bullet->target = NULL;
-				bullet->dirty = false;
-				bullet->damage = 2.0f;
-				ticker_add(&bullet->tick);
-				entity_add(handler, bullet);
-			}
+			Entity* bullet = entity_create_bullet(p->pos, p->z, (v2) { p->anglecos, p->anglesin }, 80.0f, (v2) { 2.0f, 2.0f }, p->sector, NULL, 2.0f, 0);
+			if (!bullet) break;
+			entity_add(handler, bullet);
 			break;
 		}
 		case 1: {
@@ -176,7 +160,7 @@ void player_trymove(Player* p) {
 	bool collided = false;
 	Player old_p = *p;
 	v2 intersection;
-	for (u32 k = 0; k < 5; k++) {
+	for (u32 k = 0; k < 3; k++) {
 		for (i32 i = cur_sec->index; i < cur_sec->index + cur_sec->numWalls; i++) {
 			Wall curwall = map->walls[i];
 			if(get_line_intersection(p->pos, (v2) { p->pos.x + p->velocity.x, p->pos.y + p->velocity.y }, curwall.a, curwall.b, & intersection)){

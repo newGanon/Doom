@@ -36,3 +36,4 @@ void tick_bullet(Entity* bullet);
 void entity_check_collisions(EntityHandler* handler, Player* player);
 void entity_calculate_relative_camera_position(EntityHandler* handler, Player* player);
 bool entity_trymove(Entity* e, bool gravityactive);
+Entity* entity_create_bullet(v2 pos, f32 z, v2 dir, f32 speed, v2 scale, i32 sector, Player* target, f32 damage, i32 texture);

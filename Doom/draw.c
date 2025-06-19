@@ -627,7 +627,7 @@ void draw_tex_line(i32 x, i32 y0, i32 y1, i32 yf, i32 yc, i32 ayf, f32 u, u8 sha
 	f32 texheight = wallheight / texture_scale;
 	f32 texwidth = wallwidth / texture_scale;
 
-	i32 tx = (i32)((u * texwidth) * wall_texture_ind->width) % wall_texture_ind->width;
+	i32 tx = (i32)((u * texwidth) * (wall_texture_ind->width - 1)) % wall_texture_ind->width;
 
 	f32 ty;
 	f32 ty_step;
@@ -652,7 +652,7 @@ void draw_tex_line(i32 x, i32 y0, i32 y1, i32 yf, i32 yc, i32 ayf, f32 u, u8 sha
 		for (i32 y = y0; y <= y1; y++) {
 			// only draw wall when there is no decal
 			if (!wall_drawn[y]) {
-				u8 index = wall_texture_ind->indices[((i32)ty % wall_texture_ind->height) * wall_texture_ind->width + (i32)tx];
+				u8 index = wall_texture_ind->indices[((i32)(ty-1) % wall_texture_ind->height) * wall_texture_ind->width + (i32)tx];
 				draw_pixel_from_lightmap(x, y, index, shade_index);
 				wall_drawn[y] = true;
 				zBuffer[y * SCREEN_WIDTH + x] = dis;
@@ -664,7 +664,7 @@ void draw_tex_line(i32 x, i32 y0, i32 y1, i32 yf, i32 yc, i32 ayf, f32 u, u8 sha
 		for (i32 y = y0; y <= y1; y++) {
 			// only draw wall when there is no decal
 			if (!wall_drawn[y] && zBuffer[y * SCREEN_WIDTH + x] > dis) {
-				u8 index = wall_texture_ind->indices[((i32)ty % wall_texture_ind->height) * wall_texture_ind->width + (i32)tx];
+				u8 index = wall_texture_ind->indices[((i32)(ty) % wall_texture_ind->height) * wall_texture_ind->width + (i32)tx];
 				if (index && zBuffer[y * SCREEN_WIDTH + x] > dis) {
 					draw_pixel_from_lightmap(x, y, index, shade_index);
 					wall_drawn[y] = true;
@@ -674,6 +674,7 @@ void draw_tex_line(i32 x, i32 y0, i32 y1, i32 yf, i32 yc, i32 ayf, f32 u, u8 sha
 			ty += ty_step;
 		}
 	}
+
 
 	// draw on front of transparent walls 
 	if (wall->transparent) {
@@ -1025,28 +1026,27 @@ void draw_minimap(Player* player) {
 
 // return texture y pos to start and stop and step for each update, textures are anchored at the bottom, so texture drawing starts at y pos 0 at the bottom of the object
 v3 calc_tex_start_and_step(i32 true_low, i32 true_high, i32 low, i32 high, i32 tex_size, f32 scale) {
-	tex_size = tex_size - 1;
-	f32 t0 = (1.0f - ((low  - true_low) / (f32)(true_high - true_low))) * tex_size * scale;
-	f32 t1 = (1.0f - ((high - true_low) / (f32)(true_high - true_low))) * tex_size * scale;
+	f32 t0 = (1.0f - ((low  - true_low) / (f32)(true_high - true_low))) * (tex_size-1) * scale;
+	f32 t1 = (1.0f - ((high - true_low) / (f32)(true_high - true_low))) * (tex_size-1) * scale;
 	f32 step = (t1 - t0) / (high - low);
 	return(v3) {t0, t1, step};
 }
 
 // return texture y pos if texture is anchored at the bottom and texture y pos if texture is anchored at the top, with a step
 v3 calc_tex_low_high_and_step(i32 true_low, i32 true_high, i32 low, i32 high, i32 tex_size, f32 scale) {
-	f32 step = -((tex_size-1) / (f32)(true_high - true_low));
+	f32 step = -((tex_size) / (f32)(true_high - true_low));
 	// add how many pixels are cut off the bottom
-	f32 start_low = (low - true_low) * step;
+	f32 start_low = (low - true_low) * step - 1;
 	// add how many pixels are cut off the top + the pixels in the drawing area, as we always start drawing from the bottom
-	f32 start_high = (true_high - low) * -step;
+	f32 start_high = (true_high - low) * -step - 1;
 	return (v3) { start_low * scale, start_high * scale, step * scale};
 }
 
 // return texture y pos to start and step for each update, textures are anchored at the bottom, so texture drawing starts at y pos 0 at the bottom of the object
 v2 calc_tex_start_and_step_abs(i32 true_abs_low, i32 true_low, i32 true_high, i32 low, i32 high, i32 tex_size, f32 scale) {
-	f32 step = -((tex_size - 1) / (f32)(true_high - true_abs_low));
+	f32 step = -((tex_size) / (f32)(true_high - true_abs_low));
 	// add how many pixels are cut off the bottom
-	f32 start_low = (low - true_abs_low) * step;
+	f32 start_low = (low - true_abs_low) * step - 1;
 	return (v2) { start_low * scale, step * scale };
 }
 

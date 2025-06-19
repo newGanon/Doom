@@ -115,10 +115,7 @@ Map* map_get_map() {
 	return map;
 }
 
-Decal* map_spawn_decal(v2 wallpos, Wall* curwall, v2 size, i32 tex_id, bool front) {
-	f32 stepl = curwall->portal >= 0 ? map->sectors[curwall->portal].zfloor : 10e10f;
-	f32 steph = curwall->portal >= 0 ? map->sectors[curwall->portal].zceil : -10e10f;
-
+wall_section_type map_get_walltype_from_position(v2 wallpos, Wall* curwall, f32 stepl, f32 steph) {
 	wall_section_type type = NONE;
 	if (curwall->portal == -1) {
 		type = WALL;
@@ -131,12 +128,18 @@ Decal* map_spawn_decal(v2 wallpos, Wall* curwall, v2 size, i32 tex_id, bool fron
 	else if (steph < wallpos.y) {
 		type = PORTAL_UPPER;
 	}
+	return type;
+}
+
+
+Decal* map_spawn_decal(v2 wallpos, Wall* curwall, v2 size, i32 tex_id, bool front) {
+	f32 stepl = curwall->portal >= 0 ? map->sectors[curwall->portal].zfloor : 10e10f;
+	f32 steph = curwall->portal >= 0 ? map->sectors[curwall->portal].zceil : -10e10f;
+	wall_section_type type = map_get_walltype_from_position(wallpos, curwall, stepl, steph);
 	if (type == NONE) return NULL;
-
-
 	Decal* decal = malloc(sizeof(Decal));
 	if (decal) {
-		decal->tex_num = 1;
+		decal->tex_num = tex_id;
 		decal->next = NULL;
 		decal->prev = NULL;
 		decal->size = size;

@@ -114,6 +114,9 @@ void create_index_textures(SDL_Surface** surfaces, Palette* pal, LightmapindexTe
 
 		for (i32 y = 0; y < height; ++y) {
 			for (i32 x = 0; x < width; ++x) {
+				if (x == 220) {
+					i32 r = 3;
+				}
 				u32 color = surface_pixels[y * width + x];
 				u8 nearest_index = find_closest_color_index(color, pal->colors);
 				cur_index_array->indices[y * width + x] = nearest_index;

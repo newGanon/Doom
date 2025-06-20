@@ -27,7 +27,7 @@ typedef struct Sector_s {
 	f32 zfloor, zceil;
 	f32 zfloor_old; // first value of the zfloor
 	i32 tag;
-	f32 lightlevel;
+	i32 lightlevel;
 	void* specialdata; // pointer to ticker to reverse actions
 } Sector;
 

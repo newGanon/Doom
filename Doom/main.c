@@ -195,12 +195,13 @@ void init() {
 	d2->tag_action = RAISE_STAIRS;
 
 	//create_plat(1, INFINITE_UP_DOWN, true, 0, 0.0f);
-
 	create_plat(2, INFINITE_UP_DOWN, false, 0, 0.0f);
 
 
-	state.player.pos = (v2){ 210.0f, 30.0f};
-	state.player.sector = 7;
+	//state.player.pos = (v2){ 210.0f, 30.0f};
+	//state.player.sector = 7;
+	state.player.pos = (v2){ 22.0f, 15.0f};
+	state.player.sector = 0;
 	state.player.z = EYEHEIGHT + state.map.sectors[state.player.sector].zfloor;
 	state.player.airborne = false;
 	state.player.speed = PLAYERSPEED;

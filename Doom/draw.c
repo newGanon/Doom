@@ -44,7 +44,7 @@ void draw_fill_square(i32 x0, i32 y0, u32 size, u32 color);
 void draw_fill_rectangle(i32 x0, i32 y0, i32 x1, i32 y1, u32 color);
 void draw_circle(i32 x0, i32 y0, i32 a, i32 b, u32 color);
 
-visplane_t* draw_find_plane(f32 height, i32 picnum);
+visplane_t* draw_find_plane(f32 height, i32 picnum, f32 lightlevel);
 visplane_t* draw_check_plane(visplane_t* v, i32 start, i32 stop);
 
 // used for everything that is not a wall
@@ -222,13 +222,14 @@ void draw_circle(i32 x0, i32 y0, i32 a, i32 b, u32 color) {
 
 
 // return index to lightmap between 0 and 31 
-u8 draw_calculate_shade_from_distance(f32 dis){
-	f32 max_render_distance = 100.0f;
+u8 draw_calculate_shade(f32 dis, u8 sec_lightlevel){
+	f32 max_render_distance = 200.0f;
 	dis = CLAMP(dis, 0.0f, max_render_distance);
 
-	// Map to [0, 31]
-	u8 shade = (u8)(dis / max_render_distance * 31.0f);
+	// Map to [0, 255]
+	u8 dis_shade = (u8)(dis / max_render_distance * 255.0f);
 
+	u8 shade = CLAMP((sec_lightlevel + dis_shade)/8, 0, 31);
 	return shade;
 }
 
@@ -286,25 +287,25 @@ void draw_wall_3d(Player* player, WallRenderingInfo* now, u32 rd) {
 		//rempove part of wall that is already covered by wall, works because we sort walls from near to far, only happens in non konvex rooms
 		for (i32 i = x1; i < x2; i++) {
 			if (ceilingclip[i] == 0) {
-				x1 = i+1;
+				x1 = i;
 			}
 			else break;
 		}
 
 		for (i32 i = x2; i > x1; i--) {
 			if (ceilingclip[i] == 0) {
-				x2 = i-1;
+				x2 = i;
 			}
 			else break;
 		}
 		
-		floorplane = draw_find_plane(sec.zfloor, 0);
-		ceilplane = draw_find_plane(sec.zceil, 0);
+		// find if there is another plane with the same floorheight, texture and lightlevel as current plane
+		floorplane = draw_find_plane(sec.zfloor, 0, sec.lightlevel);
+		ceilplane = draw_find_plane(sec.zceil, 0, sec.lightlevel);
 
-		i32 x2_test = CLAMP(x2 + 1, 0, SCREEN_WIDTH-1);
-		i32 x1_test = CLAMP(x1 - 1, 0, SCREEN_WIDTH - 1);
-		floorplane = draw_check_plane(floorplane, x1_test, x2_test);
-		ceilplane = draw_check_plane(ceilplane, x1_test, x2_test);
+		// try merging the planes if a plane has been found in the previous step
+		floorplane = draw_check_plane(floorplane, x1, x2);
+		ceilplane = draw_check_plane(ceilplane, x1, x2);
 
 		// get floor and ceiling height of sector behind wall if wall is a portal
 		f32 nzfloor = sec.zfloor;
@@ -382,7 +383,7 @@ void draw_wall_3d(Player* player, WallRenderingInfo* now, u32 rd) {
 			//wall distance for lightlevel calc
 			f32 dis = tp1.y * (1 - u) + tp2.y * (u);
 
-			u8 wallshade_index = draw_calculate_shade_from_distance(dis);
+			u8 wallshade_index = draw_calculate_shade(dis, sec.lightlevel);
 
 			f32 wallheight;
 
@@ -538,7 +539,7 @@ void draw_transparent_walls(Player* player) {
 					//wall distance for lightlevel calc
 					f32 dis = tp1.y * (1 - u) + tp2.y * (u);
 
-					u8 wallshade_index = draw_calculate_shade_from_distance(dis);
+					u8 wallshade_index = draw_calculate_shade(dis, sec.lightlevel);
 
 					f32 wallheight;
 
@@ -740,18 +741,17 @@ void draw_clear_planes() {
 	lastvisplane = visplanes;
 }
 
-visplane_t* draw_find_plane(f32 height, i32 picnum) {
+visplane_t* draw_find_plane(f32 height, i32 picnum, f32 lightlevel) {
 	u8 getNewest = 1;
 	visplane_t* check;
 
 	//reversed doom algorithm
 	if (getNewest) {
 		for (check = lastvisplane - 1; check >= visplanes; check--) {
-			if (height == check->height && picnum == check->picnum) {
+			if (height == check->height && picnum == check->picnum && check->lightlevel == lightlevel) {
 				break;
 			}
 		}
-		//if (check < lastvisplane) return check;
 		if (check >= visplanes) return check;
 
 		check = lastvisplane;
@@ -759,11 +759,10 @@ visplane_t* draw_find_plane(f32 height, i32 picnum) {
 	//like doom used to do it
 	else {
 		for (check = visplanes; check < lastvisplane; check++) {
-			if (height == check->height && picnum == check->picnum) {
+			if (height == check->height && picnum == check->picnum && check->lightlevel == lightlevel) {
 				break;
 			}
 		}
-		//if (check < lastvisplane) return check;
 		if (check < lastvisplane) return check;
 	}
 
@@ -775,8 +774,9 @@ visplane_t* draw_find_plane(f32 height, i32 picnum) {
 	check->picnum = picnum;
 	check->minx = SCREEN_WIDTH - 1;
 	check->maxx = -1;
+	check->lightlevel = lightlevel;
 
-	for (int i = 0; i < SCREEN_WIDTH; i++) {
+	for (i32 i = 0; i < SCREEN_WIDTH; i++) {
 		check->bottom[i] = SCREEN_HEIGHT + 1;
 		check->top[i] = 0;
 	}
@@ -786,6 +786,7 @@ visplane_t* draw_find_plane(f32 height, i32 picnum) {
 
 visplane_t* draw_check_plane(visplane_t* v, i32 start, i32 stop) {
 	i32 intrl, intrh, unionl, unionh, x;
+	// check lowest x value
 	if (start < v->minx) {
 		intrl = v->minx;
 		unionl = start;
@@ -794,7 +795,7 @@ visplane_t* draw_check_plane(visplane_t* v, i32 start, i32 stop) {
 		unionl = v->minx;
 		intrl = start;
 	}
-
+	// check highest x value
 	if (stop > v->maxx) {
 		intrh = v->maxx;
 		unionh = stop;
@@ -803,11 +804,11 @@ visplane_t* draw_check_plane(visplane_t* v, i32 start, i32 stop) {
 		unionh = v->maxx;
 		intrh = stop;
 	}
-	
+	// check where 
 	for (x = intrl; x <= intrh; x++) {
 		if (v->bottom[x] != SCREEN_HEIGHT + 1) break;
 	}
-
+	// try combining two visplanes
 	if (x > intrh) {
 		v->minx = unionl;
 		v->maxx = unionh;
@@ -817,10 +818,13 @@ visplane_t* draw_check_plane(visplane_t* v, i32 start, i32 stop) {
 
 	lastvisplane->height = v->height;
 	lastvisplane->picnum = v->picnum;
+	lastvisplane->lightlevel = v->lightlevel;
+
 
 	v = lastvisplane++;
 	v->minx = start;
 	v->maxx = stop;
+
 
 	for (i32 i = 0; i < SCREEN_WIDTH; i++) {
 		v->bottom[i] = SCREEN_HEIGHT + 1;
@@ -831,6 +835,7 @@ visplane_t* draw_check_plane(visplane_t* v, i32 start, i32 stop) {
 }
 
 void draw_make_spans(i32 x, i32 t1, i32 b1, i32 t2, i32 b2, visplane_t* v, Player* player) {
+	// draw a horizontal line, when a row of pixels ended
 	while (t1 > t2 && t1 >= b1) {
 		draw_map_plane(t1, spanstart[t1], x, v, player);
 		t1--;
@@ -839,7 +844,7 @@ void draw_make_spans(i32 x, i32 t1, i32 b1, i32 t2, i32 b2, visplane_t* v, Playe
 		draw_map_plane(b1, spanstart[b1], x, v, player);
 		b1++;
 	}
-
+	// extend a line of pixels, when row of pixels is continued by new row
 	while (t2 > t1 && t2 >= b2) {
 		spanstart[t2] = x;
 		t2--;
@@ -881,10 +886,10 @@ void draw_map_plane(i32 y, i32 x1, i32 x2, visplane_t* v, Player* player) {
 	f32 xstep = step * cosf(player->angle - PI_2) * texsizefactor.x;
 	f32 ystep = step * sinf(player->angle - PI_2) * texsizefactor.y;
 
-	u8 floor_row_shade_index = draw_calculate_shade_from_distance(dis);
+	//TODO ASSIUGN VISPLANE SHADE
+	u8 floor_row_shade_index = draw_calculate_shade(dis, v->lightlevel);
 
-	for (i32 x = x1; x <= x2; x++)
-	{
+	for (i32 x = x1; x <= x2; x++) {
 		u32 texture_num = 3;
 		LightmapindexTexture* decal_tex_ind = &index_textures[texture_num];
 		v2i t = { (i32)(p.x) & (texwidth - 1), (i32)(p.y) & (texwidth - 1) };
@@ -900,16 +905,16 @@ void draw_planes_3d(Player* player) {
 	
 	for (visplane_t* v = visplanes; v < lastvisplane; v++) {
 		if (v->minx > v->maxx) continue;
-		
-		v->top[v->maxx] = 0;
-		v->top[v->minx] = 0;
 
+		// combine visplanes into rows of pixels and draw them if the row ended, first and last call are needed for the first and last column of pixels to get correctly added and drawn
+		draw_make_spans(v->minx, 0, SCREEN_HEIGHT + 1, v->top[v->minx], v->bottom[v->minx], v, player);
 		for (i32 x = v->minx ; x < v->maxx; x++) {
 			draw_make_spans(x, v->top[x], v->bottom[x], v->top[x+1], v->bottom[x+1], v, player);
 		}
+		draw_make_spans(v->maxx, v->top[v->maxx], v->bottom[v->maxx], 0, SCREEN_HEIGHT + 1, v, player);
 	}
 
-	
+	/*
 	u32 colors[8] = {BLUE,RED,GREEN,YELLOW,PURPLE,ORANGE,WHITE,LIGHTGRAY};
 	visplane_t* v;
 	u32 color = 0;
@@ -921,7 +926,7 @@ void draw_planes_3d(Player* player) {
 			for (i32 y = v->bottom[x]; y < v->top[x]; y++) {
 				f32 a = screenxtoangle[x];
 				//scale normalized yslope by actual camera pos and divide by the cosine of angle to prevent fisheye effect
-				f32 dis = fabs(((player->z - v->height) * yslope[y]));
+				f32 dis = (player->z - v->height) * yslope[y];
 				//relative coordinates to player
 				f32 xt = -sin(a) * dis / (cos(a));
 				f32 yt = cos(a) * dis / (cos(a));
@@ -935,7 +940,7 @@ void draw_planes_3d(Player* player) {
 				zBuffer[y * SCREEN_WIDTH + x] = dis;
 			}
 		}
-	}
+	}*/
 }
 
 
@@ -984,9 +989,10 @@ void draw_sprites(Player* player, EntityHandler* handler) {
 		v3 tex_res_x = calc_tex_start_and_step(x0, x1, x0_clamp, x1_clamp, sprite_ind->width, 1.0f);
 		f32 tx_start = 256 - tex_res_x.x;
 		f32 stepx = -tex_res_x.z;
+		f32 lightlevel = map_get_sector(e.sector)->lightlevel;
 
 		f32 tx;
-		u8 shade_index = draw_calculate_shade_from_distance(e.relCamPos.y);
+		u8 shade_index = draw_calculate_shade(e.relCamPos.y, lightlevel);
 		for (i32 y = y0_clamp; y < y1_clamp; y++) {
 			ty += stepy;
 			tx = tx_start;

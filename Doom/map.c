@@ -28,7 +28,7 @@ void map_init(Map* map1) {
 		switch (sm) {
 		case SECTOR: {
 			Sector* sector = &map->sectors[map->sectoramt++];
-			sscanf_s(p, "%d %d %f %f %f %d", &sector->id, &sector->numWalls, &sector->zfloor, &sector->zceil, &sector->lightlevel, &sector->tag);
+			sscanf_s(p, "%d %d %f %f %d %d", &sector->id, &sector->numWalls, &sector->zfloor, &sector->zceil, &sector->lightlevel, &sector->tag);
 			sector->id -= 1;
 			sector->zfloor_old = sector->zfloor;
 			if (sector->id == 0) {

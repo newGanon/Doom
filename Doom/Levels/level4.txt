@@ -1,18 +1,18 @@
 #Jump and run Build
-#SECTOR <id> <index(number of walls before this sector)> <num walls in sector> <floorheight> <ceilingheigt> <sector light level> <tag>
+#SECTOR <id> <index(number of walls before this sector)> <num walls in sector> <floorheight> <ceilingheigt> <sector light level[0-255]> <tag>
 {SECTORS}
-1 10 0.0 15.0 0.0 0
-2 8 -20.0 30.0 0.0 0
-3 10 4.0 20.0 0.0 0
-4 4 4.0 14.0 0.0 0
-5 5 2.0 14.0 0.0 0
-6 4 1.0 13.0 -10.0 2
-7 4 0.0 30.0 10.0 1 
-8 18 6.0 25.0 0.0 0
-9 4 6.0 25.0 0.0 3
-10 4 6.0 25.0 0.0 3
-11 4 6.0 25.0 0.0 3
-12 4 6.0 25.0 0.0 3
+1  10  0.0   15.0  80   0
+2  8  -20.0  30.0  80   0
+3  10  4.0   20.0  80   0
+4  4   4.0   14.0  80   0
+5  5   2.0   14.0  200   0
+6  4   1.0   13.0  20   2
+7  4   0.0   30.0  150  1 
+8  18  6.0   25.0  80   0
+9  4   6.0   25.0  80   3
+10 4   6.0   25.0  80   3
+11 4   6.0   25.0  80   3
+12 4   6.0   25.0  80   3
 
 
 #WALL <x0> <y0> <x1> <y1> <portal?>

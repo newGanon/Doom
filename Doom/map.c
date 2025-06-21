@@ -8,7 +8,7 @@ static Map* map;
 void map_init(Map* map1) {
 	map = map1;
 	FILE* fp = NULL;
-	fopen_s(&fp, "Levels/level4.txt", "r");
+	fopen_s(&fp, "Levels/level.txt", "r");
 	ASSERT(fp, "error opening leveldata file");
 	enum { SECTOR, WALL, NONE } sm = NONE;
 	bool done = false;
@@ -45,12 +45,13 @@ void map_init(Map* map1) {
 			Wall* wall = &map->walls[map->wallnum++];
 			sscanf_s(p, "%f %f %f %f %d", &wall->a.x, &wall->a.y, &wall->b.x, &wall->b.y, &wall->portal);
 			wall->portal -= 1;
-			wall->tex = 3;
+			wall->tex = WALLTEXTURE;
 
+			// TODO: REMOVE
 			// make 2 walls transparent
 			if (map->wallnum == 9 || map->wallnum == 10) {
 				wall->transparent = true;
-				wall->tex = 4;
+				wall->tex = 7;
 			}
 		}
 				 break;

@@ -84,3 +84,9 @@ typedef struct v3u8_s { u8 x, y, z; } v3u8;
 #define R(c) (((c) >> 16) & 0xFF)
 #define G(c) (((c) >> 8) & 0xFF)
 #define B(c) ((c) & 0xFF)
+
+
+// TODO: remove
+#define WALLTEXTURE 9
+#define FLOORTEXTURE 6
+#define CEILTEXTURE 9

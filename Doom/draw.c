@@ -22,7 +22,6 @@ typedef struct visplane_t {
 	i32	maxx;
 	u16 top[SCREEN_WIDTH];
 	u16 bottom[SCREEN_WIDTH];
-
 } visplane_t;
 
 
@@ -66,20 +65,21 @@ static u32* pixels;
 static Palette* lightmap;
 static LightmapindexTexture* index_textures;
 
-//lockuptable of how far you would need to travel in y direction to move 1 in horizontal direction for each y value
+// lockuptable of how far you would need to travel in y direction to move 1 in horizontal direction for each y value
 static f32 yslope[SCREEN_HEIGHT];
-//lockuptable of pixel x value to angle
+// lockuptable of pixel x value to angle
 static f32 screenxtoangle[SCREEN_WIDTH];
 
 static f32 zBuffer[SCREEN_HEIGHT * SCREEN_WIDTH];
 
-//clipping information of walls
+// clipping information of walls
 static u16 ceilingclip[SCREEN_WIDTH];
 static u16 floorclip[SCREEN_WIDTH];
 
-//used for horizontal drawing of visplain strips
+// used for horizontal drawing of visplain strips
 static i32 spanstart[SCREEN_HEIGHT];
 
+// racord drawn sectors to know what entities might be drawn 
 static bool drawn_sectors[SECTOR_MAX];
 
 
@@ -200,6 +200,7 @@ void draw_fill_rectangle(i32 x0, i32 y0, i32 x1, i32 y1, u32 color) {
 
 /* Bresenham's circle algorithm */
 void draw_circle(i32 x0, i32 y0, i32 a, i32 b, u32 color) {
+	if (a == 0 && b == 0) return;
 	i32 dx = 0, dy = b; /* im I. Quadranten von links oben nach rechts unten */
 	i64 a2 = (i64)a * (i64)a, b2 = (i64)b * (i64)b;
 	i64 err = b2 - (2 * (i64)b - 1) * a2, e2; /* Fehler im 1. Schritt */
@@ -229,7 +230,7 @@ u8 draw_calculate_shade(f32 dis, u8 sec_lightlevel){
 	// Map to [0, 255]
 	u8 dis_shade = (u8)(dis / max_render_distance * 255.0f);
 
-	u8 shade = CLAMP((sec_lightlevel + dis_shade)/8, 0, 31);
+	u8 shade = CLAMP(((255 - sec_lightlevel) + dis_shade)/8, 0, 31);
 	return shade;
 }
 
@@ -300,8 +301,8 @@ void draw_wall_3d(Player* player, WallRenderingInfo* now, u32 rd) {
 		}
 		
 		// find if there is another plane with the same floorheight, texture and lightlevel as current plane
-		floorplane = draw_find_plane(sec.zfloor, 0, sec.lightlevel);
-		ceilplane = draw_find_plane(sec.zceil, 0, sec.lightlevel);
+		floorplane = draw_find_plane(sec.zfloor, FLOORTEXTURE, sec.lightlevel);
+		ceilplane = draw_find_plane(sec.zceil, CEILTEXTURE, sec.lightlevel);
 
 		// try merging the planes if a plane has been found in the previous step
 		floorplane = draw_check_plane(floorplane, x1, x2);
@@ -629,7 +630,8 @@ void draw_tex_line(i32 x, i32 y0, i32 y1, i32 yf, i32 yc, i32 ayf, f32 u, u8 sha
 	u32 wall_tex_num = wall->tex;
 	LightmapindexTexture* wall_texture_ind = &index_textures[wall_tex_num];
 
-	f32 texture_scale = 10.0f;
+	f32 texture_scale = 30.0f;
+	if (wall->transparent) texture_scale = 10.0f;
 	f32 texheight = wallheight / texture_scale;
 	f32 texwidth = wallwidth / texture_scale;
 
@@ -742,7 +744,7 @@ void draw_clear_planes() {
 }
 
 visplane_t* draw_find_plane(f32 height, i32 picnum, f32 lightlevel) {
-	u8 getNewest = 1;
+	bool getNewest = true;
 	visplane_t* check;
 
 	//reversed doom algorithm
@@ -856,10 +858,11 @@ void draw_make_spans(i32 x, i32 t1, i32 b1, i32 t2, i32 b2, visplane_t* v, Playe
 }
 
 void draw_map_plane(i32 y, i32 x1, i32 x2, visplane_t* v, Player* player) {
-	f32 tex_scale = 4.0f;
+	f32 tex_scale = 30.0f;
+	LightmapindexTexture* floor_tex = &index_textures[v->picnum];
 
-	i32 texheight = 256;
-	i32 texwidth = 256;
+	i32 texheight = floor_tex->height;
+	i32 texwidth = floor_tex->width;
 
 	v2 texsizefactor = { texwidth / tex_scale, texheight / tex_scale };
 
@@ -890,10 +893,8 @@ void draw_map_plane(i32 y, i32 x1, i32 x2, visplane_t* v, Player* player) {
 	u8 floor_row_shade_index = draw_calculate_shade(dis, v->lightlevel);
 
 	for (i32 x = x1; x <= x2; x++) {
-		u32 texture_num = 3;
-		LightmapindexTexture* decal_tex_ind = &index_textures[texture_num];
 		v2i t = { (i32)(p.x) & (texwidth - 1), (i32)(p.y) & (texwidth - 1) };
-		u8 index = decal_tex_ind->indices[(texheight - 1 - t.y) * decal_tex_ind->width + t.x];
+		u8 index = floor_tex->indices[(texheight - 1 - t.y) * floor_tex->width + t.x];
 		draw_pixel_from_lightmap(x, y, index, floor_row_shade_index);
 		zBuffer[y * SCREEN_WIDTH + x] = dis;
 		p.x += xstep;

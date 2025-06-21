@@ -32,7 +32,7 @@ void tickers_run() {
 			ticker_remove(currentticker);
 		}
 		else {
-			//update entity
+			//update ticker
 			currentticker->function(currentticker);
 		}
 		currentticker = nextticker;

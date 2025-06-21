@@ -5,7 +5,8 @@ static u32 tex_amt;
 
 void tex_load(SDL_Surface** surfaces) {
 	SDL_Surface* bmpTex;
-	char textureFileNames[5][50] = { "Assets/test.bmp", "Assets/spritetest2.bmp", "Assets/ammo.bmp", "Assets/test3.bmp", "Assets/test4.bmp" };
+	char textureFileNames[11][50] = { "Assets/test.bmp", "Assets/spritetest2.bmp", "Assets/ammo.bmp", "Assets/test3.bmp", "Assets/test4.bmp",
+									 "Assets/blech2.bmp", "Assets/meteor3.bmp", "Assets/metalmesh.bmp", "Assets/zombie3.bmp", "Assets/vein2.bmp", "Assets/lever.bmp"};
 	tex_amt = sizeof(textureFileNames) / sizeof(textureFileNames[0]);
 
 	for (u32 i = 0; i < tex_amt; i++) {
@@ -19,7 +20,7 @@ void tex_load(SDL_Surface** surfaces) {
 void create_lightmap(Palette* pal) {
 	// "web-safe" palette, but 0 is a special value for transparent color, and there are only 39 gray scale colors at the end
 	// 0 : special value for trasparent 
-	// 1-217 : colors
+	// 1-217 : colors	
 	// 218-255 : gray-scale colors
 	u8 levels[] = {0, 51, 102, 153, 204, 255};
 	u32(*colors)[32] = (u32(*)[32])pal->colors;

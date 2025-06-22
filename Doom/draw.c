@@ -392,8 +392,10 @@ void draw_wall_3d(Player* player, WallRenderingInfo* now, u32 rd) {
 			f32 dy = w.a.y - w.b.y;
 			f32 wallwidth = sqrtf(dx * dx + dy * dy);
 
+			// TODO: remember what transparent walls shoudl get drawn 
+			if (w.transparent) {}
 			//draw Wall
-			if (w.portal == -1 && !w.transparent) {
+			else if (w.portal == -1) {
 				//drawVerticalLine(x, yf, yc, color, pixels); wall in one color
 				if (yc > tyf && yf < tyc) {
 					f32 wallheight = sec.zceil - sec.zfloor;
@@ -402,7 +404,6 @@ void draw_wall_3d(Player* player, WallRenderingInfo* now, u32 rd) {
 				ceilingclip[x] = 0;
 				floorclip[x] = SCREEN_HEIGHT - 1;
 			}
-
 			//draw Portal
 			else {
 				//get top and bottom coordinates of the portal
@@ -967,7 +968,7 @@ void draw_sprites(Player* player, EntityHandler* handler) {
 		i32 spriteScreenX = screen_angle_to_x(spritea);
 		i32 vMoveScreen = (i32)(spritevMove / e.relCamPos.y);
 
-		u32 texture_num = 1;
+		u32 texture_num = e.spriteNum[0];
 		LightmapindexTexture* sprite_ind = &index_textures[texture_num];
 
 		i32 spriteHeight = (i32)((SCREEN_HEIGHT / e.relCamPos.y) * e.scale.y);

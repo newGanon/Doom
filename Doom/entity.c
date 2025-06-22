@@ -174,7 +174,7 @@ bool entity_trymove(Entity* e, bool gravityactive) {
 				v2 mappos = (v2){ intersection.x - curwall->a.x, intersection.y - curwall->a.y };
 				v2 wallpos = (v2){ sqrtf(mappos.x * mappos.x + mappos.y * mappos.y), e->z };
 				bool front = (POINTSIDE2D(pos.x, pos.y, curwall->a.x, curwall->a.y, curwall->b.x, curwall->b.y) < 0);
-				if (map_spawn_decal(wallpos, curwall, (v2) { 2.0f, 2.0f }, 1, front)) {
+				if (map_spawn_decal(wallpos, curwall, (v2) { 2.0f, 2.0f }, 6, front)) {
 					hit = true;
 					break;
 				}
@@ -222,7 +222,7 @@ Entity* entity_create_bullet(v2 pos, f32 z, v2 dir, f32 speed, v2 scale, i32 sec
 		bullet->z = z;
 		bullet->scale = scale;
 		bullet->spriteAmt = 1;
-		bullet->spriteNum[texture] = 1;
+		bullet->spriteNum[0] = texture;
 		bullet->type = Projectile;
 		bullet->dir = dir;
 		bullet->velocity = (v3){ 0 };

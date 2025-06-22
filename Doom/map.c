@@ -51,7 +51,7 @@ void map_init(Map* map1) {
 			// make 2 walls transparent
 			if (map->wallnum == 9 || map->wallnum == 10) {
 				wall->transparent = true;
-				wall->tex = 7;
+				wall->tex = 3;
 			}
 		}
 				 break;

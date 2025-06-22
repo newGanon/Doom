@@ -74,7 +74,7 @@ void player_check_shoot(Player* p, EntityHandler* handler) {
 
 	switch (weapon) {
 		case 0: {
-			Entity* bullet = entity_create_bullet(p->pos, p->z, (v2) { p->anglecos, p->anglesin }, 80.0f, (v2) { 2.0f, 2.0f }, p->sector, NULL, 2.0f, 0);
+			Entity* bullet = entity_create_bullet(p->pos, p->z, (v2) { p->anglecos, p->anglesin }, 80.0f, (v2) { 2.0f, 2.0f }, p->sector, NULL, 2.0f, 6);
 			if (!bullet) break;
 			entity_add(handler, bullet);
 			break;
@@ -83,7 +83,7 @@ void player_check_shoot(Player* p, EntityHandler* handler) {
 			RaycastResult res = map_raycast(map_get_sector(p->sector), p->pos, (v2) { p->pos.x + p->anglecos * 1000.0f, p->pos.y + p->anglesin * 1000.0f }, p->z);
 			if (res.hit) {
 				v2 wallpos = (v2){ sqrtf(res.wall_pos.x * res.wall_pos.x + res.wall_pos.y * res.wall_pos.y), p->z };
-				map_spawn_decal(wallpos, res.wall, (v2) { 2.0f, 2.0f }, 1, res.front);
+				map_spawn_decal(wallpos, res.wall, (v2) { 2.0f, 2.0f }, 6, res.front);
 			}
 			break;
 		}

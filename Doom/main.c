@@ -149,11 +149,11 @@ void init() {
 	Entity* e1 = malloc(sizeof(Entity));
 	if (e1) {
 		e1->animationtick = 0;
-		e1->pos = (v2){ 30.0f, 29.0f };
+		e1->pos = (v2){ 35.0f, 29.0f };
 		e1->scale = (v2){ 4.0f, 4.0f };
 		e1->sector = 0;
 		e1->spriteAmt = 1;
-		e1->spriteNum[0] = 1;
+		e1->spriteNum[0] = 6;
 		e1->speed = 10;
 		e1->tick.function = &tick_item;
 		e1->type = Item;
@@ -172,7 +172,7 @@ void init() {
 		e2->velocity = (v3){ 0, 0, 0 };
 		e2->sector = 0;
 		e2->spriteAmt = 1;
-		e2->spriteNum[0] = 1;
+		e2->spriteNum[0] = 6;
 		e2->speed = 10;
 		e2->tick.function = &tick_enemy;
 		e2->type = Enemy;
@@ -185,12 +185,12 @@ void init() {
 	}*/
 
 	// button to activate infinite up and down in sector 2 
-	Decal* d = map_spawn_decal((v2) { 5.0f, 6.0f }, & state.map.walls[5], (v2) { 3.0f, 3.0f }, 10, true);
+	Decal* d = map_spawn_decal((v2) { 5.0f, 6.0f }, & state.map.walls[5], (v2) { 5.0f, 5.0f }, 6, true);
 	d->tag = 1;
 	d->tag_action = INFINITE_UP_DOWN;
 
 	// button to activate raise staris in sector 9,10,11,12
-	Decal* d2 = map_spawn_decal((v2) { 5.0f, 12.0f }, & state.map.walls[46], (v2) { 3.0f, 3.0f }, 10, true);
+	Decal* d2 = map_spawn_decal((v2) { 5.0f, 12.0f }, & state.map.walls[46], (v2) { 5.0f, 5.0f }, 6, true);
 	d2->tag = 3;
 	d2->tag_action = RAISE_STAIRS;
 

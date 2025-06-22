@@ -87,6 +87,6 @@ typedef struct v3u8_s { u8 x, y, z; } v3u8;
 
 
 // TODO: remove
-#define WALLTEXTURE 9
-#define FLOORTEXTURE 6
-#define CEILTEXTURE 9
+#define WALLTEXTURE 7
+#define FLOORTEXTURE 5
+#define CEILTEXTURE 7

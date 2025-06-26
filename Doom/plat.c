@@ -7,7 +7,7 @@ Platform* activeplats[MAXPLATFORMS];
 i32 find_sector_from_tag(i32 tag, i32 sec_start) {
 	i32 num_of_sectors = map_get_sectoramt();
 	for (i32 i = sec_start; i < num_of_sectors; i++) {
-		Sector* sec = map_get_sector(i);
+		Sector* sec = map_get_sector_by_idx(i);
 		if (sec->tag == tag) return i;
 	}
 	return -1;
@@ -81,7 +81,7 @@ void create_plat(i32 tag, plat_type type, bool floor, i32 sector_search_start_in
 	Sector* sec;
 
 	while ((secnum = find_sector_from_tag(tag, secnum)) >= 0) {
-		sec = map_get_sector(secnum);
+		sec = map_get_sector_by_idx(secnum);
 		// if sector already has an action try to reverse it
 		if (sec->specialdata) {
 			try_reverse_move(sec, type, floor);

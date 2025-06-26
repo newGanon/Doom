@@ -80,7 +80,7 @@ void player_check_shoot(Player* p, EntityHandler* handler) {
 			break;
 		}
 		case 1: {
-			RaycastResult res = map_raycast(map_get_sector(p->sector), p->pos, (v2) { p->pos.x + p->anglecos * 1000.0f, p->pos.y + p->anglesin * 1000.0f }, p->z);
+			RaycastResult res = map_raycast(map_get_sector_by_idxx(p->sector), p->pos, (v2) { p->pos.x + p->anglecos * 1000.0f, p->pos.y + p->anglesin * 1000.0f }, p->z);
 			if (res.hit) {
 				v2 wallpos = (v2){ sqrtf(res.wall_pos.x * res.wall_pos.x + res.wall_pos.y * res.wall_pos.y), p->z };
 				map_spawn_decal(wallpos, res.wall, (v2) { 2.0f, 2.0f }, 6, res.front);
@@ -93,7 +93,7 @@ void player_check_shoot(Player* p, EntityHandler* handler) {
 
 
 void player_interact(Player* p) {
-	Sector* cursec = map_get_sector(p->sector);
+	Sector* cursec = map_get_sector_by_idxx(p->sector);
 	RaycastResult res = map_raycast(cursec, p->pos, (v2) { p->pos. x + p->anglecos * 1000.0f, p->pos.y + p->anglesin * 1000.0f }, p->z);
 	if (res.hit) {
 		if (res.distance > (15.0f)) return;
@@ -110,8 +110,7 @@ void player_interact(Player* p) {
 void player_trymove(Player* p) {
 	//vertical collision detection
 	const f32 gravity = -GRAVITY * SECONDS_PER_UPDATE;
-	Map* map = map_get_map();
-	Sector* cur_sec = map_get_sector(p->sector);
+	Sector* cur_sec = map_get_sector_by_idxx(p->sector);
 	f32 eyeheight = p->sneak ? SNEAKHEIGHT : EYEHEIGHT;
 
 	// floor or ceiling moved
@@ -162,10 +161,10 @@ void player_trymove(Player* p) {
 	v2 intersection;
 	for (u32 k = 0; k < 3; k++) {
 		for (i32 i = cur_sec->index; i < cur_sec->index + cur_sec->numWalls; i++) {
-			Wall curwall = map->walls[i];
+			Wall curwall = *map_get_wall(i);
 			if(get_line_intersection(p->pos, (v2) { p->pos.x + p->velocity.x, p->pos.y + p->velocity.y }, curwall.a, curwall.b, & intersection)){
-				f32 stepl = curwall.portal >= 0 ? map_get_sector(curwall.portal)->zfloor : 10e10f;
-				f32 steph = curwall.portal >= 0 ? map_get_sector(curwall.portal)->zceil : -10e10f;
+				f32 stepl = curwall.portal >= 0 ? map_get_sector_by_idxx(curwall.portal)->zfloor : 10e10f;
+				f32 steph = curwall.portal >= 0 ? map_get_sector_by_idxx(curwall.portal)->zceil : -10e10f;
 				//collision with wall, top or lower part of portal
 				if (stepl > p->z - eyeheight + STEPHEIGHT ||
 					steph < p->z + HEADMARGIN ||
@@ -191,7 +190,7 @@ void player_trymove(Player* p) {
 				//if player fits throught portal change playersector
 				else if (curwall.portal >= 0 && POINTSIDE2D(p->pos.x + p->velocity.x, p->pos.y + p->velocity.y, curwall.a.x, curwall.a.y, curwall.b.x, curwall.b.y) > 0) {
 					collided = true;
-					cur_sec = map_get_sector(curwall.portal);
+					cur_sec = map_get_sector_by_idxx(curwall.portal);
 					p->sector = cur_sec->id;
 					if (p->z < eyeheight + cur_sec->zfloor) p->z = eyeheight + cur_sec->zfloor;
 					else if (p->z > eyeheight + cur_sec->zfloor) p->airborne = true;

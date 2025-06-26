@@ -59,8 +59,8 @@ typedef struct RaycastResult_s {
 
 
 void map_init(Map* map);
-Map* map_get_map();
-Sector* map_get_sector(i32 index);
+Sector* map_get_sector_by_idx(i32 index);
+Sector* map_get_sector_by_idxx(i32 id);
 Wall* map_get_wall(i32 index);
 i32 map_get_sectoramt();
 bool map_point_inside_sector(i32 sec, v2 p); 

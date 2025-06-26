@@ -79,7 +79,7 @@ void tick_bullet(Entity* bullet) {
 	bullet->velocity.y = bullet->dir.y * bullet->speed * SECONDS_PER_UPDATE;
 
 	bool hitwall = entity_trymove(bullet, 0);
-	Sector* sec = map_get_sector(bullet->sector);
+	Sector* sec = map_get_sector_by_idxx(bullet->sector);
 	if (hitwall || sec->zfloor > bullet->z || sec->zceil < bullet->z) {
 		bullet->dirty = true;
 	}
@@ -135,8 +135,7 @@ void entity_check_collisions(EntityHandler* handler, Player* p) {
 
 
 bool entity_trymove(Entity* e, bool gravityactive) {
-	Map* map = map_get_map();
-	Sector curSec = *map_get_sector(e->sector);
+	Sector curSec = *map_get_sector_by_idxx(e->sector);
 
 	if (gravityactive) {
 		//vertical collision detection
@@ -164,12 +163,12 @@ bool entity_trymove(Entity* e, bool gravityactive) {
 	}
 	bool hit = false;
 	for (i32 i = curSec.index; i < curSec.index + curSec.numWalls; i++) {
-		Wall* curwall = &map->walls[i];
+		Wall* curwall = map_get_wall(i);
 		v2 intersection;
 		v2 pos = e->pos;
 		if (get_line_intersection(pos, (v2) { pos.x + e->velocity.x, pos.y + e->velocity.y }, curwall->a, curwall->b, &intersection)) {
-			f32 stepl = curwall->portal >= 0 ? map->sectors[curwall->portal].zfloor : 10e10f;
-			f32 steph = curwall->portal >= 0 ? map->sectors[curwall->portal].zceil : -10e10f;
+			f32 stepl = curwall->portal >= 0 ? map_get_sector_by_idxx(curwall->portal)->zfloor : 10e10f;
+			f32 steph = curwall->portal >= 0 ? map_get_sector_by_idxx(curwall->portal)->zceil : -10e10f;
 			if (e->type == Projectile) {
 				v2 mappos = (v2){ intersection.x - curwall->a.x, intersection.y - curwall->a.y };
 				v2 wallpos = (v2){ sqrtf(mappos.x * mappos.x + mappos.y * mappos.y), e->z };
@@ -197,7 +196,7 @@ bool entity_trymove(Entity* e, bool gravityactive) {
 
 			//if entity fits throught portal change entitysector
 			if (curwall->portal >= 0 && POINTSIDE2D(e->pos.x + e->velocity.x, e->pos.y + e->velocity.y, curwall->a.x, curwall->a.y, curwall->b.x, curwall->b.y) > 0) {
-				curSec = map->sectors[curwall->portal];
+				curSec = *map_get_sector_by_idxx(curwall->portal);
 				e->sector = curSec.id;
 				i = curSec.index;
 				if (e->type == Projectile) continue;

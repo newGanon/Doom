@@ -1,0 +1,25 @@
+#SECTOR <id> <index(number of walls before this sector)> <num walls in sector> <floorheight> <ceilingheigt> <sector light level[0-255]> <tag>
+{SECTORS}
+0 10 0.0 30.0 200 0
+1 6 4.0 30.0 200 0
+#WALL <x0> <y0> <x1> <y1> <portal> <front? [0,1]>
+{WALLS}
+#SECTOR 0
+180 60 180 80 1 0
+180 80 170 80 1 0
+170 80 170 70 1 0
+170 70 160 70 1 0
+160 70 160 60 1 0
+160 60 180 60 1 0
+80 120 270 120 -1 1
+270 120 270 10 -1 1
+270 10 80 10 -1 1
+80 10 80 120 -1 1
+#SECTOR 1
+180 80 180 60 0 1
+170 80 180 80 0 1
+170 70 170 80 0 1
+160 70 170 70 0 1
+160 60 160 70 0 1
+180 60 160 60 0 1
+{END}

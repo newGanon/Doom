@@ -11,7 +11,7 @@
 
 typedef struct WallRenderingInfo {
 	int sectorno, sx1, sx2;
-	bool renderedSectors[SECTOR_MAX];
+	bool renderedwalls[WALL_MAX];
 } WallRenderingInfo;
 
 typedef struct visplane_t {
@@ -123,7 +123,6 @@ void draw_init(u32* pixels1, Palette* lightmap1, LightmapindexTexture* index_tex
 void draw_3d(Player* player, EntityHandler* handler) {
 	draw_clear_planes();
 	WallRenderingInfo wr = { player->sector, 0, SCREEN_WIDTH - 1, { 0 } };
-	wr.renderedSectors[player->sector] = true;
 	memset(drawn_sectors, 0, sizeof(drawn_sectors));
 	draw_wall_3d(player, &wr, 0);
 	draw_planes_3d(player);
@@ -237,9 +236,8 @@ u8 draw_calculate_shade(f32 dis, u8 sec_lightlevel){
 void draw_wall_3d(Player* player, WallRenderingInfo* now, u32 rd) {
 	// recursion depth
 	if (rd > 32) return;
-	Sector sec = *map_get_sector(now->sectorno);
+	Sector sec = *map_get_sector_by_idxx(now->sectorno);
 	for (i32 i = sec.index; i < (sec.index + sec.numWalls); i++) {
-
 		Wall w = *map_get_wall(i);
 		//world pos
 		v2 p1 = world_pos_to_camera(w.a, player->pos, player->anglesin, player->anglecos);
@@ -313,7 +311,7 @@ void draw_wall_3d(Player* player, WallRenderingInfo* now, u32 rd) {
 		f32 nzceil = sec.zceil;
 
 		if (w.portal >= 0) {
-			Sector portal = *map_get_sector(w.portal);
+			Sector portal = *map_get_sector_by_idxx(w.portal);
 			nzfloor = portal.zfloor;
 			nzceil = portal.zceil;
 		}
@@ -432,10 +430,10 @@ void draw_wall_3d(Player* player, WallRenderingInfo* now, u32 rd) {
 			}
 		}
 		drawn_sectors[now->sectorno] = true;
-		if (w.portal >= 0 && !now->renderedSectors[w.portal]) {
+		if (w.portal >= 0 && !now->renderedwalls[i]) {
 			WallRenderingInfo* wr = &(WallRenderingInfo){ w.portal, x1, x2};
-			memcpy(wr->renderedSectors, now->renderedSectors, SECTOR_MAX * sizeof(u8));
-			wr->renderedSectors[now->sectorno] = true;
+			memcpy(wr->renderedwalls, now->renderedwalls, SECTOR_MAX * sizeof(u8));
+			wr->renderedwalls[i] = true;
 			draw_wall_3d(player, wr, ++rd);
 		}
 	}
@@ -445,7 +443,7 @@ void draw_wall_3d(Player* player, WallRenderingInfo* now, u32 rd) {
 void draw_transparent_walls(Player* player) {
 	for (size_t i = 0; i < map_get_sectoramt(); i++) {
 		if (!drawn_sectors[i]) continue;
-		Sector sec = *map_get_sector(i);
+		Sector sec = *map_get_sector_by_idx(i);
 		for (i32 i = sec.index; i < (sec.index + sec.numWalls); i++) {
 			Wall w = *map_get_wall(i);
 			if (!w.transparent) continue;
@@ -591,7 +589,7 @@ void draw_tex_line(i32 x, i32 y0, i32 y1, i32 yf, i32 yc, i32 ayf, f32 u, u8 sha
 			f32 rel_decal_height = map_decal_wall_height(d, wall, zfloor);
 			// if the decal is on the top portal, then sbtract the height of the neighbouring sector, as the thats where the bottom of the wall
 			if (d->wall_type == PORTAL_UPPER) {
-				Sector* sec = map_get_sector(wall->portal);
+				Sector* sec = map_get_sector_by_idxx(wall->portal);
 				rel_decal_height -= sec->zceil;
 			}
 			// if decal is above wall
@@ -692,7 +690,7 @@ void draw_tex_line(i32 x, i32 y0, i32 y1, i32 yf, i32 yc, i32 ayf, f32 u, u8 sha
 			f32 rel_decal_height = map_decal_wall_height(d, wall, zfloor);
 			// if the decal is on the top portal, then sbtract the height of the neighbouring sector, as the thats where the bottom of the wall
 			if (d->wall_type == PORTAL_UPPER) {
-				Sector* sec = map_get_sector(wall->portal);
+				Sector* sec = map_get_sector_by_idxx(wall->portal);
 				rel_decal_height -= sec->zceil;
 			}
 			// if decal is above wall
@@ -991,7 +989,7 @@ void draw_sprites(Player* player, EntityHandler* handler) {
 		v3 tex_res_x = calc_tex_start_and_step(x0, x1, x0_clamp, x1_clamp, sprite_ind->width, 1.0f);
 		f32 tx_start = 256 - tex_res_x.x;
 		f32 stepx = -tex_res_x.z;
-		f32 lightlevel = map_get_sector(e.sector)->lightlevel;
+		f32 lightlevel = map_get_sector_by_idxx(e.sector)->lightlevel;
 
 		f32 tx;
 		u8 shade_index = draw_calculate_shade(e.relCamPos.y, lightlevel);
@@ -1019,9 +1017,8 @@ void draw_minimap(Player* player) {
 	f32 scale = (x_scale + y_scale) / 2;
 
 	i32 sectornum = map_get_sectoramt();
-	for (i32 j = 0; j < sectornum; j++)
-	{
-		Sector sec = *map_get_sector(j);
+	for (i32 j = 0; j < sectornum; j++) {
+		Sector sec = *map_get_sector_by_idx(j);
 		for (i32 i = sec.index; i < (sec.index + sec.numWalls); i++) {
 			Wall w = *map_get_wall(i);
 			draw_line((i32)(w.a.x * scale + mapoffset.x), (i32)(w.a.y * scale + mapoffset.y), (i32)(w.b.x * scale + mapoffset.x), (i32)(w.b.y * scale + mapoffset.y), WHITE);

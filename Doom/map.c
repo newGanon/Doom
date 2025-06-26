@@ -8,7 +8,7 @@ static Map* map;
 void map_init(Map* map1) {
 	map = map1;
 	FILE* fp = NULL;
-	fopen_s(&fp, "Levels/level.txt", "r");
+	fopen_s(&fp, "Levels/save.txt", "r");
 	ASSERT(fp, "error opening leveldata file");
 	enum { SECTOR, WALL, NONE } sm = NONE;
 	bool done = false;
@@ -29,7 +29,7 @@ void map_init(Map* map1) {
 		case SECTOR: {
 			Sector* sector = &map->sectors[map->sectoramt++];
 			sscanf_s(p, "%d %d %f %f %d %d", &sector->id, &sector->numWalls, &sector->zfloor, &sector->zceil, &sector->lightlevel, &sector->tag);
-			sector->id -= 1;
+			//sector->id -= 1;
 			sector->zfloor_old = sector->zfloor;
 			if (sector->id == 0) {
 				sector->index = 0;
@@ -43,16 +43,17 @@ void map_init(Map* map1) {
 				   break;
 		case WALL: {
 			Wall* wall = &map->walls[map->wallnum++];
-			sscanf_s(p, "%f %f %f %f %d", &wall->a.x, &wall->a.y, &wall->b.x, &wall->b.y, &wall->portal);
-			wall->portal -= 1;
+			i32 front;
+			sscanf_s(p, "%f %f %f %f %d %d", &wall->a.x, &wall->a.y, &wall->b.x, &wall->b.y, &wall->portal, &front);
+			//wall->portal -= 1;
 			wall->tex = WALLTEXTURE;
 
 			// TODO: REMOVE
 			// make 2 walls transparent
-			if (map->wallnum == 9 || map->wallnum == 10) {
-				wall->transparent = true;
-				wall->tex = 3;
-			}
+			//if (map->wallnum == 9 || map->wallnum == 10) {
+			//	wall->transparent = true;
+			//	wall->tex = 3;
+			//}
 		}
 				 break;
 		case NONE:
@@ -106,9 +107,24 @@ void map_sort_walls(v2 cam_pos, f32 camsin, f32 camcos) {
 	}
 }
 
-Sector* map_get_sector(i32 index) {
+Sector* map_get_sector_by_idx(i32 index) {
 	if (index > map->sectoramt) return NULL;
 	else return &map->sectors[index];
+}
+
+Sector* map_get_sector_by_idxx(i32 index) {
+	if (index > map->sectoramt) return NULL;
+	else return &map->sectors[index];
+}
+
+Sector* map_get_sector_by_id(i32 id) {
+	for (i32 i = 0; i < map->sectoramt; i++) {
+		Sector* sec = &map->sectors[i];
+		if (sec->id == id) {
+			return sec;
+		}
+	}
+	return NULL;
 }
 
 Wall* map_get_wall(i32 index) {
@@ -118,10 +134,6 @@ Wall* map_get_wall(i32 index) {
 
 i32 map_get_sectoramt() {
 	return map->sectoramt;
-}
-
-Map* map_get_map() {
-	return map;
 }
 
 wall_section_type map_get_walltype_from_position(v2 wallpos, Wall* curwall, f32 stepl, f32 steph) {
@@ -142,8 +154,9 @@ wall_section_type map_get_walltype_from_position(v2 wallpos, Wall* curwall, f32 
 
 
 Decal* map_spawn_decal(v2 wallpos, Wall* curwall, v2 size, i32 tex_id, bool front) {
-	f32 stepl = curwall->portal >= 0 ? map->sectors[curwall->portal].zfloor : 10e10f;
-	f32 steph = curwall->portal >= 0 ? map->sectors[curwall->portal].zceil : -10e10f;
+	
+	f32 stepl = curwall->portal >= 0 ? map_get_sector_by_idxx(curwall->portal)->zfloor : 10e10f;
+	f32 steph = curwall->portal >= 0 ? map_get_sector_by_idxx(curwall->portal)->zceil : -10e10f;
 	wall_section_type type = map_get_walltype_from_position(wallpos, curwall, stepl, steph);
 	if (type == NONE) return NULL;
 	Decal* decal = malloc(sizeof(Decal));
@@ -261,13 +274,13 @@ f32 map_decal_wall_height(Decal* d, Wall* wall, f32 cur_sec_floorz) {
 		}
 		// decal has height relative to floor of portal sector
 		case PORTAL_LOWER: {
-			Sector* sec = map_get_sector(wall->portal);
+			Sector* sec = map_get_sector_by_idxx(wall->portal);
 			rel_decal_height = (d->wallpos.y + sec->zfloor) - cur_sec_floorz;
 			break;
 		}
 		// decal has height relative to ceil of portal sector
 		case PORTAL_UPPER: {
-			Sector* sec = map_get_sector(wall->portal);
+			Sector* sec = map_get_sector_by_idxx(wall->portal);
 			rel_decal_height = d->wallpos.y + sec->zceil;
 			break;
 		}
@@ -290,14 +303,14 @@ RaycastResult map_raycast(Sector* cursec, v2 pos, v2 target_pos, f32 z) {
 			else if (curwall->portal == -1) { hit = true; }
 			// portal hit
 			else {
-				f32 stepl = map_get_sector(curwall->portal)->zfloor;
-				f32 steph = map_get_sector(curwall->portal)->zceil;
+				f32 stepl = map_get_sector_by_idxx(curwall->portal)->zfloor;
+				f32 steph = map_get_sector_by_idxx(curwall->portal)->zceil;
 				// top or bottom of portal hit
 				if (stepl > z || steph < z) { hit = true; }
 				// fit through portal, change sector
 				else {
 					if (POINTSIDE2D(target_pos.x, target_pos.y, curwall->a.x, curwall->a.y, curwall->b.x, curwall->b.y) > 0) {
-						cursec = map_get_sector(curwall->portal);
+						cursec = map_get_sector_by_idxx(curwall->portal);
 						i = cursec->index;
 						pos = intersection;
 					}

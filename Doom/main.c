@@ -10,6 +10,8 @@
 #include "plat.h"
 #include "entityhandler.h"
 
+
+//TODO: each render should be able to look at arach wall not just each sector once
 struct {
 	// sdl
 	SDL_Window* window;
@@ -185,14 +187,14 @@ void init() {
 	}*/
 
 	// button to activate infinite up and down in sector 2 
-	Decal* d = map_spawn_decal((v2) { 5.0f, 6.0f }, & state.map.walls[5], (v2) { 5.0f, 5.0f }, 6, true);
-	d->tag = 1;
-	d->tag_action = INFINITE_UP_DOWN;
+	//Decal* d = map_spawn_decal((v2) { 5.0f, 6.0f }, & state.map.walls[5], (v2) { 5.0f, 5.0f }, 6, true);
+	//d->tag = 1;
+	//d->tag_action = INFINITE_UP_DOWN;
 
 	// button to activate raise staris in sector 9,10,11,12
-	Decal* d2 = map_spawn_decal((v2) { 5.0f, 12.0f }, & state.map.walls[46], (v2) { 5.0f, 5.0f }, 6, true);
-	d2->tag = 3;
-	d2->tag_action = RAISE_STAIRS;
+	//Decal* d2 = map_spawn_decal((v2) { 5.0f, 12.0f }, & state.map.walls[46], (v2) { 5.0f, 5.0f }, 6, true);
+	//d2->tag = 3;
+	//d2->tag_action = RAISE_STAIRS;
 
 	//create_plat(1, INFINITE_UP_DOWN, true, 0, 0.0f);
 	create_plat(2, INFINITE_UP_DOWN, false, 0, 0.0f);
@@ -200,7 +202,7 @@ void init() {
 
 	//state.player.pos = (v2){ 210.0f, 30.0f};
 	//state.player.sector = 7;
-	state.player.pos = (v2){ 22.0f, 15.0f};
+	state.player.pos = (v2){ 100.0f, 40.0f};
 	state.player.sector = 0;
 	state.player.z = EYEHEIGHT + state.map.sectors[state.player.sector].zfloor;
 	state.player.airborne = false;
